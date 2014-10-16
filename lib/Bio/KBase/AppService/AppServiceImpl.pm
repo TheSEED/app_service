@@ -21,6 +21,7 @@ use JSON::XS;
 use Data::Dumper;
 use Bio::KBase::NarrativeService::Awe;
 use Bio::KBase::DeploymentConfig;
+use File::Slurp;
 
 
 #END_HEADER
@@ -36,7 +37,9 @@ sub new
     my $cfg = Bio::KBase::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
     my $awe_server = $cfg->setting("awe-server");
     $self->{awe_server} = $awe_server;
-
+    my $app_dir = $cfg->setting("app-directory");
+    $self->{app_dir} = $app_dir;
+	
     #END_CONSTRUCTOR
 
     if ($self->can('_init_instance'))
@@ -123,15 +126,31 @@ sub enumerate_apps
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($return);
     #BEGIN enumerate_apps
-    #
-    # A simple test app.
-    #
-
     $return = [];
-    push @$return, {
-	id => "test_app",
-	parameters => [ { name => 'param_1', desc => 'A Parameter', type => 'int' } ],
-    };
+
+    my $dh;
+    my $dir = $self->{app_dir};
+    if (!$dir) {
+	warn "No app directory specified\n";
+    } elsif (opendir($dh, $dir)) {
+	my @files = sort { $a cmp $b } grep { /\.json$/ && -f "$dir/$_" } readdir($dh);
+	closedir($dh);
+	for my $f (@files)
+	{
+	    my $obj = decode_json(scalar read_file("$dir/$f"));
+	    if (!$obj)
+	    {
+		warn "Could not read $dir/$f\n";
+	    }
+	    else
+	    {
+		push(@$return, $obj);
+	    }
+	}
+    } else {
+	warn "Could not open app-dir $dir: $!";
+    }
+    
     #END enumerate_apps
     my @_bad_returns;
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");

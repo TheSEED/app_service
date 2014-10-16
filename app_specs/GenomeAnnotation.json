@@ -28,7 +28,7 @@
 			"default":11,
 			"desc":"Genetic code used in translation of DNA sequences",
 			"type":"enum",
-			"enum":["11","7"],
+			"enum":["11","7"]
 		},
 		{
 			"name":"genome",
