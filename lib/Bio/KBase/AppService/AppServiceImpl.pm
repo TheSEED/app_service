@@ -19,7 +19,8 @@ AppService
 
 use JSON::XS;
 use Data::Dumper;
-use Bio::KBase::NarrativeService::Awe;
+use Bio::KBase::AppService::Awe;
+use Bio::KBase::AppService::Util;
 use Bio::KBase::DeploymentConfig;
 use File::Slurp;
 
@@ -39,6 +40,8 @@ sub new
     $self->{awe_server} = $awe_server;
     my $app_dir = $cfg->setting("app-directory");
     $self->{app_dir} = $app_dir;
+
+    $self->{util} = Bio::KBase::AppService::Util->new($self);
 	
     #END_CONSTRUCTOR
 
@@ -128,28 +131,7 @@ sub enumerate_apps
     #BEGIN enumerate_apps
     $return = [];
 
-    my $dh;
-    my $dir = $self->{app_dir};
-    if (!$dir) {
-	warn "No app directory specified\n";
-    } elsif (opendir($dh, $dir)) {
-	my @files = sort { $a cmp $b } grep { /\.json$/ && -f "$dir/$_" } readdir($dh);
-	closedir($dh);
-	for my $f (@files)
-	{
-	    my $obj = decode_json(scalar read_file("$dir/$f"));
-	    if (!$obj)
-	    {
-		warn "Could not read $dir/$f\n";
-	    }
-	    else
-	    {
-		push(@$return, $obj);
-	    }
-	}
-    } else {
-	warn "Could not open app-dir $dir: $!";
-    }
+    push(@$return $self->{util}->enumerate_apps();
     
     #END enumerate_apps
     my @_bad_returns;
@@ -254,7 +236,6 @@ sub start_app
 	workspace => $workspace,
     };
 	
-
     my $job = $awe->create_job_description(pipeline => 'NarrativeService',
 					   name => $app_id,
 					   project => 'NarrativeService',
