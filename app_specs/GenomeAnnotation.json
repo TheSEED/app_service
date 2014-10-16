@@ -1,0 +1,42 @@
+{
+	"id":"GenomeAnnotation",
+	"script":"App-GenomeAnnotation.pl",
+	"label":"Annotate genome",
+	"description":"Calls genes and functionally annotate input contig set.",
+	"parameters":[
+		{
+			"id":"contigset",
+			"required":1,
+			"default":null,
+			"label":"Contig Set Object",
+			"desc":"Input set of DNA contigs for annotation",
+			"wstype":"KBaseGenomes.ContigSet",
+			"type":"wstype"
+		},
+		{
+			"id":"species",
+			"label":"Scientific Name",
+			"required":1,
+			"default":null,
+			"desc":"Scientific name of genome to be annotated",
+			"type":"string"
+		},
+		{
+			"id":"code",
+			"label":"Genetic Code",
+			"required":1,
+			"default":11,
+			"desc":"Genetic code used in translation of DNA sequences",
+			"type":"enum",
+			"enum":["11","7"],
+		},
+		{
+			"name":"genome",
+			"label":"Output Genome ID",
+			"required":0,
+			"default":null,
+			"desc":"Name to use when saving annotated genome to workspace",
+			"type":"wsid"
+		}
+	]
+}
