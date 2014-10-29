@@ -67,7 +67,8 @@ sub put_file
 	    
 sub put_file_data
 {
-    my($self, $file_data) = @_;
+    my($self, $file_data, $name) = @_;
+    $name = "user_data" unless $name;
     my $url = $self->server . "/node";
     my $res = $self->ua->post($url,
 			      @{$self->{auth_header}},
@@ -83,7 +84,7 @@ sub put_file_data
     }
     else
     {
-	die "put_file failed: " . $res->content;
+	die "put_file_data failed: " . $res->content;
     }
 }    
 	    

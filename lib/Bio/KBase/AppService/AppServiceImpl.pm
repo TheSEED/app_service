@@ -131,7 +131,7 @@ sub enumerate_apps
     #BEGIN enumerate_apps
     $return = [];
 
-    push(@$return $self->{util}->enumerate_apps();
+    push(@$return, $self->{util}->enumerate_apps());
     
     #END enumerate_apps
     my @_bad_returns;
@@ -228,29 +228,37 @@ sub start_app
     # Create a new workflow for this task.
     #
 
+    my $app = $self->{util}->find_app($app_id);
+
+    if (!$app)
+    {
+	die "Could not find app for id $app_id\n";
+    }
+
     my $awe = Bio::KBase::NarrativeService::Awe->new($self->{awe_server}, $ctx->token);
 
+    my $param_str = encode_json($params);
+    
     my $userattr = {
 	app_id => $app_id,
-	parameters => encode_json($params),
+	parameters => $param_str,
 	workspace => $workspace,
     };
 	
-    my $job = $awe->create_job_description(pipeline => 'NarrativeService',
+    my $job = $awe->create_job_description(pipeline => 'AppService',
 					   name => $app_id,
-					   project => 'NarrativeService',
+					   project => 'AppService',
 					   user => $ctx->user_id,
 					   clientgroups => '',
 					   userattr => $userattr,
 					  );
-    #
-    # The real code would walk through the app definition creating tasks for
-    # each step. Here we just create one for grins.
-    #
+
+    my $shock = Shock->new($self->{shock_server}, $ctx->token);
+    my $id = $shock->put_file_data($param_str, "params");
 
     my $task_userattr = {};
-    my $task_id = $job->add_task("all_entities_Genome",
-				 "all_entities_Genome",
+    my $task_id = $job->add_task($app->{script},
+				 $app->{script},
 				 "",
 				 [],
 				 [],
