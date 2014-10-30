@@ -23,7 +23,7 @@ use Bio::KBase::AppService::Awe;
 use Bio::KBase::AppService::Util;
 use Bio::KBase::DeploymentConfig;
 use File::Slurp;
-
+use UUID;
 
 #END_HEADER
 
@@ -238,11 +238,20 @@ sub start_app
     my $awe = Bio::KBase::NarrativeService::Awe->new($self->{awe_server}, $ctx->token);
 
     my $param_str = encode_json($params);
+
+    #
+    # Create an identifier we can use to match the Shock nodes we create for this
+    # job with the job itself.
+    #
+    my($task_file_uuid, $task_file_id);
+    UUID::generate($task_file_uuid);
+    UUID::unparse($task_file_uuid, $task_file_id);
     
     my $userattr = {
 	app_id => $app_id,
 	parameters => $param_str,
 	workspace => $workspace,
+	task_file_id => $task_file_id,
     };
 	
     my $job = $awe->create_job_description(pipeline => 'AppService',
@@ -254,7 +263,9 @@ sub start_app
 					  );
 
     my $shock = Shock->new($self->{shock_server}, $ctx->token);
-    my $id = $shock->put_file_data($param_str, "params");
+    $shock->tag_nodes(task_file_id => $task_file_id,
+		      app_id => $app_id);
+    my $params_node_id = $shock->put_file_data($param_str, "params");
 
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},

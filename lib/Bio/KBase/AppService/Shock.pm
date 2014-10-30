@@ -5,6 +5,7 @@ use REST::Client;
 use LWP::UserAgent;
 use JSON::XS;
 use Data::Dumper;
+use HTTP::Request::Common;
 
 use base 'Class::Accessor';
 
@@ -30,8 +31,16 @@ sub new
 	json => JSON::XS->new,
 	(defined($auth_token) ? (auth_token => $auth_token) : ()),
 	auth_header => \@auth_header,
+	tags => {},
     };
     return bless $self, $class;
+}
+
+sub tag_nodes
+{
+    my($self, %tags) = @_;
+    
+    $self->{tags}->{$_} = $tags{$_} foreach keys %tags;
 }
 
 sub get_file
@@ -57,6 +66,8 @@ sub put_file
     {
 	my $ret = $self->json->decode($res->content);
 	my $id = $ret->{data}->{id};
+
+	$self->put_attributes($id);
 	return $id;
     }
     else
@@ -74,11 +85,12 @@ sub put_file_data
 			      @{$self->{auth_header}},
 			      Content_Type => 'multipart/form-data',
 			      Content_Length => length($file_data),
-			      Content => [upload => [undef, 'user_data', Content => $file_data]]);
+			      Content => [upload => [undef, $name, Content => $file_data]]);
     if ($res->is_success)
     {
 	my $ret = $self->json->decode($res->content);
 	my $id = $ret->{data}->{id};
+	$self->put_attributes($id);
 	# print Dumper($ret);
 	return $id;
     }
@@ -88,5 +100,24 @@ sub put_file_data
     }
 }    
 	    
+
+sub put_attributes
+{
+    my($self, $node) = @_;
+
+    return unless %{$self->{tags}};
+
+    my $tjson = $self->json->encode($self->{tags});
+    my $url = $self->server . "/node/$node";
+    my $req = HTTP::Request::Common::POST($url, 
+					  @{$self->{auth_header}},
+					  Content_Type => 'multipart/form-data',
+					  Content => [attributes_str => $tjson]);
+    $req->method('PUT');
+    print Dumper($req);
+    my $res = $self->ua->request($req);
+    print Dumper($res->content);
+}
+
 
 1;
