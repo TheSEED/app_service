@@ -10,7 +10,7 @@ use Capture::Tiny 'capture';
 
 use Data::Dumper;
 
-@ARGV == 2 or @ARGV == 4 or die "Usage: $0 app-definition.json param-values.json\n";
+@ARGV == 2 or @ARGV == 4 or die "Usage: $0 app-definition.json param-values.json [stdout-file stderr-file]\n";
 
 my $json = JSON::XS->new->pretty(1);
 
