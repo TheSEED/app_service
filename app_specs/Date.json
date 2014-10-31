@@ -1,0 +1,8 @@
+{
+	"id":"Date",
+	"script":"App-Date",
+	"label":"Date",
+	"description":"Returns the current date and time.",
+	"parameters":[
+	]
+}

@@ -125,7 +125,13 @@ sub auth_header
 sub create_job_description
 {
     my($self, %info) = @_;
-    return Bio::KBase::AppService::Awe::JobDescription->new(%info);
+    return Bio::KBase::AppService::Awe::JobDescription->new($self, %info);
+}
+
+sub create_job_file
+{
+    my($self, $name, $shock_host, $shock_node) = @_;
+    return Bio::KBase::AppService::Awe::JobFile->new($name, $shock_host, $shock_node);
 }
 
 package Bio::KBase::AppService::Awe::JobDescription;
@@ -136,10 +142,13 @@ use JSON::XS;
 
 sub new
 {
-    my($class, %info) = @_;
+    my($class, $awe, %info) = @_;
     my $self = {
-	info => { %info },
-	tasks => [],
+	awe => $awe,
+	job => {
+	    info => { %info },
+	    tasks => [],
+	},
     };
     return bless $self, $class;
 }
@@ -148,23 +157,24 @@ sub as_json
 {
     my($self) = @_;
     my $json = JSON::XS->new->ascii->pretty->allow_nonref->convert_blessed;
-    return $json->encode($self);
+    return $json->encode($self->{job});
 }
 
 sub TO_JSON
 {
     my($self) = @_;
-    return { %$self }; 
+    return { %{$self->{job}} }; 
 }
      
 sub add_task
 {
-    my($self, $description, $cmd, $args, $deps, $inputs, $outputs, $partinfo, $totalwork, $awe,
-       $userattr) = @_;
+    my($self, $description, $cmd, $args, $deps, $inputs, $outputs, $partinfo, $totalwork, $userattr) = @_;
 
+    my $awe = $self->{awe};
+    
     $partinfo = {} unless ref($partinfo);
     
-    my $taskid = scalar(@{$self->{tasks}});
+    my $taskid = scalar(@{$self->{job}->{tasks}});
 
     my $input_set = {};
     for my $inp (@$inputs)
@@ -218,7 +228,7 @@ sub add_task
 	totalwork => ($totalwork || 1),
 	defined($userattr) ? (userattr => $userattr) : (),
     };
-    push(@{$self->{tasks}}, $task);
+    push(@{$self->{job}->{tasks}}, $task);
     return $taskid;
 }
 

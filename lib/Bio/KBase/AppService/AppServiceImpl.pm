@@ -20,6 +20,7 @@ AppService
 use JSON::XS;
 use Data::Dumper;
 use Bio::KBase::AppService::Awe;
+use Bio::KBase::AppService::Shock;
 use Bio::KBase::AppService::Util;
 use Bio::KBase::DeploymentConfig;
 use File::Slurp;
@@ -38,6 +39,8 @@ sub new
     my $cfg = Bio::KBase::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
     my $awe_server = $cfg->setting("awe-server");
     $self->{awe_server} = $awe_server;
+    my $shock_server = $cfg->setting("shock-server");
+    $self->{shock_server} = $shock_server;
     my $app_dir = $cfg->setting("app-directory");
     $self->{app_dir} = $app_dir;
 
@@ -224,6 +227,8 @@ sub start_app
     my($task);
     #BEGIN start_app
 
+    my $json = JSON::XS->new->pretty(1);
+
     #
     # Create a new workflow for this task.
     #
@@ -235,9 +240,9 @@ sub start_app
 	die "Could not find app for id $app_id\n";
     }
 
-    my $awe = Bio::KBase::NarrativeService::Awe->new($self->{awe_server}, $ctx->token);
+    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
 
-    my $param_str = encode_json($params);
+    my $param_str = $json->encode($params);
 
     #
     # Create an identifier we can use to match the Shock nodes we create for this
@@ -262,21 +267,31 @@ sub start_app
 					   userattr => $userattr,
 					  );
 
-    my $shock = Shock->new($self->{shock_server}, $ctx->token);
+    my $shock = Bio::KBase::AppService::Shock->new($self->{shock_server}, $ctx->token);
     $shock->tag_nodes(task_file_id => $task_file_id,
 		      app_id => $app_id);
     my $params_node_id = $shock->put_file_data($param_str, "params");
 
+    my $app_node_id = $shock->put_file_data($json->encode($app), "app");
+
+    my $app_file = $awe->create_job_file("app", $shock->server, $app_node_id);
+    my $params_file = $awe->create_job_file("params", $shock->server, $params_node_id);
+
+    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
+    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
+    
+
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},
 				 $app->{script},
-				 "",
+				 join(" ",
+				      $app_file->in_name, $params_file->in_name,
+				      $stdout_file->name, $stderr_file->name),
 				 [],
-				 [],
-				 [],
+				 [$app_file, $params_file],
+				 [$stdout_file, $stderr_file],
 				 undef,
 				 undef,
-				 $awe,
 				 $task_userattr,
 				);
 
@@ -286,7 +301,7 @@ sub start_app
 
     $task = {
 	id => $task_id,
-	app_id => $app_id,
+	app => $app_id,
 	workspace => $workspace,
 	parameters => $params,
     };
@@ -433,6 +448,9 @@ sub enumerate_tasks
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($return);
     #BEGIN enumerate_tasks
+
+    
+
     #END enumerate_tasks
     my @_bad_returns;
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");

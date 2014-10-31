@@ -1,0 +1,37 @@
+use strict;
+use Data::Dumper;
+use DateTime;
+use LWP::UserAgent;
+use Bio::KBase::AuthToken;
+use REST::Client;
+use JSON::XS;
+use MongoDB;
+
+my $json = JSON::XS->new->pretty(1);
+
+my $cli = MongoDB::MongoClient->new(host => 'localhost', port => 27017);
+my $db = $cli->get_database('AWEDB');
+my $col = $db->get_collection("Jobs");
+
+my $token = Bio::KBase::AuthToken->new();
+my $rest = REST::Client->new();
+$rest->addHeader("Authorization", "OAuth " . $token->token);
+my $url = "http://redwood:7080";
+
+my $cur = $col->find({ "info.user" => "olson" });
+
+while (my $j = $cur->next)
+{
+    my $info = $j->{info};
+    my $start = $info->{startedtime};
+    my $proj = $info->{project};
+    my $id = $j->{id};
+    my $user = $info->{user};
+    my $state = $j->{state};
+
+    next unless $user eq 'olson';
+    print join("\t", $id, $user, $proj, $state, $start), "\n";
+
+#    $rest->DELETE("$url/job/$id");
+
+}
