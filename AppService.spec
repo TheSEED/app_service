@@ -34,7 +34,7 @@ module AppService
 	task_parameters parameters;
     } Task;
 
-    //    typedef mapping<string stage, string status> task_status;
+    /*   typedef mapping<string stage, string status> task_status; */
     typedef string task_status;
 
     funcdef enumerate_apps()

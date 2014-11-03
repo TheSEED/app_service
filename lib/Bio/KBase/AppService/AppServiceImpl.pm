@@ -334,7 +334,7 @@ sub start_app
 $tasks is a reference to a list where each element is a task_id
 $status is a reference to a hash where the key is a task_id and the value is a task_status
 task_id is a string
-task_status is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 
 </pre>
 
@@ -345,7 +345,7 @@ task_status is a reference to a hash where the key is a string and the value is 
 $tasks is a reference to a list where each element is a task_id
 $status is a reference to a hash where the key is a task_id and the value is a task_status
 task_id is a string
-task_status is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 
 
 =end text
@@ -771,19 +771,24 @@ parameters has a value which is a task_parameters
 
 
 
+=item Description
+
+typedef mapping<string stage, string status> task_status;
+
+
 =item Definition
 
 =begin html
 
 <pre>
-a reference to a hash where the key is a string and the value is a string
+a string
 </pre>
 
 =end html
 
 =begin text
 
-a reference to a hash where the key is a string and the value is a string
+a string
 
 =end text
 
