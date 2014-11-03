@@ -59,6 +59,30 @@ sub submit
     }
 }
 
+sub GET
+{
+    my($self, $query) = @_;
+    my $url = $self->server . "/$query";
+    my $res = $self->ua->get($url, $self->auth_header());
+
+    if ($res->is_success)
+    {
+	my $awe_res = $self->json->decode($res->content);
+	if ($awe_res->{status} eq 200)
+	{
+	    return $awe_res;
+	}
+	else
+	{
+	    return undef, $awe_res->{error};
+	}
+    }
+    else
+    {
+	return undef, $res->content;
+    }
+}
+
 sub job_state
 {
     my($self, $job_id) = @_;

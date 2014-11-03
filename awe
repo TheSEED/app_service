@@ -18,7 +18,7 @@ my $rest = REST::Client->new();
 $rest->addHeader("Authorization", "OAuth " . $token->token);
 my $url = "http://redwood:7080";
 
-my $cur = $col->find({ "info.user" => "olson" });
+my $cur = $col->find({ '$and' => [ { "info.user" => "olson" },  { state => { '$ne' => "deleted" }}  ] });
 
 while (my $j = $cur->next)
 {
@@ -30,7 +30,7 @@ while (my $j = $cur->next)
     my $state = $j->{state};
 
     next unless $user eq 'olson';
-    print join("\t", $id, $user, $proj, $state, $start), "\n";
+    print join("\t", $id, $user, $proj, $state, $start, $info->{priority}), "\n";
 
 #    $rest->DELETE("$url/job/$id");
 

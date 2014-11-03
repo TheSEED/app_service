@@ -265,6 +265,7 @@ sub start_app
 					   user => $ctx->user_id,
 					   clientgroups => '',
 					   userattr => $userattr,
+					   priority => 2,
 					  );
 
     my $shock = Bio::KBase::AppService::Shock->new($self->{shock_server}, $ctx->token);
@@ -375,6 +376,17 @@ sub query_task_status
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($status);
     #BEGIN query_task_status
+
+    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
+
+    $status = {};
+
+    for my $task_id (@$tasks)
+    {
+	my ($res, $error) = $awe->job_state($task_id);
+	$status->{$task_id} = $res;
+    }
+
     #END query_task_status
     my @_bad_returns;
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
@@ -449,7 +461,35 @@ sub enumerate_tasks
     my($return);
     #BEGIN enumerate_tasks
 
-    
+    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
+
+    $return = [];
+
+    #
+    # TODO: paging of requests
+    #
+
+    my $q = "/job?query&info.user=" . $ctx->user_id . "&info.pipeline=AppService";
+    print STDERR "Query tasks: $q\n";
+    my ($res, $error) = $awe->GET($q);
+    if ($res)
+    {
+	for my $t (@{$res->{data}})
+	{
+	    my $u = $t->{info}->{userattr};
+	    my $r = {
+		id => $t->{id},
+		app => $u->{app_id},
+		workspace => $u->{workspace},
+		parameters => decode_json($u->{parameters}),
+	    };
+	    push(@$return, $r);
+	}
+    }
+    else
+    {
+	die "Query failed: $error\n";
+    }
 
     #END enumerate_tasks
     my @_bad_returns;
