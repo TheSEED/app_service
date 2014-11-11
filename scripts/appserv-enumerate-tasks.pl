@@ -12,16 +12,24 @@ print($usage->text), exit 1 if (@ARGV != 0);
 
 my $client = Bio::KBase::AppService::Client->new($opt->url);
 
-my $tasks = $client->enumerate_tasks();
+my $limit = 25;
+my $offset = 0;
 
-my $mlab = 0;
-my $mid = 0;
+my @tasks;
 
-my $status = $client->query_task_status([ map { $_->{id} } @$tasks ]);
-
-for my $task (@$tasks)
+while (1)
 {
+    my $tasks = $client->enumerate_tasks($offset, $limit);
 
-    print join("\t", $task->{id}, $task->{app}, $task->{workspace}, $status->{$task->{id}}), "\n";
+    last unless @$tasks;
+    
+    $offset += $limit;
+
+    push(@tasks, @$tasks);
+}
+
+for my $task (@tasks)
+{
+    print join("\t", $task->{id}, $task->{app}, $task->{workspace}, $task->{status}, $task->{submit_time}, $task->{completed_time}), "\n";
 }
 

@@ -26,6 +26,41 @@ use Bio::KBase::DeploymentConfig;
 use File::Slurp;
 use UUID;
 
+sub _lookup_task
+{
+    my($self, $awe, $task_id) = @_;
+
+    my $task;
+    my $q = "/job/$task_id";
+    print STDERR "_lookup_task: $q\n";
+    my ($res, $error) = $awe->GET($q);
+    if ($res)
+    {
+	$task = $self->_awe_to_task($res->{data});
+    }
+    
+    return $task;
+}
+
+sub _awe_to_task
+{
+    my($self, $t) = @_;
+    
+    my $i = $t->{info};
+    my $u = $i->{userattr};
+    my $task = {
+	id => $t->{id},
+	app => $u->{app_id},
+	workspace => $u->{workspace},
+	parameters => decode_json($u->{parameters}),
+	status => $t->{state},
+	submit_time => $i->{submittime},
+	start_time => $i->{starttime},
+	completed_time => $i->{completedtime},
+    };
+    return $task;
+}
+
 #END_HEADER
 
 sub new
@@ -173,7 +208,12 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
 task_id is a string
+task_status is a string
 
 </pre>
 
@@ -193,7 +233,12 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
 task_id is a string
+task_status is a string
 
 
 =end text
@@ -300,12 +345,7 @@ sub start_app
 
     my $task_id = $awe->submit($job);
 
-    $task = {
-	id => $task_id,
-	app => $app_id,
-	workspace => $workspace,
-	parameters => $params,
-    };
+    $task = $self->_lookup_task($awe, $task_id);
     #END start_app
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
@@ -320,9 +360,9 @@ sub start_app
 
 
 
-=head2 query_task_status
+=head2 query_tasks
 
-  $status = $obj->query_task_status($tasks)
+  $tasks = $obj->query_tasks($task_ids)
 
 =over 4
 
@@ -331,9 +371,21 @@ sub start_app
 =begin html
 
 <pre>
-$tasks is a reference to a list where each element is a task_id
-$status is a reference to a hash where the key is a task_id and the value is a task_status
+$task_ids is a reference to a list where each element is a task_id
+$tasks is a reference to a hash where the key is a task_id and the value is a Task
 task_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+app_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
 
 </pre>
@@ -342,9 +394,21 @@ task_status is a string
 
 =begin text
 
-$tasks is a reference to a list where each element is a task_id
-$status is a reference to a hash where the key is a task_id and the value is a task_status
+$task_ids is a reference to a list where each element is a task_id
+$tasks is a reference to a hash where the key is a task_id and the value is a Task
 task_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+app_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
 
 
@@ -360,40 +424,101 @@ task_status is a string
 
 =cut
 
-sub query_task_status
+sub query_tasks
 {
     my $self = shift;
-    my($tasks) = @_;
+    my($task_ids) = @_;
 
     my @_bad_arguments;
-    (ref($tasks) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"tasks\" (value was \"$tasks\")");
+    (ref($task_ids) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"task_ids\" (value was \"$task_ids\")");
     if (@_bad_arguments) {
-	my $msg = "Invalid arguments passed to query_task_status:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	my $msg = "Invalid arguments passed to query_tasks:\n" . join("", map { "\t$_\n" } @_bad_arguments);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_task_status');
+							       method_name => 'query_tasks');
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
-    my($status);
-    #BEGIN query_task_status
+    my($tasks);
+    #BEGIN query_tasks
 
     my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
 
-    $status = {};
+    $tasks = {};
 
-    for my $task_id (@$tasks)
+    for my $task_id (@$task_ids)
     {
-	my ($res, $error) = $awe->job_state($task_id);
-	$status->{$task_id} = $res;
+	my ($res, $error) = $awe->job($task_id);
+	if ($res)
+	{
+	    my $task = $self->_awe_to_task($res);
+	    $tasks->{$task_id} = $task;
+	}
     }
 
-    #END query_task_status
+    #END query_tasks
+    my @_bad_returns;
+    (ref($tasks) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"tasks\" (value was \"$tasks\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to query_tasks:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'query_tasks');
+    }
+    return($tasks);
+}
+
+
+
+
+=head2 query_task_summary
+
+  $status = $obj->query_task_summary()
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$status is a reference to a hash where the key is a task_status and the value is an int
+task_status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$status is a reference to a hash where the key is a task_status and the value is an int
+task_status is a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub query_task_summary
+{
+    my $self = shift;
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($status);
+    #BEGIN query_task_summary
+    #END query_task_summary
     my @_bad_returns;
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
     if (@_bad_returns) {
-	my $msg = "Invalid returns passed to query_task_status:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	my $msg = "Invalid returns passed to query_task_summary:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_task_status');
+							       method_name => 'query_task_summary');
     }
     return($status);
 }
@@ -403,7 +528,7 @@ sub query_task_status
 
 =head2 enumerate_tasks
 
-  $return = $obj->enumerate_tasks()
+  $return = $obj->enumerate_tasks($offset, $count)
 
 =over 4
 
@@ -412,16 +537,23 @@ sub query_task_status
 =begin html
 
 <pre>
+$offset is an int
+$count is an int
 $return is a reference to a list where each element is a Task
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
 task_id is a string
 app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 
 </pre>
 
@@ -429,16 +561,23 @@ task_parameters is a reference to a hash where the key is a string and the value
 
 =begin text
 
+$offset is an int
+$count is an int
 $return is a reference to a list where each element is a Task
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
 task_id is a string
 app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 
 
 =end text
@@ -456,6 +595,16 @@ task_parameters is a reference to a hash where the key is a string and the value
 sub enumerate_tasks
 {
     my $self = shift;
+    my($offset, $count) = @_;
+
+    my @_bad_arguments;
+    (!ref($offset)) or push(@_bad_arguments, "Invalid type for argument \"offset\" (value was \"$offset\")");
+    (!ref($count)) or push(@_bad_arguments, "Invalid type for argument \"count\" (value was \"$count\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to enumerate_tasks:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'enumerate_tasks');
+    }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($return);
@@ -469,20 +618,14 @@ sub enumerate_tasks
     # TODO: paging of requests
     #
 
-    my $q = "/job?query&info.user=" . $ctx->user_id . "&info.pipeline=AppService";
+    my $q = "/job?query&info.user=" . $ctx->user_id . "&info.pipeline=AppService&limit=$count&offset=$offset";
     print STDERR "Query tasks: $q\n";
     my ($res, $error) = $awe->GET($q);
     if ($res)
     {
 	for my $t (@{$res->{data}})
 	{
-	    my $u = $t->{info}->{userattr};
-	    my $r = {
-		id => $t->{id},
-		app => $u->{app_id},
-		workspace => $u->{workspace},
-		parameters => decode_json($u->{parameters}),
-	    };
+	    my $r = $self->_awe_to_task($t);
 	    push(@$return, $r);
 	}
     }
@@ -729,6 +872,32 @@ parameters has a value which is a reference to a list where each element is an A
 
 
 
+=head2 task_status
+
+=over 4
+
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a string
+</pre>
+
+=end html
+
+=begin text
+
+a string
+
+=end text
+
+=back
+
+
+
 =head2 Task
 
 =over 4
@@ -745,6 +914,10 @@ id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
+status has a value which is a task_status
+submit_time has a value which is a string
+start_time has a value which is a string
+completed_time has a value which is a string
 
 </pre>
 
@@ -757,38 +930,11 @@ id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
+status has a value which is a task_status
+submit_time has a value which is a string
+start_time has a value which is a string
+completed_time has a value which is a string
 
-
-=end text
-
-=back
-
-
-
-=head2 task_status
-
-=over 4
-
-
-
-=item Description
-
-typedef mapping<string stage, string status> task_status;
-
-
-=item Definition
-
-=begin html
-
-<pre>
-a string
-</pre>
-
-=end html
-
-=begin text
-
-a string
 
 =end text
 

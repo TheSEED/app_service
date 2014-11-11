@@ -27,15 +27,19 @@ module AppService
 	list<AppParameter> parameters;
     } App;
     
+    typedef string task_status;
+
     typedef structure {
 	task_id id;
 	app_id app;
 	workspace_id workspace;
 	task_parameters parameters;
-    } Task;
 
-    /*   typedef mapping<string stage, string status> task_status; */
-    typedef string task_status;
+	task_status status;
+	string submit_time;
+	string start_time;
+	string completed_time;
+    } Task;
 
     funcdef enumerate_apps()
 	returns (list<App>);
@@ -43,9 +47,11 @@ module AppService
     funcdef start_app(app_id, task_parameters params, workspace_id workspace)
 	returns (Task task);
 
-    funcdef query_task_status(list<task_id> tasks)
-	returns (mapping<task_id, task_status> status);
+    funcdef query_tasks(list<task_id> task_ids)
+	returns (mapping<task_id, Task task> tasks);
 
-    funcdef enumerate_tasks()
+    funcdef query_task_summary() returns (mapping<task_status status, int count> status);
+
+    funcdef enumerate_tasks(int offset, int count)
 	returns (list<Task>);
 };
