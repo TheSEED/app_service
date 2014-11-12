@@ -57,7 +57,7 @@ sub _awe_to_task
 	parameters => decode_json($u->{parameters}),
 	status => $t->{state},
 	submit_time => $i->{submittime},
-	start_time => $i->{starttime},
+	start_time => $i->{startedtime},
 	completed_time => $i->{completedtime},
 	stdout_shock_node => $self->_lookup_output($atask, "stdout.txt"),
 	stderr_shock_node => $self->_lookup_output($atask, "stderr.txt"),
