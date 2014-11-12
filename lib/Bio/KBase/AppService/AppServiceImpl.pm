@@ -18,6 +18,7 @@ AppService
 #BEGIN_HEADER
 
 use JSON::XS;
+use MongoDB;
 use Data::Dumper;
 use Bio::KBase::AppService::Awe;
 use Bio::KBase::AppService::Shock;
@@ -100,6 +101,11 @@ sub new
     $self->{shock_server} = $shock_server;
     my $app_dir = $cfg->setting("app-directory");
     $self->{app_dir} = $app_dir;
+
+    $self->{awe_mongo_db} = $cfg->setting("awe-mongo-db") || "AWEDB";
+    $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
+    $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
+    
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
 	
@@ -542,6 +548,29 @@ sub query_task_summary
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($status);
     #BEGIN query_task_summary
+
+    #
+    # Summarize counts of tasks of each type for this user.
+    #
+    # Query mongo for the types available, then count.
+    #
+
+    my $mongo = MongoDB::MongoClient->new(host => $self->{awe_mongo_host}, port => $self->{awe_mongo_port});
+    my $db = $mongo->get_database($self->{awe_mongo_db});
+    my $col = $db->get_collection("Jobs");
+
+    my $states = $db->run_command( [ distinct => "Jobs", key => "state", query => { 'info.user' => $ctx->user_id } ] );
+
+    $status = {};
+
+    for my $state (@{$states->{values}})
+    {
+	next if $state eq 'deleted';
+
+	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state})->count();
+	$status->{$state} = $n;
+    }
+    
     #END query_task_summary
     my @_bad_returns;
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");

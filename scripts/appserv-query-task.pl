@@ -3,17 +3,29 @@ use Getopt::Long::Descriptive;
 use strict;
 use Data::Dumper;
 
-my($opt, $usage) = describe_options("%c %o task-id",
+my($opt, $usage) = describe_options("%c %o [task-id ... ]",
 				    ["url|u=s", "Service URL"],
 				    ["verbose|v", "Show verbose output from service"],
+				    ["summary|s", "Show task summary"],
 				    ["help|h", "Show this help message"]);
 
 print($usage->text), exit if $opt->help;
-print($usage->text), exit 1 if (@ARGV != 1);
 
 my @tasks = @ARGV;
 
 my $client = Bio::KBase::AppService::Client->new($opt->url);
+
+if ($opt->summary)
+{
+    my $status = $client->query_task_summary();
+
+    for my $state (keys %$status)
+    {
+	print "$state\t$status->{$state}\n";
+    }
+    exit;
+
+}
 
 my $res = $client->query_tasks(\@tasks);
 
