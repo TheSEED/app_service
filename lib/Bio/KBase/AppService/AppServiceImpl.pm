@@ -76,7 +76,7 @@ sub _lookup_output
     {
 	my $h = $file->{host};
 	my $n = $file->{node};
-	if ($h && $n)
+	if ($h && $n && $n ne '-')
 	{
 	    return "$h/node/$n";
 	}

@@ -1,0 +1,16 @@
+{
+	"id":"Sleep",
+	"script":"App-Sleep",
+	"label":"Sleep",
+	"description":"Sleep a bit.",
+	"parameters":[
+	    {
+		"id": "sleep_time",
+		"required": 0,
+		"default": 10,
+		"label": "Time to sleep",
+		"desc": "Time to sleep, in seconds.",
+		"type": "int"
+	    }
+	]
+}
