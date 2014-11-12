@@ -29,7 +29,8 @@ BEGIN {
 can_ok("Bio::KBase::AppService::Client", qw(
     enumerate_apps
     start_app
-    query_task_status
+    query_tasks
+    query_task_summary
     enumerate_tasks
    )
 );
