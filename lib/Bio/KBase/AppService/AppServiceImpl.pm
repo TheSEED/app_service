@@ -48,6 +48,8 @@ sub _awe_to_task
     
     my $i = $t->{info};
     my $u = $i->{userattr};
+    my $atask = $t->{tasks}->[0];
+
     my $task = {
 	id => $t->{id},
 	app => $u->{app_id},
@@ -57,10 +59,30 @@ sub _awe_to_task
 	submit_time => $i->{submittime},
 	start_time => $i->{starttime},
 	completed_time => $i->{completedtime},
+	stdout_shock_node => $self->_lookup_output($atask, "stdout.txt"),
+	stderr_shock_node => $self->_lookup_output($atask, "stderr.txt"),
+	
     };
     return $task;
 }
 
+sub _lookup_output
+{
+    my($self, $atask, $filename) = @_;
+    my $outputs = $atask->{outputs};
+    my $file = $outputs->{$filename};
+    print STDERR Dumper($atask);
+    if ($file)
+    {
+	my $h = $file->{host};
+	my $n = $file->{node};
+	if ($h && $n)
+	{
+	    return "$h/node/$n";
+	}
+    }
+    return "";
+}
 #END_HEADER
 
 sub new
@@ -212,6 +234,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 task_id is a string
 task_status is a string
 
@@ -237,6 +261,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 task_id is a string
 task_status is a string
 
@@ -383,6 +409,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
@@ -406,6 +434,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
@@ -549,6 +579,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 task_id is a string
 app_id is a string
 workspace_id is a string
@@ -573,6 +605,8 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
 task_id is a string
 app_id is a string
 workspace_id is a string
@@ -918,6 +952,8 @@ status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string
+stdout_shock_node has a value which is a string
+stderr_shock_node has a value which is a string
 
 </pre>
 
@@ -934,6 +970,8 @@ status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string
+stdout_shock_node has a value which is a string
+stderr_shock_node has a value which is a string
 
 
 =end text

@@ -5,6 +5,7 @@ use Data::Dumper;
 
 my($opt, $usage) = describe_options("%c %o",
 				    ["url|u=s", "Service URL"],
+				    ["verbose|v", "Show verbose output from service"],
 				    ["help|h", "Show this help message"]);
 
 print($usage->text), exit if $opt->help;
@@ -26,6 +27,11 @@ while (1)
     $offset += $limit;
 
     push(@tasks, @$tasks);
+}
+
+if ($opt->verbose)
+{
+    print Dumper(\@tasks);
 }
 
 for my $task (@tasks)

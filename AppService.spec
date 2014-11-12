@@ -39,6 +39,10 @@ module AppService
 	string submit_time;
 	string start_time;
 	string completed_time;
+
+	string stdout_shock_node;
+	string stderr_shock_node;
+
     } Task;
 
     funcdef enumerate_apps()
