@@ -570,6 +570,10 @@ sub query_task_summary
 	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state, "info.pipeline" => "AppService"})->count();
 	$status->{$state} = $n;
     }
+
+    undef $col;
+    undef $db;
+    undef $mongo;
     
     #END query_task_summary
     my @_bad_returns;
