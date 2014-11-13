@@ -567,7 +567,7 @@ sub query_task_summary
     {
 	next if $state eq 'deleted';
 
-	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state})->count();
+	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state, "info.pipeline" => "AppService"})->count();
 	$status->{$state} = $n;
     }
     
