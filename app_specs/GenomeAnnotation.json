@@ -8,7 +8,7 @@
 			"id":"contigset",
 			"required":1,
 			"default":null,
-			"label":"Contig Set Object",
+			"label":"Contig file",
 			"desc":"Input set of DNA contigs for annotation",
 			"wstype":"KBaseGenomes.ContigSet",
 			"type":"wstype"
@@ -31,11 +31,20 @@
 			"enum":["11","4"]
 		},
 		{
+			"id":"domain",
+			"label":"Domain",
+			"required":1,
+			"default":"Bacteria",
+			"desc":"Domain of the submitted genome",
+			"type":"enum",
+			"enum":["Bacteria", "Archaea"]
+		},
+		{
 			"name":"genome",
-			"label":"Output Genome ID",
+			"label":"Output file",
 			"required":0,
 			"default":null,
-			"desc":"Name to use when saving annotated genome to workspace",
+			"desc":"Name of file the annotated genome will be stored in",
 			"type":"wsid"
 		}
 	]
