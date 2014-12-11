@@ -1,16 +1,16 @@
 {
 	"id":"GenomeAnnotation",
-	"script":"App-GenomeAnnotation.pl",
+	"script":"App-GenomeAnnotation",
 	"label":"Annotate genome",
 	"description":"Calls genes and functionally annotate input contig set.",
 	"parameters":[
 		{
-			"id":"contigset",
+			"id":"contigs",
 			"required":1,
 			"default":null,
 			"label":"Contig file",
 			"desc":"Input set of DNA contigs for annotation",
-			"wstype":"KBaseGenomes.ContigSet",
+			"wstype":"Contigs",
 			"type":"wstype"
 		},
 		{
@@ -40,9 +40,9 @@
 			"enum":["Bacteria", "Archaea"]
 		},
 		{
-			"name":"genome",
+			"id":"genome",
 			"label":"Output file",
-			"required":0,
+			"required":1,
 			"default":null,
 			"desc":"Name of file the annotated genome will be stored in",
 			"type":"wsid"
