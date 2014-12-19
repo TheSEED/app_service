@@ -69,7 +69,7 @@ compile-typespec: Makefile
 	-rm -f lib/$(SERVER_MODULE)Impl.py
 	-rm -f lib/CDMI_EntityAPIImpl.py
 
-bin: $(BIN_PERL) $(BIN_DIR)/kmer_guts $(BIN_SERVICE_PERL)
+bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
 
 deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
