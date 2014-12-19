@@ -34,3 +34,30 @@ can_ok("Bio::KBase::AppService::Client", qw(
     enumerate_tasks
    )
 );
+
+
+my ($obj, $apps, $task, $task_status, $task_summary);
+
+isa_ok($obj = Bio::KBase::AppService::Client->new(), Bio::KBase::AppService::Client);
+ok($apps = $obj->enumerate_apps(), "can call enumerate_apps()");
+ok(ref $apps eq "ARRAY", "enumerate_apps() returns an array reference");
+
+my $id = 'Date';
+my $params = {};
+my $workspace_id = '';
+
+ok ($task = $obj->start_app($id, $params, $workspace_id),
+    "can call start_app($id)");
+ok ($task = $obj->query_tasks([$task->{id}]), "can call query_tasks");;
+ok (ref $task eq "HASH", "query_tasks returns a hash ref");
+ok ($task_summary = $obj->query_task_summary(), "can call query_task_summary");
+ok (ref $task_summary eq "HASH", "task_summary is a hash ref");
+
+undef $obj;
+undef $apps;
+undef $task;
+undef $task_status;
+undef $task_summary;
+
+
+done_testing();
