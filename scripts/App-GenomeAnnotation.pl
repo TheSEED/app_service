@@ -54,9 +54,6 @@ sub process_genome
     };
     my $genome = $impl->create_genome($meta);
 
-    $ctx->stderr(undef);
-    undef $stderr;
-
     my $ws = Bio::P3::Workspace::WorkspaceClient->new();
 
     my($input_path, $obj) = $params->{contigs} =~ m,^(.*)/([^/]+)$,;
@@ -104,4 +101,8 @@ sub process_genome
 	my $exp = $impl->export_genome($result, $format, []);
 	$ws->save_objects({ objects => [[$output_path, "$output_base.$format", $exp, "String"]], overwrite => 1});
     }
+
+
+    $ctx->stderr(undef);
+    undef $stderr;
 }
