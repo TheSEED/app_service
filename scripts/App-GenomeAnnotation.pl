@@ -3,12 +3,20 @@
 #
 
 use Bio::KBase::AppService::AppScript;
+use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
 use strict;
 use Data::Dumper;
 use gjoseqlib;
 
 use Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl;
+use Bio::KBase::GenomeAnnotation::Service;
+
+my $get_time = sub { time, 0 };
+eval {
+    require Time::HiRes;
+    $get_time = sub { Time::HiRes::gettimeofday };
+};
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
 
@@ -20,6 +28,23 @@ sub process_genome
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
+    my $svc = Bio::KBase::GenomeAnnotation::Service->new();
+    
+    my $ctx = Bio::KBase::GenomeAnnotation::ServiceContext->new($svc->{loggers}->{userlog},
+								client_ip => "localhost");
+    $ctx->module("App-GenomeAnnotation");
+    $ctx->method("App-GenomeAnnotation");
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    if ($token->validate())
+    {
+	$ctx->authenticated(1);
+	$ctx->user_id($token->user_id);
+	$ctx->token($token->token);
+    }
+    local $Bio::KBase::GenomeAnnotation::CallContext = $ctx;
+    my $stderr = Bio::KBase::GenomeAnnotation::ServiceStderrWrapper->new($ctx, $get_time);
+    $ctx->stderr($stderr);
+
     my $impl = Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl->new();
 
     my $meta = {
@@ -28,6 +53,9 @@ sub process_genome
 	domain => $params->{domain},
     };
     my $genome = $impl->create_genome($meta);
+
+    $ctx->stderr(undef);
+    undef $stderr;
 
     my $ws = Bio::P3::Workspace::WorkspaceClient->new();
 
