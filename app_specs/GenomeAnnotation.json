@@ -14,7 +14,7 @@
 			"type":"wstype"
 		},
 		{
-			"id":"species",
+			"id":"scientific_name",
 			"label":"Scientific Name",
 			"required":1,
 			"default":null,
@@ -40,11 +40,19 @@
 			"enum":["Bacteria", "Archaea"]
 		},
 		{
-			"id":"genome",
-			"label":"Output file",
-			"required":1,
+			"id":"output_path",
+			"label":"Path to which output will be written.",
+			"required":0,
 			"default":null,
-			"desc":"Name of file the annotated genome will be stored in",
+			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
+			"type":"wsid"
+		},
+		{
+			"id":"output_file",
+			"label":"Basename for the output files.",
+			"required":0,
+			"default":null,
+			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
 			"type":"wsid"
 		}
 	]

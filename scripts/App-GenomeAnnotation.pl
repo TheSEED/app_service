@@ -23,7 +23,7 @@ sub process_genome
     my $impl = Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl->new();
 
     my $meta = {
-	scientific_name => $params->{species},
+	scientific_name => $params->{scientific_name},
 	genetic_code => $params->{code},
 	domain => $params->{domain},
     };
@@ -31,10 +31,27 @@ sub process_genome
 
     my $ws = Bio::P3::Workspace::WorkspaceClient->new();
 
-    my($path, $obj) = $params->{contigs} =~ m,^(.*)/([^/]+)$,;
-    my $res = $ws->get_objects({ objects => [[$path, $obj]] });
+    my($input_path, $obj) = $params->{contigs} =~ m,^(.*)/([^/]+)$,;
 
-    if (ref($res) ne 'ARRAY' || @$res == 0)
+    #
+    # Default the output values based on the input.
+    #
+    my $output_path = $params->{output_path};
+    my $output_base = $params->{output_file};
+
+    if (!$output_path)
+    {
+	$output_path = $input_path;
+    }
+    if (!$output_base)
+    {
+	$output_base = $obj;
+	$output_base =~ s/\.([^.]+)$//;
+    }
+    
+    my $res = $ws->get_objects({ objects => [[$input_path, $obj]] });
+
+    if (ref($res) ne 'ARRAY' || @$res == 0 || !$res->[0]->{data})
     {
 	die "Could not get contigs object\n";
     }
@@ -50,9 +67,13 @@ sub process_genome
     my $workflow = $impl->default_workflow();
     my $result = $impl->run_pipeline($genome, $workflow);
 
-    my($outpath, $outobj) = $params->{genome} =~ m,^(.*)/([^/]+)$,;
+    my @objs;
 
-    my $res = $ws->save_objects({ objects => [[$outpath, $outobj, $genome, "Genome"]],
-				  overwrite => 1});
-    print Dumper($res);
+    $ws->save_objects({ objects => [[$output_path, "$output_base.genome", $result, "Genome"]], overwrite => 1 });
+
+    for my $format (qw(genbank genbank_merged feature_data protein_fasta contig_fasta feature_dna gff embl))
+    {
+	my $exp = $impl->export_genome($result, $format, []);
+	$ws->save_objects({ objects => [[$output_path, "$output_base.$format", $exp, "String"]], overwrite => 1});
+    }
 }
