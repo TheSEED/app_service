@@ -45,7 +45,8 @@
 			"required":0,
 			"default":null,
 			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
-			"type":"wsid"
+			"type":"wstype",
+			"wstype": "Directory"
 		},
 		{
 			"id":"output_file",
