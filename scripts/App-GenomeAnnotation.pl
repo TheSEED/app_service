@@ -41,7 +41,7 @@ sub process_genome
 	$ctx->user_id($token->user_id);
 	$ctx->token($token->token);
     }
-    local $Bio::KBase::GenomeAnnotation::CallContext = $ctx;
+    local $Bio::KBase::GenomeAnnotation::Service::CallContext = $ctx;
     my $stderr = Bio::KBase::GenomeAnnotation::ServiceStderrWrapper->new($ctx, $get_time);
     $ctx->stderr($stderr);
 
