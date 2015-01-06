@@ -75,7 +75,8 @@
 			"required": 0,
 			"default": "auto",
 			"desc":"Recipe used for assembly",
-			"type":"string"
+			"type":"enum",
+			"enum": ["auto", "full_spades", "fast", "miseq", "smart", "kiki" ]
 		},
 		{
 			"id":"output_path",
