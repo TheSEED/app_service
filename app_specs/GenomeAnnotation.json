@@ -41,15 +41,15 @@
 		},
 		{
 			"id":"output_path",
-			"label":"Path to which output will be written.",
+			"label":"Output Folder",
 			"required":0,
 			"default":null,
 			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
-			"type":"wsid"
+			"type":"folder"
 		},
 		{
 			"id":"output_file",
-			"label":"Basename for the output files.",
+			"label":"File Basename",
 			"required":0,
 			"default":null,
 			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
