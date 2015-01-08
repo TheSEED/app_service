@@ -71,6 +71,12 @@ compile-typespec: Makefile
 
 bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
 
+#
+# Manually run this to update the AweEvents module.
+#
+log-events: 
+	perl make-log-events-data.pl > lib/Bio/KBase/AppService/AweEvents.pm
+
 deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
 deploy-client: compile-typespec deploy-docs deploy-libs deploy-scripts 

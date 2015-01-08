@@ -55,6 +55,23 @@ sub get_file
     return $self->rest->responseContent();
 }
 
+sub get_node
+{
+    my($self, $node) = @_;
+
+    if ($node !~ /^http/)
+    {
+	$node = $self->server . "/node/$node";
+    }
+    my $res = $self->rest->GET($node);
+    if ($self->rest->responseCode != 200)
+    {
+	die "get_node failed: " . $self->rest->responseContent();
+    }
+    my $obj = $self->json->decode($self->rest->responseContent());
+    return $obj->{data};
+}
+
 sub put_file
 {
     my($self, $file) = @_;
