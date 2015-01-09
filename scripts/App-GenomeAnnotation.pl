@@ -39,8 +39,7 @@ sub process_genome
 								client_ip => "localhost");
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 0);
-#    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
     if ($token->validate())
     {
 	$ctx->authenticated(1);
