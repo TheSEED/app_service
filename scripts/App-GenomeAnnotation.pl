@@ -5,9 +5,13 @@
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
+use Bio::P3::Workspace::WorkspaceClientExt;
 use strict;
 use Data::Dumper;
 use gjoseqlib;
+use File::Basename;
+use LWP::UserAgent;
+use JSON::XS;
 
 use Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl;
 use Bio::KBase::GenomeAnnotation::Service;
@@ -28,13 +32,15 @@ sub process_genome
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
+    my $json = JSON::XS->new->pretty(1);
     my $svc = Bio::KBase::GenomeAnnotation::Service->new();
     
     my $ctx = Bio::KBase::GenomeAnnotation::ServiceContext->new($svc->{loggers}->{userlog},
 								client_ip => "localhost");
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 0);
+#    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
     if ($token->validate())
     {
 	$ctx->authenticated(1);
@@ -54,9 +60,9 @@ sub process_genome
     };
     my $genome = $impl->create_genome($meta);
 
-    my $ws = Bio::P3::Workspace::WorkspaceClient->new();
+    my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
 
-    my($input_path, $obj) = $params->{contigs} =~ m,^(.*)/([^/]+)$,;
+    my($input_path) = $params->{contigs};
 
     #
     # Default the output values based on the input.
@@ -66,42 +72,52 @@ sub process_genome
 
     if (!$output_path)
     {
-	$output_path = $input_path;
+	$output_path = dirname($input_path);
     }
     if (!$output_base)
     {
-	$output_base = $obj;
-	$output_base =~ s/\.([^.]+)$//;
+	$output_base = basename($input_path);
     }
+
+    my $temp = File::Temp->new();
+
+    $ws->copy_files_to_handles(1, $token, [[$input_path, $temp]]);
     
-    my $res = $ws->get_objects({ objects => [[$input_path, $obj]] });
+    my $contig_data_fh;
+    close($temp);
+    open($contig_data_fh, "<", $temp) or die "Cannot open contig temp $temp: $!";
 
-    if (ref($res) ne 'ARRAY' || @$res == 0 || !$res->[0]->{data})
-    {
-	die "Could not get contigs object\n";
-    }
-
-    my $h = \$res->[0]->{data} ;
-    open(FH, "<", $h);
-    while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq(\*FH))
+    my $n = 0;
+    while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($contig_data_fh))
     {
 	$impl->add_contigs($genome, [{ id => $id, dna => $seq }]);
+	$n++;
     }
     close(FH);
+
+    if ($n == 0)
+    {
+	die "No contigs loaded from $temp $input_path\n";
+    }
 
     my $workflow = $impl->default_workflow();
     my $result = $impl->run_pipeline($genome, $workflow);
 
-    my @objs;
+    $ws->save_data_to_file($json->encode($result), $meta, "$output_path/$output_base.genome", undef, 
+			   1, 1, $token);
 
-    $ws->save_objects({ objects => [[$output_path, "$output_base.genome", $result, "Genome"]], overwrite => 1 });
 
     for my $format (qw(genbank genbank_merged feature_data protein_fasta contig_fasta feature_dna gff embl))
     {
 	my $exp = $impl->export_genome($result, $format, []);
-	$ws->save_objects({ objects => [[$output_path, "$output_base.$format", $exp, "String"]], overwrite => 1});
-    }
+	my $len = length($exp);
 
+	my $file = "$output_path/$output_base.$format";
+	print "Save $len to $file\n";
+
+	$ws->save_data_to_file($exp, $meta, $file, undef, 
+			   1, 1, $token);
+    }
 
     $ctx->stderr(undef);
     undef $stderr;
