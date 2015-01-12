@@ -5,10 +5,12 @@
 use strict;
 use Carp;
 use Data::Dumper;
+use File::Temp;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
+use Bio::P3::Workspace::WorkspaceClientExt;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -19,7 +21,7 @@ sub process_reads {
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
-    verify_cmd("ar-run") and verify_cmd("ar-get");
+#    verify_cmd("ar-run") and verify_cmd("ar-get");
 
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
@@ -30,8 +32,12 @@ sub process_reads {
 
     my @ai_params = parse_input($params);
 
+    my $out_tmp = File::Temp->new();
+    close($out_tmp);
+
     my $cmd = join(" ", @ai_params);
-    $cmd = "ar-run $method $cmd | ar-get -w -p > $output_name";
+#    $cmd = "ar-run $method $cmd | ar-get -w -p > $out_tmp";
+    $cmd = "echo ar-run $method $cmd ar-get -w -p > $out_tmp";
     print "$cmd\n";
 
     run($cmd);
@@ -40,7 +46,7 @@ sub process_reads {
     my $ws = get_ws();
     my $meta;
 
-    $ws->save_data_to_file(slurp_input($output_name), $meta, "$output_path/$output_name", undef,
+    $ws->save_file_to_file("$out_tmp", $meta, "$output_path/$output_name", undef,
                            1, 1, $token);
 }
 
@@ -62,18 +68,23 @@ my $global_file_count;
 sub get_ws_file {
     my ($id) = @_;
     # return $id;
-    my ($path, $name) = $id =~ m|^(.*)/([^/]+)$|;
-
     my $ws = get_ws();
     my $token = get_token();
-    
-    my $fh;
-    my $fname = join('', 'f', ++$global_file_count, '_', $name);
-    open($fh, ">$fname") or die "Could not open $fname";
-    $ws->copy_files_to_handles(1, $token, [[$id, $fh]]);
-    close($fh);
+
+    my $file = File::Temp->new();
+
+    eval {
+	$ws->copy_files_to_handles(1, $token, [[$id, $file]]);
+    };
+    if ($@)
+    {
+	die "ERROR getting file $id\n$@\n";
+    }
+    close($file);
+    print "$id: ";
+    system("ls -l $file");
              
-    return $fname;
+    return $file;
 }
 
 sub parse_input {
@@ -85,7 +96,7 @@ sub parse_input {
 
     for (@$pes) { push @params, parse_pe_lib($_) }
     for (@$ses) { push @params, parse_se_lib($_) }
-    push @params, parse_ref($ref);
+    push @params, parse_ref($ref) if $ref;
 
     return @params;
 }
