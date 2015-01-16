@@ -13,8 +13,11 @@ use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
 use Bio::P3::Workspace::WorkspaceClientExt;
 
-my $ar_run = "/vol/kbase/deployment/bin/ar-run";
-my $ar_get = "/vol/kbase/deployment/bin/ar-get";
+#my $ar_run = "/vol/kbase/deployment/bin/ar-run";
+#my $ar_get = "/vol/kbase/deployment/bin/ar-get";
+
+my $ar_run = "ar-run";
+my $ar_get = "ar-get";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -34,10 +37,17 @@ sub process_reads {
     my $recipe = $params->{recipe};
     my $method = "-r $recipe" if $recipe;
 
-    my @ai_params = parse_input($params);
+    my $tmpdir = File::Temp->newdir();
 
-    my $out_tmp = File::Temp->new(SUFFIX => ".contigs");
-    close($out_tmp);
+    my @ai_params = parse_input($tmpdir, $params);
+
+    my $out_tmp = "$tmpdir/$output_name";
+
+    my $token = get_token();
+
+    $ENV{KB_AUTH_TOKEN} = $token->token;
+    $ENV{ARAST_AUTH_USER} = $token->user_id;
+    $ENV{KB_RUNNING_IN_IRIS} = 1;
 
     my $cmd = join(" ", @ai_params);
     $cmd = "$ar_run $method $cmd | $ar_get -w -p > $out_tmp";
@@ -45,7 +55,6 @@ sub process_reads {
 
     run($cmd);
 
-    my $token = get_token();
     my $ws = get_ws();
     my $meta;
 
@@ -69,49 +78,53 @@ sub get_token {
  
 my $global_file_count;
 sub get_ws_file {
-    my ($id) = @_;
+    my ($tmpdir, $id) = @_;
     # return $id;
     my $ws = get_ws();
     my $token = get_token();
 
-    my(undef, undef, $suffix) = fileparse($id, qr/\.[^.]*/);
+    my $base = basename($id);
+    my $file = "$tmpdir/$base";
+    my $fh;
+    open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
-    my $file = File::Temp->new(SUFFIX => $suffix);
+    print STDERR "GET WS => $tmpdir $base $id\n";
+    system("ls -la $tmpdir");
 
     eval {
-	$ws->copy_files_to_handles(1, $token, [[$id, $file]]);
+	$ws->copy_files_to_handles(1, $token, [[$id, $fh]]);
     };
     if ($@)
     {
 	die "ERROR getting file $id\n$@\n";
     }
-    close($file);
-    print "$id: ";
-    system("ls -l $file");
+    close($fh);
+    print "$id $file:\n";
+    system("ls -la $tmpdir");
              
     return $file;
 }
 
 sub parse_input {
-    my ($input) = @_;
+    my ($tmpdir, $input) = @_;
 
     my @params;
     
     my ($pes, $ses, $ref) = ($input->{paired_end_libs}, $input->{single_end_libs}, $input->{reference_assembly});
 
-    for (@$pes) { push @params, parse_pe_lib($_) }
-    for (@$ses) { push @params, parse_se_lib($_) }
-    push @params, parse_ref($ref) if $ref;
+    for (@$pes) { push @params, parse_pe_lib($tmpdir, $_) }
+    for (@$ses) { push @params, parse_se_lib($tmpdir, $_) }
+    push @params, parse_ref($tmpdir, $ref) if $ref;
 
     return @params;
 }
 
 sub parse_pe_lib {
-    my ($lib) = @_;
+    my ($tmpdir, $lib) = @_;
     my @params;
     push @params, "--pair";
-    push @params, get_ws_file($lib->{read1});
-    push @params, get_ws_file($lib->{read2});
+    push @params, get_ws_file($tmpdir, $lib->{read1});
+    push @params, get_ws_file($tmpdir, $lib->{read2});
     my @ks = qw(insert_size_mean insert_size_std_dev);
     for my $k (@ks) {
         push @params, $k."=".$lib->{$k} if $lib->{$k};
@@ -120,18 +133,18 @@ sub parse_pe_lib {
 }
 
 sub parse_se_lib {
-    my ($lib) = @_;
+    my ($tmpdir, $lib) = @_;
     my @params;
     push @params, "--single";
-    push @params, get_ws_file($lib);
+    push @params, get_ws_file($tmpdir, $lib);
     return @params;
 }
 
 sub parse_ref {
-    my ($ref) = @_;
+    my ($tmpdir, $ref) = @_;
     my @params;
     push @params, "--reference";
-    push @params, get_ws_file($ref);
+    push @params, get_ws_file($tmpdir, $ref);
     return @params;
 }
 
