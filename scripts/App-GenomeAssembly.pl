@@ -5,10 +5,16 @@
 use strict;
 use Carp;
 use Data::Dumper;
+use File::Temp;
+use File::Basename;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
+use Bio::P3::Workspace::WorkspaceClientExt;
+
+my $ar_run = "/vol/kbase/deployment/bin/ar-run";
+my $ar_get = "/vol/kbase/deployment/bin/ar-get";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -19,14 +25,7 @@ sub process_reads {
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
-    # my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
-    # if ($token->validate()) {
-        # print "Token validated\n";
-    # }
-
-    my $ws = Bio::P3::Workspace::WorkspaceClient->new();
-
-    verify_cmd("ar-run") and verify_cmd("ar-get");
+    verify_cmd($ar_run) and verify_cmd($ar_get);
 
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
@@ -37,29 +36,60 @@ sub process_reads {
 
     my @ai_params = parse_input($params);
 
+    my $out_tmp = File::Temp->new(SUFFIX => ".contigs");
+    close($out_tmp);
+
     my $cmd = join(" ", @ai_params);
-    $cmd = "ar-run $method $cmd | ar-get -w -p > $output_name";
+    $cmd = "$ar_run $method $cmd | $ar_get -w -p > $out_tmp";
     print "$cmd\n";
 
     run($cmd);
 
-    $ws->save_objects({ objects => [[$output_path, $output_name, $output_name, "Contigs"]], overwrite => 1 });
+    my $token = get_token();
+    my $ws = get_ws();
+    my $meta;
 
+    $ws->save_file_to_file("$out_tmp", $meta, "$output_path/$output_name", undef,
+                           1, 1, $token);
 }
 
 my $global_ws;
+sub get_ws {
+    my $ws = $global_ws || Bio::P3::Workspace::WorkspaceClientExt->new();
+    $global_ws ||= $ws;
+    return $ws;
+}
+
+my $global_token;
+sub get_token {
+    my $token = $global_token || Bio::KBase::AuthToken->new(ignore_authrc => 0);
+    $token && $token->validate() or die "No token or invalid token\n";
+    $global_token ||= $token;
+}
+ 
+my $global_file_count;
 sub get_ws_file {
     my ($id) = @_;
     # return $id;
-    my ($path, $obj) = $id =~ m|^(.*)/([^/]+)$|;
-    my $ws = $global_ws || Bio::P3::Workspace::WorkspaceClient->new();
-    $global_ws ||= $ws;
-    my $res = $ws->get_objects({ objects => [[$path, $obj]] });
+    my $ws = get_ws();
+    my $token = get_token();
 
-    ref($res) eq 'ARRAY' && @$res && $res->[0]->{data}
-        or die "Could not get ws object: $id\n";
+    my(undef, undef, $suffix) = fileparse($id, qr/\.[^.]*/);
 
-    return $res->[0]->{data};
+    my $file = File::Temp->new(SUFFIX => $suffix);
+
+    eval {
+	$ws->copy_files_to_handles(1, $token, [[$id, $file]]);
+    };
+    if ($@)
+    {
+	die "ERROR getting file $id\n$@\n";
+    }
+    close($file);
+    print "$id: ";
+    system("ls -l $file");
+             
+    return $file;
 }
 
 sub parse_input {
@@ -71,7 +101,7 @@ sub parse_input {
 
     for (@$pes) { push @params, parse_pe_lib($_) }
     for (@$ses) { push @params, parse_se_lib($_) }
-    push @params, parse_ref($ref);
+    push @params, parse_ref($ref) if $ref;
 
     return @params;
 }
@@ -113,3 +143,42 @@ sub verify_cmd {
 
 sub run { system(@_) == 0 or confess("FAILED: ". join(" ", @_)); }
 
+#-----------------------------------------------------------------------------
+#  Read the entire contents of a file or stream into a string.  This command
+#  if similar to $string = join( '', <FH> ), but reads the input by blocks.
+#
+#     $string = slurp_input( )                 # \*STDIN
+#     $string = slurp_input(  $filename )
+#     $string = slurp_input( \*FILEHANDLE )
+#
+#-----------------------------------------------------------------------------
+sub slurp_input
+{
+    my $file = shift;
+    my ( $fh, $close );
+    if ( ref $file eq 'GLOB' )
+    {
+        $fh = $file;
+    }
+    elsif ( $file )
+    {
+        if    ( -f $file )                    { $file = "<$file" }
+        elsif ( $_[0] =~ /^<(.*)$/ && -f $1 ) { }  # Explicit read
+        else                                  { return undef }
+        open $fh, $file or return undef;
+        $close = 1;
+    }
+    else
+    {
+        $fh = \*STDIN;
+    }
+
+    my $out =      '';
+    my $inc = 1048576;
+    my $end =       0;
+    my $read;
+    while ( $read = read( $fh, $out, $inc, $end ) ) { $end += $read }
+    close $fh if $close;
+
+    $out;
+}
