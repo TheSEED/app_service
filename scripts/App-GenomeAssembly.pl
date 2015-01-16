@@ -6,11 +6,15 @@ use strict;
 use Carp;
 use Data::Dumper;
 use File::Temp;
+use File::Basename;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
 use Bio::P3::Workspace::WorkspaceClientExt;
+
+my $ar_run = "/vol/kbase/deployment/bin/ar-run";
+my $ar_get = "/vol/kbase/deployment/bin/ar-get";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -21,7 +25,7 @@ sub process_reads {
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
-#    verify_cmd("ar-run") and verify_cmd("ar-get");
+    verify_cmd($ar_run) and verify_cmd($ar_get);
 
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
@@ -32,12 +36,11 @@ sub process_reads {
 
     my @ai_params = parse_input($params);
 
-    my $out_tmp = File::Temp->new();
+    my $out_tmp = File::Temp->new(SUFFIX => ".contigs");
     close($out_tmp);
 
     my $cmd = join(" ", @ai_params);
-#    $cmd = "ar-run $method $cmd | ar-get -w -p > $out_tmp";
-    $cmd = "echo ar-run $method $cmd ar-get -w -p > $out_tmp";
+    $cmd = "$ar_run $method $cmd | $ar_get -w -p > $out_tmp";
     print "$cmd\n";
 
     run($cmd);
@@ -71,7 +74,9 @@ sub get_ws_file {
     my $ws = get_ws();
     my $token = get_token();
 
-    my $file = File::Temp->new();
+    my(undef, undef, $suffix) = fileparse($id, qr/\.[^.]*/);
+
+    my $file = File::Temp->new(SUFFIX => $suffix);
 
     eval {
 	$ws->copy_files_to_handles(1, $token, [[$id, $file]]);
