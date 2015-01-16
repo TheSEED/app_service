@@ -10,7 +10,7 @@ SERVICE_MODULE = lib/Bio/KBase/AppService/Service.pm
 SERVICE = app_service
 SERVICE_PORT = 7124
 
-SERVICE_URL = https://kbase.us/services/$(SERVICE)
+SERVICE_URL = http://p3.theseed.org/services/$(SERVICE)
 
 SERVICE_NAME = AppService
 SERVICE_NAME_PY = $(SERVICE_NAME)
