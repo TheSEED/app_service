@@ -9,14 +9,14 @@ if (defined $ENV{KB_DEPLOYMENT_CONFIG} && -e $ENV{KB_DEPLOYMENT_CONFIG}) {
     print "using $ENV{KB_DEPLOYMENT_CONFIG} for configs\n";
 }
 else {
-    $cfg = new Config::Simple(syntax=>'ini');
-    $cfg->param('app_service.service-host', '127.0.0.1');
-    $cfg->param('app_service.service-port', '7109');
+    die "no KB_DEPLOYMENT_CONFIG found";
 }
 
-my $url = "http://" . $cfg->param('handle_service.service-host') . 
-	  ":" . $cfg->param('handle_service.service-port');
+my $url = "http://" . $cfg->param('app_service.service-host') . 
+	  ":" . $cfg->param('app_service.service-port');
 
+ok(system("curl -h > /dev/null 2>&1") == 0, "curl is installed");
+ok(system("curl $url > /dev/null 2>&1") == 0, "$url is reachable");
 
 # TODO for a pure client side test, remove AWE, Shock, and AppServiceImpl
 BEGIN {
