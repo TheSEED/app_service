@@ -15,8 +15,16 @@ else {
 my $url = "http://" . $cfg->param('app_service.service-host') . 
 	  ":" . $cfg->param('app_service.service-port');
 
-ok(system("curl -h > /dev/null 2>&1") == 0, "curl is installed");
-ok(system("curl $url > /dev/null 2>&1") == 0, "$url is reachable");
+my $cmd = 'curl -h > /dev/null 2>&1';
+ok(system($cmd) == 0, "curl is installed");
+
+$cmd = 'curl ' .  $url . ' > /dev/null 2>&1';
+ok(system($cmd) == 0, "$url is reachable");
+
+my $cmd = "curl " . $cfg->param('app_service.service-url') . '>/dev/null 2>&1';
+ok(system($cmd) == 0,
+  $cfg->param('app_service.service-url') . " is reachable"); 
+
 
 # TODO for a pure client side test, remove AWE, Shock, and AppServiceImpl
 BEGIN {
