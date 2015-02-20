@@ -16,6 +16,7 @@ use Bio::KBase::AuthToken;
 
 my $ar_run = "ar-run";
 my $ar_get = "ar-get";
+my $ar_filter = "ar-filter";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -32,7 +33,7 @@ sub process_reads {
     $global_token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
     $global_ws = $app->workspace;
 
-    verify_cmd($ar_run) and verify_cmd($ar_get);
+    verify_cmd($ar_run) and verify_cmd($ar_get) and verify_cmd($ar_filter);
 
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
@@ -54,7 +55,7 @@ sub process_reads {
     $ENV{KB_RUNNING_IN_IRIS} = 1;
 
     my $cmd = join(" ", @ai_params);
-    $cmd = "$ar_run $method $cmd | $ar_get -w -p > $out_tmp";
+    $cmd = "$ar_run $method $cmd | $ar_get -w -p | $ar_filter -l 300 -c 5 > $out_tmp";
     print "$cmd\n";
 
     run($cmd);
