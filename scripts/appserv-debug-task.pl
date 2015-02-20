@@ -43,6 +43,7 @@ my $task_info = $res->{$task_id};
 
 print Dumper($task_info);
 
+eval {
 my $stderr_node = $shock->get_node($task_info->{stderr_shock_node});
 print "Stderr: " . $json->encode($stderr_node);
 print '-' x 40 . "\n";
@@ -54,9 +55,12 @@ print '-' x 40 . "\n";
 my $awe_job = $awe->job($task_id);
 print "AWE job: " . $json->encode($awe_job);
 print '-' x 40 . "\n";
+};
 #
 # Find the relevant events.
 #
+
+my @work_ids;
 
 for my $log (<$awe_logs/*/event.log>)
 {
@@ -75,11 +79,34 @@ for my $log (<$awe_logs/*/event.log>)
 	    }
 	    my($date, $level, $code, $rest) = parse_event($_);
 	    my $event_info = $Bio::KBase::AppService::AweEvents::events{$code};
-	    my @details = map { s/=/\t/; $_ } split(/;/, $rest);
+	    my @details = map { my($k,$v) = split(/=/, $_, 2); [$k, $v] } split(/;/, $rest);
+	    if ($event_info->[0] eq 'WORK_CHECKOUT')
+	    {
+		push(@work_ids, map { split(/,/, $_->[1]) } grep { $_->[0] eq 'workids' } @details);
+	    }
 	    print "$event_info->[0]\t$date\n";
-	    print "\t$_\n" foreach @details;
+	    print "\t$_\n" foreach map { join("=", @$_) } @details;
 	}
     }
+}
+
+for my $work_id (@work_ids)
+{
+    print "Work id $work_id:\n";
+    my(@s) = $work_id =~ /^(..)(..)(..)/;
+    my $dir = "$awe_root/work/" . join("/", @s) . "/$work_id";
+    system("ls -l $dir");
+    for my $file (qw(stderr.txt stdout.txt awe_stderr.txt awe_stodut.txt awe_worknotes.txt))
+    {
+	if (open(F, "<", "$dir/$file"))
+	{
+	    print "$dir/$file:\n";
+	    print "\t$_" foreach <F>;
+	    print "\n";
+	    close(F);
+	}
+    }
+	 
 }
 
 sub parse_event

@@ -10,8 +10,6 @@ use File::Basename;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
-use Bio::P3::Workspace::WorkspaceClient;
-use Bio::P3::Workspace::WorkspaceClientExt;
 
 #my $ar_run = "/vol/kbase/deployment/bin/ar-run";
 #my $ar_get = "/vol/kbase/deployment/bin/ar-get";
@@ -23,10 +21,16 @@ my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
 $script->run(\@ARGV);
 
+our $global_ws;
+our $global_token;
+
 sub process_reads {
-    my($app_def, $raw_params, $params) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
+
+    $global_token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    $global_ws = $app->workspace;
 
     verify_cmd($ar_run) and verify_cmd($ar_get);
 
@@ -58,22 +62,20 @@ sub process_reads {
     my $ws = get_ws();
     my $meta;
 
-    $ws->save_file_to_file("$out_tmp", $meta, "$output_path/$output_name", undef,
+    my $result_folder = $app->result_folder();
+    $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", undef,
                            1, 1, $token);
+
+    undef $global_ws;
+    undef $global_token;
 }
 
-my $global_ws;
 sub get_ws {
-    my $ws = $global_ws || Bio::P3::Workspace::WorkspaceClientExt->new();
-    $global_ws ||= $ws;
-    return $ws;
+    return $global_ws;
 }
 
-my $global_token;
 sub get_token {
-    my $token = $global_token || Bio::KBase::AuthToken->new(ignore_authrc => 0);
-    $token && $token->validate() or die "No token or invalid token\n";
-    $global_token ||= $token;
+    return $global_token;
 }
  
 my $global_file_count;

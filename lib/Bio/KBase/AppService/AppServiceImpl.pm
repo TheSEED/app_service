@@ -62,6 +62,8 @@ sub _awe_to_task
 	completed_time => $i->{completedtime},
 	stdout_shock_node => $self->_lookup_output($atask, "stdout.txt"),
 	stderr_shock_node => $self->_lookup_output($atask, "stderr.txt"),
+	awe_stdout_shock_node => $self->_lookup_output($atask, "awe_stdout.txt"),
+	awe_stderr_shock_node => $self->_lookup_output($atask, "awe_stderr.txt"),
 	
     };
     return $task;
@@ -72,7 +74,7 @@ sub _lookup_output
     my($self, $atask, $filename) = @_;
     my $outputs = $atask->{outputs};
     my $file = $outputs->{$filename};
-    print STDERR Dumper($atask);
+    # print STDERR Dumper($atask);
     if ($file)
     {
 	my $h = $file->{host};
@@ -358,6 +360,9 @@ sub start_app
     my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
     my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
     
+    my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
+    my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
+    
 
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},
@@ -367,7 +372,7 @@ sub start_app
 				      $stdout_file->name, $stderr_file->name),
 				 [],
 				 [$app_file, $params_file],
-				 [$stdout_file, $stderr_file],
+				 [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
 				 undef,
 				 undef,
 				 $task_userattr,
@@ -1005,6 +1010,56 @@ start_time has a value which is a string
 completed_time has a value which is a string
 stdout_shock_node has a value which is a string
 stderr_shock_node has a value which is a string
+
+
+=end text
+
+=back
+
+
+
+=head2 TaskResult
+
+=over 4
+
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+id has a value which is a task_id
+app has a value which is an App
+parameters has a value which is a task_parameters
+start_time has a value which is a float
+end_time has a value which is a float
+elapsed_time has a value which is a float
+hostname has a value which is a string
+output_files has a value which is a reference to a list where each element is a reference to a list containing 2 items:
+0: (output_path) a string
+1: (output_id) a string
+
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+id has a value which is a task_id
+app has a value which is an App
+parameters has a value which is a task_parameters
+start_time has a value which is a float
+end_time has a value which is a float
+elapsed_time has a value which is a float
+hostname has a value which is a string
+output_files has a value which is a reference to a list where each element is a reference to a list containing 2 items:
+0: (output_path) a string
+1: (output_id) a string
+
 
 
 =end text

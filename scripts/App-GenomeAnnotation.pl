@@ -4,8 +4,6 @@
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
-use Bio::P3::Workspace::WorkspaceClient;
-use Bio::P3::Workspace::WorkspaceClientExt;
 use strict;
 use Data::Dumper;
 use gjoseqlib;
@@ -28,7 +26,7 @@ $script->run(\@ARGV);
 
 sub process_genome
 {
-    my($app_def, $raw_params, $params) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
@@ -59,20 +57,14 @@ sub process_genome
     };
     my $genome = $impl->create_genome($meta);
 
-    my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
+    my $ws = $app->workspace();
 
     my($input_path) = $params->{contigs};
 
-    #
-    # Default the output values based on the input.
-    #
-    my $output_path = $params->{output_path};
+    my $output_folder = $app->result_folder();
+
     my $output_base = $params->{output_file};
 
-    if (!$output_path)
-    {
-	$output_path = dirname($input_path);
-    }
     if (!$output_base)
     {
 	$output_base = basename($input_path);
@@ -102,7 +94,7 @@ sub process_genome
     my $workflow = $impl->default_workflow();
     my $result = $impl->run_pipeline($genome, $workflow);
 
-    $ws->save_data_to_file($json->encode($result), $meta, "$output_path/$output_base.genome", undef, 
+    $ws->save_data_to_file($json->encode($result), $meta, "$output_folder/$output_base.genome", undef, 
 			   1, 1, $token);
 
 
@@ -111,7 +103,7 @@ sub process_genome
 	my $exp = $impl->export_genome($result, $format, []);
 	my $len = length($exp);
 
-	my $file = "$output_path/$output_base.$format";
+	my $file = "$output_folder/$output_base.$format";
 	print "Save $len to $file\n";
 
 	$ws->save_data_to_file($exp, $meta, $file, undef, 

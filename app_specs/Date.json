@@ -1,8 +1,24 @@
 {
 	"id":"Date",
-	"script":"App-Date",
+	"script":"App-Date_bob",
 	"label":"Date",
 	"description":"Returns the current date and time.",
 	"parameters":[
+		{
+			"id":"output_path",
+			"label":"Output Folder",
+			"required":0,
+			"default":null,
+			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
+			"type":"folder"
+		},
+		{
+			"id":"output_file",
+			"label":"File Basename",
+			"required":0,
+			"default":null,
+			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
+			"type":"wsid"
+		}
 	]
 }
