@@ -107,6 +107,7 @@ sub new
     $self->{awe_mongo_db} = $cfg->setting("awe-mongo-db") || "AWEDB";
     $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
     $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
+    $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
     
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
@@ -342,7 +343,7 @@ sub start_app
 					   name => $app_id,
 					   project => 'AppService',
 					   user => $ctx->user_id,
-					   clientgroups => '',
+					   clientgroups => $self->{awe_clientgroup},
 					   userattr => $userattr,
 					   priority => 2,
 					  );
