@@ -136,7 +136,7 @@ sub run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file} . ".json";
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file);
+    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result');
 
     delete $self->{workspace};
 }

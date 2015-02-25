@@ -37,13 +37,18 @@ sub process_genome
 								client_ip => "localhost");
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 0);
     if ($token->validate())
     {
 	$ctx->authenticated(1);
 	$ctx->user_id($token->user_id);
 	$ctx->token($token->token);
     }
+    else
+    {
+	warn "Token did not validate\n";
+    }
+
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $ctx;
     my $stderr = Bio::KBase::GenomeAnnotation::ServiceStderrWrapper->new($ctx, $get_time);
     $ctx->stderr($stderr);
@@ -54,6 +59,7 @@ sub process_genome
 	scientific_name => $params->{scientific_name},
 	genetic_code => $params->{code},
 	domain => $params->{domain},
+	($params->{taxonomy_id} ? (ncbi_taxonomy_id => $params->{taxonomy_id}) : ()),
     };
     my $genome = $impl->create_genome($meta);
 
@@ -94,11 +100,21 @@ sub process_genome
     my $workflow = $impl->default_workflow();
     my $result = $impl->run_pipeline($genome, $workflow);
 
-    $ws->save_data_to_file($json->encode($result), $meta, "$output_folder/$output_base.genome", undef, 
+    $ws->save_data_to_file($json->encode($result), $meta, "$output_folder/$output_base.genome", 'genome', 
 			   1, 1, $token);
 
+    #
+    # Map export format to the file type.
+    my %formats = (genbank => 'unspecified',
+		   genbank_merged => 'unspecified',
+		   feature_data => 'unspecified',
+		   protein_fasta => 'unspecified',
+		   contig_fasta => 'contigs',
+		   feature_dna => 'unspecified',
+		   gff => 'unspecified',
+		   embl => 'unspecified');
 
-    for my $format (qw(genbank genbank_merged feature_data protein_fasta contig_fasta feature_dna gff embl))
+    while (my($format, $file_format) = each %formats)
     {
 	my $exp = $impl->export_genome($result, $format, []);
 	my $len = length($exp);
@@ -106,8 +122,7 @@ sub process_genome
 	my $file = "$output_folder/$output_base.$format";
 	print "Save $len to $file\n";
 
-	$ws->save_data_to_file($exp, $meta, $file, undef, 
-			   1, 1, $token);
+	$ws->save_data_to_file($exp, $meta, $file, $file_format, 1, 1, $token);
     }
 
     $ctx->stderr(undef);

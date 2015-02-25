@@ -22,6 +22,14 @@
 			"type":"string"
 		},
 		{
+			"id":"taxonomy_id",
+			"label":"NCBI Taxonomy ID",
+			"required":0,
+			"default":null,
+			"desc":"NCBI Taxonomy identfier for this genome",
+			"type":"int"
+		},
+		{
 			"id":"code",
 			"label":"Genetic Code",
 			"required":1,

@@ -64,7 +64,7 @@ sub process_reads {
     my $meta;
 
     my $result_folder = $app->result_folder();
-    $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", undef,
+    $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", 'contigs',
                            1, 1, $token);
 
     undef $global_ws;
