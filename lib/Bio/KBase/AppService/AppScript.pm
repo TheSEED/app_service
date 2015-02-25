@@ -135,7 +135,7 @@ sub run
 	output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
     };
 
-    my $file = $self->params->{output_path} . "/" . $self->params->{output_file} . ".json";
+    my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
     $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result');
 
     delete $self->{workspace};
