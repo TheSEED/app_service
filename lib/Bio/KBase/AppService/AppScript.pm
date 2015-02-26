@@ -94,16 +94,17 @@ sub run
     chomp $host;
     my $start_time = gettimeofday;
 
+    my $job_output;
     if ($stdout_file)
     {
 	my $stdout_fh = IO::File->new($stdout_file, "w+");
 	my $stderr_fh = IO::File->new($stderr_file, "w+");
 	
-	capture(sub { $self->callback->($self, $app_def, $params, \%proc_param) } , stdout => $stdout_fh, stderr => $stderr_fh);
+	capture(sub { $job_output = $self->callback->($self, $app_def, $params, \%proc_param) } , stdout => $stdout_fh, stderr => $stderr_fh);
     }
     else
     {
-	$self->callback->($self, $app_def, $params, \%proc_param);
+	$job_output = $self->callback->($self, $app_def, $params, \%proc_param);
     }
 
     my $end_time = gettimeofday;
@@ -133,6 +134,7 @@ sub run
 	elapsed_time => $elap,
 	hostname => $host,
 	output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
+	job_output => $job_output,
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};

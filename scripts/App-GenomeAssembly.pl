@@ -7,6 +7,7 @@ use Carp;
 use Data::Dumper;
 use File::Temp;
 use File::Basename;
+use IPC::Run 'run';
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
@@ -17,6 +18,7 @@ use Bio::KBase::AuthToken;
 my $ar_run = "ar-run";
 my $ar_get = "ar-get";
 my $ar_filter = "ar-filter";
+my $ar_stat = "ar-stat";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -40,7 +42,7 @@ sub process_reads {
     my $output_name = "$output_base.contigs";
 
     my $recipe = $params->{recipe};
-    my $method = "-r $recipe" if $recipe;
+    my @method = ("-r", $recipe) if $recipe;
 
     my $tmpdir = File::Temp->newdir();
 
@@ -54,11 +56,33 @@ sub process_reads {
     $ENV{ARAST_AUTH_USER} = $token->user_id;
     $ENV{KB_RUNNING_IN_IRIS} = 1;
 
-    my $cmd = join(" ", @ai_params);
-    $cmd = "$ar_run $method $cmd | $ar_get -w -p | $ar_filter -l 300 -c 5 > $out_tmp";
-    print "$cmd\n";
+    my @submit_cmd = ($ar_run, @method, @ai_params);
 
-    run($cmd);
+    my @get_cmd = ($ar_get, '-w', '-p');
+    my @filter_cmd = ($ar_filter, '-l', 300, '-c', '5'); # > $out_tmp";
+
+    my $submit_out;
+    my $submit_err;
+    print STDERR "Running @submit_cmd\n";
+    my $submit_ok = run(\@submit_cmd, '>', \$submit_out, '2>', \$submit_err);
+    if (!$submit_ok)
+    {
+	die "Error submitting run. Run command=@$ar_run, stdout:\n$submit_out\nstderr:\n$submit_err\n";
+    }
+
+    print STDERR "Submission returns\n$submit_out\n";
+    my($arast_job) = $submit_out =~ /job\s+id:\s+(\d+)/i;
+
+    print STDERR "Submitted job $arast_job, waiting for results\n";
+    print STDERR `$ar_stat`;
+
+    print STDERR "Running pull: @get_cmd -j $arast_job | @filter_cmd\n";
+    my $pull_ok = run([@get_cmd, "-j", $arast_job], "|",
+		      \@filter_cmd, '>', $out_tmp);
+    if (!$pull_ok)
+    {
+	die "Error retrieving results from job $arast_job\n";
+    }
 
     my $ws = get_ws();
     my $meta;
@@ -69,6 +93,10 @@ sub process_reads {
 
     undef $global_ws;
     undef $global_token;
+
+    return {
+	arast_job_id => $arast_job,
+    };
 }
 
 sub get_ws {
@@ -156,8 +184,6 @@ sub verify_cmd {
     my ($cmd) = @_;
     system("which $cmd >/dev/null") == 0 or die "Command not found: $cmd\n";
 }
-
-sub run { system(@_) == 0 or confess("FAILED: ". join(" ", @_)); }
 
 #-----------------------------------------------------------------------------
 #  Read the entire contents of a file or stream into a string.  This command

@@ -105,14 +105,14 @@ sub process_genome
 
     #
     # Map export format to the file type.
-    my %formats = (genbank => 'unspecified',
-		   genbank_merged => 'unspecified',
-		   feature_data => 'unspecified',
-		   protein_fasta => 'unspecified',
+    my %formats = (genbank => 'genbank',
+		   genbank_merged => 'genbank',
+		   feature_data => 'feature_table',
+		   protein_fasta => 'feature_protein_fasta',
 		   contig_fasta => 'contigs',
-		   feature_dna => 'unspecified',
-		   gff => 'unspecified',
-		   embl => 'unspecified');
+		   feature_dna => 'feature_dna_fasta',
+		   gff => 'gff',
+		   embl => 'gff');
 
     while (my($format, $file_format) = each %formats)
     {
