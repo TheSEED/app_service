@@ -112,7 +112,7 @@ sub process_genome
 		   contig_fasta => 'contigs',
 		   feature_dna => 'feature_dna_fasta',
 		   gff => 'gff',
-		   embl => 'gff');
+		   embl => 'embl');
 
     while (my($format, $file_format) = each %formats)
     {
