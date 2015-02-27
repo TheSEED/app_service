@@ -105,8 +105,8 @@ sub process_genome
 
     #
     # Map export format to the file type.
-    my %formats = (genbank => 'genbank',
-		   genbank_merged => 'genbank',
+    my %formats = (genbank => 'genbank_file',
+		   genbank_merged => 'genbank_file',
 		   feature_data => 'feature_table',
 		   protein_fasta => 'feature_protein_fasta',
 		   contig_fasta => 'contigs',
