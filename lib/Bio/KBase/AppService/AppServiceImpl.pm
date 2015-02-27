@@ -69,6 +69,10 @@ sub _awe_state_to_status
     {
 	$nstate = 'failed';
     }
+    #
+    # Normalize dash/_ use.
+    #
+    $nstate =~ s/_/-/g;
     return $nstate;
 }
 
