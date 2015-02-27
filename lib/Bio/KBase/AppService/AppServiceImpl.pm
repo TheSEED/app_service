@@ -43,6 +43,36 @@ sub _lookup_task
     return $task;
 }
 
+#
+# Map an AWE state to our status.
+# Mostly the same, but we map suspend to failed.
+# From https://github.com/MG-RAST/AWE/blob/master/lib/core/task.go#L14:
+#
+# const (
+#               TASK_STAT_INIT       = "init"
+#               TASK_STAT_QUEUED     = "queued"
+#               TASK_STAT_INPROGRESS = "in-progress"
+#               TASK_STAT_PENDING    = "pending"
+#               TASK_STAT_SUSPEND    = "suspend"
+#               TASK_STAT_COMPLETED  = "completed"
+#               TASK_STAT_SKIPPED    = "user_skipped"
+#               TASK_STAT_FAIL_SKIP  = "skipped"
+#               TASK_STAT_PASSED     = "passed"
+#       )
+
+sub _awe_state_to_status
+{
+    my($self, $state) = @_;
+
+    my $nstate = $state;
+    if ($state eq 'suspend')
+    {
+	$nstate = 'failed';
+    }
+    return $nstate;
+}
+
+
 sub _awe_to_task
 {
     my($self, $t) = @_;
@@ -56,7 +86,7 @@ sub _awe_to_task
 	app => $u->{app_id},
 	workspace => $u->{workspace},
 	parameters => decode_json($u->{parameters}),
-	status => $t->{state},
+	status => $self->_awe_state_to_status($t->{state}),
 	submit_time => $i->{submittime},
 	start_time => $i->{startedtime},
 	completed_time => $i->{completedtime},
@@ -574,7 +604,7 @@ sub query_task_summary
 	next if $state eq 'deleted';
 
 	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state, "info.pipeline" => "AppService"})->count();
-	$status->{$state} = $n;
+	$status->{$self->_awe_state_to_status($state)} = $n;
     }
 
     undef $col;
