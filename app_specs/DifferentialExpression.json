@@ -1,0 +1,50 @@
+{
+   "script" : "App-DifferentialExpression",
+   "label" : "Transform expression data",
+   "id" : "DifferentialExpression",
+   "description" : "Parses and transforms users differential expression data",
+   "parameters" : [
+      {
+         "required" : 1,
+         "desc" : "Comparison values between samples",
+         "type" : "wstype",
+         "label" : "Experiment Data File",
+         "default" : null,
+         "id" : "xfile",
+         "wstype" : "ExpList"
+      },
+      {
+         "required" : 0,
+         "desc" : "Metadata template filled out by the user",
+         "type" : "wstype",
+         "default" : null,
+         "label" : "Metadata File",
+         "id" : "mfile",
+         "wstype" : "ExpMetadata"
+      },
+      {
+         "required" : 1,
+         "desc" : "User information (JSON string)",
+         "type" : "string",
+         "default" : null,
+         "label" : "User string",
+         "id" : "ustring"
+      },
+      {
+         "required" : 0,
+         "desc" : "Path to which the output will be written. Defaults to the directory containing the input data. ",
+         "type" : "folder",
+         "default" : null,
+         "label" : "Output Folder",
+         "id" : "output_path"
+      },
+      {
+         "required" : 0,
+         "desc" : "Basename for the generated output files. Defaults to the basename of the input data.",
+         "type" : "wsid",
+         "default" : null,
+         "label" : "File Basename",
+         "id" : "output_file"
+      }
+   ]
+}

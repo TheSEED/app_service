@@ -31,11 +31,15 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define kb_service_name=$(SERVICE) \
 	--define kb_service_port=$(SERVICE_PORT) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
+	--define data_api_url=$(DATA_API_URL) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)
 
-all: bin compile-typespec service
+all: build-libs bin compile-typespec service
+
+build-libs:
+	$(TPAGE) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
 
 test:
 	# run each test
@@ -79,7 +83,7 @@ log-events:
 
 deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
-deploy-client: compile-typespec deploy-docs deploy-libs deploy-scripts 
+deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts 
 
 deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
 	$(TPAGE) $(TPAGE_ARGS) service/start_service.tt > $(TARGET)/services/$(SERVICE)/start_service
