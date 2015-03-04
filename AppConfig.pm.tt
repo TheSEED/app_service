@@ -1,0 +1,9 @@
+package Bio::KBase::AppService::AppConfig;
+
+use constant        data_api_url   => '[% data_api_url %]';
+
+use base 'Exporter';
+our @EXPORT_OK = qw(data_api_url);
+
+1;
+

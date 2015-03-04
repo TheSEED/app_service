@@ -2,6 +2,7 @@ use Bio::KBase::AppService::AppServiceImpl;
 
 use Bio::KBase::AppService::Service;
 use Plack::Middleware::CrossOrigin;
+use Plack::Builder;
 
 
 
@@ -17,6 +18,12 @@ my $server = Bio::KBase::AppService::Service->new(instance_dispatch => { @dispat
 				allow_get => 0,
 			       );
 
-my $handler = sub { $server->handle_input(@_) };
+my $rpc_handler = sub { $server->handle_input(@_) };
+
+$handler = builder {
+    mount "/ping" => sub { $server->ping(@_); };
+    mount "/auth_ping" => sub { $server->auth_ping(@_); };
+    mount "/" => $rpc_handler;
+};
 
 $handler = Plack::Middleware::CrossOrigin->wrap( $handler, origins => "*", headers => "*");

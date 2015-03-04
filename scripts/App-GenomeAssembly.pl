@@ -7,35 +7,42 @@ use Carp;
 use Data::Dumper;
 use File::Temp;
 use File::Basename;
+use IPC::Run 'run';
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
-use Bio::P3::Workspace::WorkspaceClient;
-use Bio::P3::Workspace::WorkspaceClientExt;
 
 #my $ar_run = "/vol/kbase/deployment/bin/ar-run";
 #my $ar_get = "/vol/kbase/deployment/bin/ar-get";
 
 my $ar_run = "ar-run";
 my $ar_get = "ar-get";
+my $ar_filter = "ar-filter";
+my $ar_stat = "ar-stat";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
 $script->run(\@ARGV);
 
+our $global_ws;
+our $global_token;
+
 sub process_reads {
-    my($app_def, $raw_params, $params) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
-    verify_cmd($ar_run) and verify_cmd($ar_get);
+    $global_token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    $global_ws = $app->workspace;
+
+    verify_cmd($ar_run) and verify_cmd($ar_get) and verify_cmd($ar_filter);
 
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
     my $output_name = "$output_base.contigs";
 
     my $recipe = $params->{recipe};
-    my $method = "-r $recipe" if $recipe;
+    my @method = ("-r", $recipe) if $recipe;
 
     my $tmpdir = File::Temp->newdir();
 
@@ -49,31 +56,55 @@ sub process_reads {
     $ENV{ARAST_AUTH_USER} = $token->user_id;
     $ENV{KB_RUNNING_IN_IRIS} = 1;
 
-    my $cmd = join(" ", @ai_params);
-    $cmd = "$ar_run $method $cmd | $ar_get -w -p > $out_tmp";
-    print "$cmd\n";
+    my @submit_cmd = ($ar_run, @method, @ai_params);
 
-    run($cmd);
+    my @get_cmd = ($ar_get, '-w', '-p');
+    my @filter_cmd = ($ar_filter, '-l', 300, '-c', '5'); # > $out_tmp";
+
+    my $submit_out;
+    my $submit_err;
+    print STDERR "Running @submit_cmd\n";
+    my $submit_ok = run(\@submit_cmd, '>', \$submit_out, '2>', \$submit_err);
+    if (!$submit_ok)
+    {
+	die "Error submitting run. Run command=@$ar_run, stdout:\n$submit_out\nstderr:\n$submit_err\n";
+    }
+
+    print STDERR "Submission returns\n$submit_out\n";
+    my($arast_job) = $submit_out =~ /job\s+id:\s+(\d+)/i;
+
+    print STDERR "Submitted job $arast_job, waiting for results\n";
+    print STDERR `$ar_stat`;
+
+    print STDERR "Running pull: @get_cmd -j $arast_job | @filter_cmd\n";
+    my $pull_ok = run([@get_cmd, "-j", $arast_job], "|",
+		      \@filter_cmd, '>', $out_tmp);
+    if (!$pull_ok)
+    {
+	die "Error retrieving results from job $arast_job\n";
+    }
 
     my $ws = get_ws();
     my $meta;
 
-    $ws->save_file_to_file("$out_tmp", $meta, "$output_path/$output_name", undef,
+    my $result_folder = $app->result_folder();
+    $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", 'contigs',
                            1, 1, $token);
+
+    undef $global_ws;
+    undef $global_token;
+
+    return {
+	arast_job_id => $arast_job,
+    };
 }
 
-my $global_ws;
 sub get_ws {
-    my $ws = $global_ws || Bio::P3::Workspace::WorkspaceClientExt->new();
-    $global_ws ||= $ws;
-    return $ws;
+    return $global_ws;
 }
 
-my $global_token;
 sub get_token {
-    my $token = $global_token || Bio::KBase::AuthToken->new(ignore_authrc => 0);
-    $token && $token->validate() or die "No token or invalid token\n";
-    $global_token ||= $token;
+    return $global_token;
 }
  
 my $global_file_count;
@@ -153,8 +184,6 @@ sub verify_cmd {
     my ($cmd) = @_;
     system("which $cmd >/dev/null") == 0 or die "Command not found: $cmd\n";
 }
-
-sub run { system(@_) == 0 or confess("FAILED: ". join(" ", @_)); }
 
 #-----------------------------------------------------------------------------
 #  Read the entire contents of a file or stream into a string.  This command

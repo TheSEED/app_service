@@ -45,6 +45,17 @@ module AppService
 
     } Task;
 
+    typedef structure {
+	task_id id;
+	App app;
+	task_parameters parameters;
+	float start_time;
+	float end_time;
+	float elapsed_time;
+	string hostname;
+	list <tuple<string output_path, string output_id>> output_files;
+    } TaskResult;
+
     funcdef enumerate_apps()
 	returns (list<App>);
 

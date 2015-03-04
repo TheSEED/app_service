@@ -43,6 +43,40 @@ sub _lookup_task
     return $task;
 }
 
+#
+# Map an AWE state to our status.
+# Mostly the same, but we map suspend to failed.
+# From https://github.com/MG-RAST/AWE/blob/master/lib/core/task.go#L14:
+#
+# const (
+#               TASK_STAT_INIT       = "init"
+#               TASK_STAT_QUEUED     = "queued"
+#               TASK_STAT_INPROGRESS = "in-progress"
+#               TASK_STAT_PENDING    = "pending"
+#               TASK_STAT_SUSPEND    = "suspend"
+#               TASK_STAT_COMPLETED  = "completed"
+#               TASK_STAT_SKIPPED    = "user_skipped"
+#               TASK_STAT_FAIL_SKIP  = "skipped"
+#               TASK_STAT_PASSED     = "passed"
+#       )
+
+sub _awe_state_to_status
+{
+    my($self, $state) = @_;
+
+    my $nstate = $state;
+    if ($state eq 'suspend')
+    {
+	$nstate = 'failed';
+    }
+    #
+    # Normalize dash/_ use.
+    #
+    $nstate =~ s/_/-/g;
+    return $nstate;
+}
+
+
 sub _awe_to_task
 {
     my($self, $t) = @_;
@@ -56,12 +90,14 @@ sub _awe_to_task
 	app => $u->{app_id},
 	workspace => $u->{workspace},
 	parameters => decode_json($u->{parameters}),
-	status => $t->{state},
+	status => $self->_awe_state_to_status($t->{state}),
 	submit_time => $i->{submittime},
 	start_time => $i->{startedtime},
 	completed_time => $i->{completedtime},
 	stdout_shock_node => $self->_lookup_output($atask, "stdout.txt"),
 	stderr_shock_node => $self->_lookup_output($atask, "stderr.txt"),
+	awe_stdout_shock_node => $self->_lookup_output($atask, "awe_stdout.txt"),
+	awe_stderr_shock_node => $self->_lookup_output($atask, "awe_stderr.txt"),
 	
     };
     return $task;
@@ -72,7 +108,7 @@ sub _lookup_output
     my($self, $atask, $filename) = @_;
     my $outputs = $atask->{outputs};
     my $file = $outputs->{$filename};
-    print STDERR Dumper($atask);
+    # print STDERR Dumper($atask);
     if ($file)
     {
 	my $h = $file->{host};
@@ -105,6 +141,7 @@ sub new
     $self->{awe_mongo_db} = $cfg->setting("awe-mongo-db") || "AWEDB";
     $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
     $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
+    $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
     
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
@@ -340,7 +377,7 @@ sub start_app
 					   name => $app_id,
 					   project => 'AppService',
 					   user => $ctx->user_id,
-					   clientgroups => '',
+					   clientgroups => $self->{awe_clientgroup},
 					   userattr => $userattr,
 					   priority => 2,
 					  );
@@ -358,6 +395,9 @@ sub start_app
     my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
     my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
     
+    my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
+    my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
+    
 
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},
@@ -367,7 +407,7 @@ sub start_app
 				      $stdout_file->name, $stderr_file->name),
 				 [],
 				 [$app_file, $params_file],
-				 [$stdout_file, $stderr_file],
+				 [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
 				 undef,
 				 undef,
 				 $task_userattr,
@@ -568,7 +608,7 @@ sub query_task_summary
 	next if $state eq 'deleted';
 
 	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state, "info.pipeline" => "AppService"})->count();
-	$status->{$state} = $n;
+	$status->{$self->_awe_state_to_status($state)} = $n;
     }
 
     undef $col;
@@ -1005,6 +1045,56 @@ start_time has a value which is a string
 completed_time has a value which is a string
 stdout_shock_node has a value which is a string
 stderr_shock_node has a value which is a string
+
+
+=end text
+
+=back
+
+
+
+=head2 TaskResult
+
+=over 4
+
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+id has a value which is a task_id
+app has a value which is an App
+parameters has a value which is a task_parameters
+start_time has a value which is a float
+end_time has a value which is a float
+elapsed_time has a value which is a float
+hostname has a value which is a string
+output_files has a value which is a reference to a list where each element is a reference to a list containing 2 items:
+0: (output_path) a string
+1: (output_id) a string
+
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+id has a value which is a task_id
+app has a value which is an App
+parameters has a value which is a task_parameters
+start_time has a value which is a float
+end_time has a value which is a float
+elapsed_time has a value which is a float
+hostname has a value which is a string
+output_files has a value which is a reference to a list where each element is a reference to a list containing 2 items:
+0: (output_path) a string
+1: (output_id) a string
+
 
 
 =end text
