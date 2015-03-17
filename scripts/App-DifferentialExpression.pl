@@ -30,17 +30,28 @@ sub process_diffexp
     my $output_folder = $app->result_folder();
 
     my $xfile_tmp = basename($xfile);
-    my $mfile_tmp = basename($mfile);
     my $sfile_tmp = "sstr.$$";
     my $ufile_tmp = "ustr.$$";
 
     open(my $xfile_fh, ">", $xfile_tmp) or die "Cannot open $xfile_tmp:$!";
-    open(my $mfile_fh, ">", $mfile_tmp) or die "Cannot open $mfile_tmp:$!";
     open(my $sstring_fh, ">", $sfile_tmp) or die "Cannot open $sfile_tmp:$!";
     open(my $ustring_fh, ">", $ufile_tmp) or die "Cannot open $sfile_tmp:$!";
 
+    my @files = ([$xfile, $xfile_fh]);
+    
+    my $mfile_tmp;
+    my $mfile_fh;
+    my @mfile_arg;
+    if ($mfile)
+    {
+	$mfile_tmp = basename($mfile);
+	open($mfile_fh, ">", $mfile_tmp) or die "Cannot open $mfile_tmp:$ !";
+	push(@files, [$mfile, $mfile_fh]);
+	push(@mfile_arg, "--mfile", $mfile_tmp);
+    }
+
     eval {
-	$app->workspace->copy_files_to_handles(1, $token, [[$xfile, $xfile_fh], [$mfile, $mfile_fh]]);
+	$app->workspace->copy_files_to_handles(1, $token, \@files);
     };
     if ($@)
     {
@@ -48,7 +59,7 @@ sub process_diffexp
     }
 
     close($xfile_fh);
-    close($mfile_fh);
+    close($mfile_fh) if $mfile_fh;
 
     my $dat = { data_api => Bio::KBase::AppService::AppConfig->data_api_url };
     my $sstring = encode_json($dat);
@@ -63,7 +74,7 @@ sub process_diffexp
     -d $out || mkdir($out) || die "Cannot mkdir $out: $!";
     my @cmd = ("expression_transform",
 	       "--xfile", $xfile_tmp,
-	       "--mfile", $mfile_tmp,
+	       @mfile_arg,
 	       "--output_path", $out,
 	       "--ufile", $ufile_tmp,
 	       "--sfile", $sfile_tmp);
