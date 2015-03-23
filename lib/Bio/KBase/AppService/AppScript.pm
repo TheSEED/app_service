@@ -92,6 +92,9 @@ sub run
     $stdout_pipe->reader();
     $stderr_pipe->reader();
 
+    $stdout_pipe->blocking(0);
+    $stderr_pipe->blocking(0);
+
     $sel->add($stdout_pipe);
     $sel->add($stderr_pipe);
 
