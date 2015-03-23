@@ -6,10 +6,14 @@ use strict;
 use JSON::XS;
 use File::Slurp;
 use IO::File;
+use IO::Pipe;
+use IO::Select;
 use Capture::Tiny 'capture';
 use Bio::P3::Workspace::WorkspaceClientExt;
 use Bio::KBase::AuthToken;
 use Time::HiRes 'gettimeofday';
+use LWP::UserAgent;
+use REST::Client;
 
 use base 'Class::Accessor';
 
@@ -27,7 +31,107 @@ sub new
     return bless $self, $class;
 }
 
+#
+# Run the script.
+#
+# We wish the script to always succeed (from the point of view of the execution environment)
+# so we will run the script itself as a forked child, and monitor its execution. We create
+# pipes from stdout and stderr and push their output to the app service URL provided as the first argument to
+# the script.
+#
 sub run
+{
+    my($self, $args) = @_;
+
+    #
+    # Hack to finding task id.
+    #
+    my $task_id = 'TBD';
+    if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
+    {
+	$task_id = $1;
+    }
+    else
+    {
+	$task_id = "UNK-$$";
+    }
+
+    my $appserv_url = shift @$args;
+
+    my $ua = LWP::UserAgent->new();
+    my $rest = REST::Client->new();
+    $rest->setHost("$appserv_url/$task_id");
+    $self->{rest} = $rest;
+
+    my $sel = IO::Select->new();
+
+    my $stdout_pipe = IO::Pipe->new();
+    my $stderr_pipe = IO::Pipe->new();
+
+    my $pid = fork();
+
+    if ($pid == 0)
+    {
+	$stdout_pipe->writer();
+	$stderr_pipe->writer();
+
+	open(STDOUT, ">&", $stdout_pipe);
+	open(STDERR, ">&", $stderr_pipe);
+
+	$self->subproc_run($args);
+	exit(0);
+    }
+
+    my $host = `hostname -f`;
+    $host = `hostname` if !$host;
+    chomp $host;
+
+    $self->write_block("pid", $pid);
+    $self->write_block("hostname", $host);
+    
+    $stdout_pipe->reader();
+    $stderr_pipe->reader();
+
+    $sel->add($stdout_pipe);
+    $sel->add($stderr_pipe);
+
+    while ($sel->count() > 0)
+    {
+	my @ready = $sel->can_read();
+	for my $r (@ready)
+	{
+	    my $which = ($r == $stdout_pipe) ? 'stdout' : 'stderr';
+	    my $block;
+	    my $n = $r->read($block, 1_000_000);
+	    if (!defined($n))
+	    {
+		die "error reading $which $r: $!";
+	    }
+	    elsif ($n == 0)
+	    {
+		print STDERR "EOF on $r\n";
+		$self->write_block("$which/eof");
+		$sel->remove($r);
+	    }
+	    else
+	    {
+		$self->write_block("$which/data", $block);
+	    }
+	}
+    }
+
+    my $x = waitpid($pid, 0);
+    $self->write_block("exitcode",$?);
+}
+
+sub write_block
+{
+    my($self, $path, $data) = @_;
+    print "Write to $path: $data\n";
+    $self->{rest}->POST($path, $data);
+}
+
+sub subproc_run
 {
     my($self, $args) = @_;
     

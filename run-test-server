@@ -3,6 +3,6 @@
 export KB_DEPLOYMENT_CONFIG=`pwd`/test.cfg
 export KB_SERVICE_NAME=AppService
 
-shotgun="-L Shotgun"
+#shotgun="-L Shotgun"
 
 plackup $shotgun --listen :5001 lib/AppService.psgi
