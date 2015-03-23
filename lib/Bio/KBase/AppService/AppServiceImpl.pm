@@ -26,7 +26,115 @@ use Bio::KBase::AppService::Util;
 use Bio::KBase::DeploymentConfig;
 use File::Slurp;
 use UUID;
+use Plack::Request;
+use IO::File;
 
+sub _task_info
+{
+    my($self, $env) = @_;
+    my $req = Plack::Request->new($env);
+    my $path = $req->path_info;
+    print "$path\n";
+
+    #
+    # Ugly manual parsing of REST paths. If we do anything more complex this
+    # should become a Dancer thing.
+    #
+
+    if ($path !~ s,^/+([a-zA-Z0-9_-]+)/,,)
+    {
+	return $req->new_response(404)->finalize();
+    }
+    my $task = $1;
+    
+    my $dir = $self->{task_status_dir};
+
+    if ($req->method eq 'GET')
+    {
+	#
+	# We've pulled the task off the front, and should be left with just a
+	# bare filename in the task directory.
+	#
+
+	if ($path =~ /^[a-zA-Z0-9_-]+$/)
+	{
+	    my $fh = IO::File->new;
+	    if ($fh->open("$dir/$task/$path", "<"))
+	    {
+		my $res = $req->new_response(200);
+		$res->body($fh);
+		return $res->finalize;
+	    }
+	    else
+	    {
+		print STDERR "Could not open $dir/$task/$path: $!";
+		return $req->new_response(404)->finalize();
+	    }
+	}
+	else
+	{
+	    print STDERR "Invalid path '$path'\n";
+	    return $req->new_response(404)->finalize();
+	}
+    }
+    elsif ($req->method eq 'POST')
+    {
+	my($file, $multi, $tpath);
+
+	my @parts = split('/', $path);
+
+	print STDERR Dumper(\@parts, $dir);
+	
+	if ($dir)
+	{
+	    my $tdir = "$dir/$task";
+	    -d $tdir || mkdir($tdir) || warn "Error creating $tdir: $!";
+	    
+	    $file = shift @parts;
+	    
+	    $multi = shift @parts;
+	    
+	    if ($file)
+	    {
+		$tpath = "$tdir/$file";
+	    }
+	}
+	
+	print STDERR Dumper($dir, $task, $file, $multi, $tpath);
+	my $out;
+	if ($tpath && $multi eq 'data')
+	{
+	    open($out, ">>", $tpath);
+	}
+	elsif ($tpath && !$multi)
+	{
+	    open($out, ">", $tpath);
+	}
+	elsif ($path && $multi eq 'eof')
+	{
+	    open($out, ">", "${tpath}.EOF");
+	}
+
+	if ($out)
+	{
+	    my $fh = $req->body;
+	    my $buf;
+	    while ($fh->read($buf, 4096))
+	    {
+		print $out $buf;
+	    }
+	    close($out);
+	}
+	
+	my $res = $req->new_response(200);
+	$res->finalize();
+    }
+    else
+    {
+	return $req->new_response(404)->finalize();
+    }
+}
+    
 sub _lookup_task
 {
     my($self, $awe, $task_id) = @_;
@@ -142,7 +250,9 @@ sub new
     $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
     $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
     $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
-    
+
+    $self->{task_status_dir} = $cfg->setting("task-status-dir");
+    $self->{service_url} = $cfg->setting("service-url");
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
 	
@@ -392,22 +502,26 @@ sub start_app
     my $app_file = $awe->create_job_file("app", $shock->server, $app_node_id);
     my $params_file = $awe->create_job_file("params", $shock->server, $params_node_id);
 
-    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
-    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
+#    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
+#    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
     
     my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
     my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
-    
+
+    my $appserv_info_url = "$self->{service_url}/task_info";
 
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},
 				 $app->{script},
 				 join(" ",
+				      $appserv_info_url,
 				      $app_file->in_name, $params_file->in_name,
-				      $stdout_file->name, $stderr_file->name),
+				      # $stdout_file->name, $stderr_file->name,
+				     ),
 				 [],
 				 [$app_file, $params_file],
-				 [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
+				 [$awe_stdout_file, $awe_stderr_file],
+				 # [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
 				 undef,
 				 undef,
 				 $task_userattr,
@@ -624,6 +738,109 @@ sub query_task_summary
 							       method_name => 'query_task_summary');
     }
     return($status);
+}
+
+
+
+
+=head2 query_task_details
+
+  $details = $obj->query_task_details($task_id)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$task_id is a task_id
+$details is a TaskDetails
+task_id is a string
+TaskDetails is a reference to a hash where the following keys are defined:
+	stdout_url has a value which is a string
+	stderr_url has a value which is a string
+	pid has a value which is an int
+	hostname has a value which is a string
+	exitcode has a value which is an int
+
+</pre>
+
+=end html
+
+=begin text
+
+$task_id is a task_id
+$details is a TaskDetails
+task_id is a string
+TaskDetails is a reference to a hash where the following keys are defined:
+	stdout_url has a value which is a string
+	stderr_url has a value which is a string
+	pid has a value which is an int
+	hostname has a value which is a string
+	exitcode has a value which is an int
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub query_task_details
+{
+    my $self = shift;
+    my($task_id) = @_;
+
+    my @_bad_arguments;
+    (!ref($task_id)) or push(@_bad_arguments, "Invalid type for argument \"task_id\" (value was \"$task_id\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to query_task_details:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'query_task_details');
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($details);
+    #BEGIN query_task_details
+
+    if ($task_id !~ /^[A-Za-z0-9_-]+$/)
+    {
+	die "Invalid task ID";
+    }
+    
+    my $tdir = "$self->{task_status_dir}/$task_id";
+    
+    $details = {
+	stdout_url => "$self->{service_url}/task_info/$task_id/stdout",
+	stderr_url => "$self->{service_url}/task_info/$task_id/stderr",
+    };
+
+    for my $f (qw(pid hostname exitcode))
+    {
+	my $d = read_file("$tdir/$f", err_mode => 'quiet');
+	if (defined($d))
+	{
+	    chomp $d;
+	    $details->{$f} = $d;
+	}
+    }
+
+    #END query_task_details
+    my @_bad_returns;
+    (ref($details) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"details\" (value was \"$details\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to query_task_details:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'query_task_details');
+    }
+    return($details);
 }
 
 
@@ -1095,6 +1312,44 @@ output_files has a value which is a reference to a list where each element is a 
 0: (output_path) a string
 1: (output_id) a string
 
+
+
+=end text
+
+=back
+
+
+
+=head2 TaskDetails
+
+=over 4
+
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+stdout_url has a value which is a string
+stderr_url has a value which is a string
+pid has a value which is an int
+hostname has a value which is a string
+exitcode has a value which is an int
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+stdout_url has a value which is a string
+stderr_url has a value which is a string
+pid has a value which is an int
+hostname has a value which is a string
+exitcode has a value which is an int
 
 
 =end text

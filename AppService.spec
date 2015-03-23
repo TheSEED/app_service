@@ -67,6 +67,15 @@ module AppService
 
     funcdef query_task_summary() returns (mapping<task_status status, int count> status);
 
+    typedef structure {
+	string stdout_url;
+	string stderr_url;
+	int pid;
+	string hostname;
+	int exitcode;
+    } TaskDetails;
+    funcdef query_task_details(task_id) returns (TaskDetails details);
+
     funcdef enumerate_tasks(int offset, int count)
 	returns (list<Task>);
 };
