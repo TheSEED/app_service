@@ -8,6 +8,7 @@ use strict;
 use Data::Dumper;
 use gjoseqlib;
 use File::Basename;
+use File::Temp;
 use LWP::UserAgent;
 use JSON::XS;
 
@@ -103,7 +104,11 @@ sub process_genome
     my $workflow = $impl->default_workflow();
     my $result = $impl->run_pipeline($genome, $workflow);
 
-    $ws->save_data_to_file($json->encode($result), $meta, "$output_folder/$output_base.genome", 'genome', 
+    my $tmp_genome = File::Temp->new;
+    print $tmp_genome $json->encode($result);
+    close($tmp_genome);
+
+    $ws->save_file_to_file("$tmp_genome", $meta, "$output_folder/$output_base.genome", 'genome', 
 			   1, 1, $token);
 
     #
@@ -124,13 +129,33 @@ sub process_genome
     while (my($format, $info) = each %formats)
     {
 	my($file_format, $filename) = @$info;
-	my $exp = $impl->export_genome($result, $format, []);
-	my $len = length($exp);
 
-	my $file = "$output_folder/$filename";
-	print "Save $len to $file\n";
+	#
+	# Invoke rast_export_genome explicitly (that is what export_genome does anyway)
+	# to have complete control.
+	#
 
-	$ws->save_data_to_file($exp, $meta, $file, $file_format, 1, 1, $token);
+	my $tmp_out = File::Temp->new();
+	close($tmp_out);
+
+	my $rc = system("rast_export_genome",
+			"-i", "$tmp_genome",
+			"-o", "$tmp_out",
+			"--with-headings",
+			$format);
+	if ($rc == 0)
+	{
+	    my $len = -s "$tmp_out";
+
+	    my $file = "$output_folder/$filename";
+	    print "Save $len to $file\n";
+
+	    $ws->save_file_to_file("$tmp_out", $meta, $file, $file_format, 1, 1, $token);
+	}
+	else
+	{
+	    warn "Error exporting $format\n";
+	}
     }
 
     $ctx->stderr(undef);
