@@ -14,7 +14,9 @@ use IPC::Run qw(run);
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_diffexp);
 
-$script->run(\@ARGV);
+my $rc = $script->run(\@ARGV);
+
+exit $rc;
 
 sub process_diffexp
 {

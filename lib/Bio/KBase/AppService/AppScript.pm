@@ -128,7 +128,10 @@ sub run
     }
 
     my $x = waitpid($pid, 0);
-    $self->write_block("exitcode",$?);
+    my $rc = $?;
+    $self->write_block("exitcode",$rc);
+
+    return $rc >> 8;
 }
 
 sub write_block
