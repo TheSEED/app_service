@@ -22,7 +22,9 @@ eval {
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
 
-$script->run(\@ARGV);
+my $rc = $script->run(\@ARGV);
+
+exit $rc;
 
 sub process_genome
 {

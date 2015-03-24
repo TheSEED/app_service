@@ -22,7 +22,9 @@ my $ar_stat = "ar-stat";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
-$script->run(\@ARGV);
+my $rc = $script->run(\@ARGV);
+
+exit $rc;
 
 our $global_ws;
 our $global_token;
