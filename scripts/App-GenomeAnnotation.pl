@@ -39,7 +39,7 @@ sub process_genome
 								client_ip => "localhost");
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
     if ($token->validate())
     {
 	$ctx->authenticated(1);
@@ -108,24 +108,26 @@ sub process_genome
 
     #
     # Map export format to the file type.
-    my %formats = (genbank => 'genbank_file',
-		   genbank_merged => 'genbank_file',
-		   spreadsheet_xls => 'string',
-		   spreadsheet_txt => 'string',
-		   seed_dir => 'string',
-		   feature_data => 'feature_table',
-		   protein_fasta => 'feature_protein_fasta',
-		   contig_fasta => 'contigs',
-		   feature_dna => 'feature_dna_fasta',
-		   gff => 'gff',
-		   embl => 'embl');
+    my %formats = (genbank => ['genbank_file', "$output_base.gb" ],
+		   genbank_merged => ['genbank_file', "$output_base.merged.gb"],
+		   spreadsheet_xls => ['string', "$output_base.xls"],
+		   spreadsheet_txt => ['string', "$output_base.txt"],
+		   seed_dir => ['string',"$output_base.tar.gz"],
+		   feature_data => ['feature_table', "$output_base.features.txt"],
+		   protein_fasta => ['feature_protein_fasta', "$output_base.feature_protein.fasta"],
+		   contig_fasta => ['contigs', "$output_base.contigs.fasta"],
+		   feature_dna => ['feature_dna_fasta', "$output_base.feature_dna.fasta"],
+		   gff => ['gff', "$output_base.gff"],
+		   embl => ['embl', "$output_base.embl"],
+		   );
 
-    while (my($format, $file_format) = each %formats)
+    while (my($format, $info) = each %formats)
     {
+	my($file_format, $filename) = @$info;
 	my $exp = $impl->export_genome($result, $format, []);
 	my $len = length($exp);
 
-	my $file = "$output_folder/$output_base.$format";
+	my $file = "$output_folder/$filename";
 	print "Save $len to $file\n";
 
 	$ws->save_data_to_file($exp, $meta, $file, $file_format, 1, 1, $token);

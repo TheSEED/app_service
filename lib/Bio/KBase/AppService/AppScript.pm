@@ -271,7 +271,7 @@ sub create_result_folder
 sub token
 {
     my($self) = @_;
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
     return $token;
 }
 
