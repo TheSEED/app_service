@@ -10,7 +10,6 @@ use gjoseqlib;
 use File::Basename;
 use File::Temp;
 use LWP::UserAgent;
-use IPC::Run 'run';
 use JSON::XS;
 
 use Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl;
