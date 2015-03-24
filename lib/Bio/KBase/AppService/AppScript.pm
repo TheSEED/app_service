@@ -108,7 +108,9 @@ sub run
 	    my $n = $r->read($block, 1_000_000);
 	    if (!defined($n))
 	    {
-		die "error reading $which $r: $!";
+		warn "error reading $which $r: $!";
+		$self->write_block("$which/eof");
+		$sel->remove($r);
 	    }
 	    elsif ($n == 0)
 	    {
@@ -119,6 +121,8 @@ sub run
 	    else
 	    {
 		$self->write_block("$which/data", $block);
+		my $fh = ($which eq 'stdout') ? \*STDOUT : \*STDERR;
+		print $fh $block;
 	    }
 	}
     }
@@ -130,7 +134,6 @@ sub run
 sub write_block
 {
     my($self, $path, $data) = @_;
-    print "Write to $path: $data\n";
     $self->{rest}->POST($path, $data);
 }
 

@@ -46,7 +46,8 @@ sub process_genome
     }
     else
     {
-	warn "Token did not validate\n";
+	warn "Token did not validate\n" . Dumper($token);
+	
     }
 
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $ctx;
@@ -107,6 +108,9 @@ sub process_genome
     # Map export format to the file type.
     my %formats = (genbank => 'genbank_file',
 		   genbank_merged => 'genbank_file',
+		   spreadsheet_xls => 'string',
+		   spreadsheet_txt => 'string',
+		   seed_dir => 'string',
 		   feature_data => 'feature_table',
 		   protein_fasta => 'feature_protein_fasta',
 		   contig_fasta => 'contigs',
