@@ -83,7 +83,7 @@ sub _task_info
 
 	my @parts = split('/', $path);
 
-	print STDERR Dumper(\@parts, $dir);
+	# print STDERR Dumper(\@parts, $dir);
 	
 	if ($dir)
 	{
@@ -100,7 +100,7 @@ sub _task_info
 	    }
 	}
 	
-	print STDERR Dumper($dir, $task, $file, $multi, $tpath);
+	# print STDERR Dumper($dir, $task, $file, $multi, $tpath);
 	my $out;
 	if ($tpath && $multi eq 'data')
 	{
@@ -141,7 +141,7 @@ sub _lookup_task
 
     my $task;
     my $q = "/job/$task_id";
-    print STDERR "_lookup_task: $q\n";
+    # print STDERR "_lookup_task: $q\n";
     my ($res, $error) = $awe->GET($q);
     if ($res)
     {
@@ -527,7 +527,7 @@ sub start_app
 				 $task_userattr,
 				);
 
-    print STDERR Dumper($job);
+    # print STDERR Dumper($job);
 
     my $task_id = $awe->submit($job);
 
@@ -943,7 +943,7 @@ sub enumerate_tasks
     #
 
     my $q = "/job?query&info.user=" . $ctx->user_id . "&info.pipeline=AppService&limit=$count&offset=$offset";
-    print STDERR "Query tasks: $q\n";
+    # print STDERR "Query tasks: $q\n";
     my ($res, $error) = $awe->GET($q);
     if ($res)
     {
