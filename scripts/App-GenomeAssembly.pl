@@ -69,7 +69,7 @@ sub process_reads {
     my $submit_ok = run(\@submit_cmd, '>', \$submit_out, '2>', \$submit_err);
     if (!$submit_ok)
     {
-	die "Error submitting run. Run command=@$ar_run, stdout:\n$submit_out\nstderr:\n$submit_err\n";
+	die "Error submitting run. Run command=@submit_cmd, stdout:\n$submit_out\nstderr:\n$submit_err\n";
     }
 
     print STDERR "Submission returns\n$submit_out\n";
