@@ -127,9 +127,10 @@ sub run
 	}
     }
 
+    print STDERR "Select finished, waitpid $pid\n";
     my $x = waitpid($pid, 0);
     my $rc = $?;
-    $self->write_block("exitcode",$rc);
+    $self->write_block("exitcode","$rc\n");
 
     return $rc >> 8;
 }
