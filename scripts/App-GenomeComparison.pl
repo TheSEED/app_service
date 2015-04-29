@@ -54,7 +54,8 @@ sub process_proteomes {
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
 	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
-					       (-s "$ofile" > 1000_000 ? 1 : 0), # use shock for larger files
+					       # (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
+					       (-s "$ofile" > 5_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
 	    warn "Missing desired output file $ofile\n";
