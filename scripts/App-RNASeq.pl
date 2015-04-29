@@ -36,9 +36,9 @@ sub process_rnaseq {
 
     my $recipe = $params->{recipe};
     
-    # my $tmpdir = File::Temp->newdir();
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
-    # $params = localize_params($tmpdir, $params);
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    $params = localize_params($tmpdir, $params);
 
     my @outputs;
     if ($recipe eq 'Rockhopper') {
