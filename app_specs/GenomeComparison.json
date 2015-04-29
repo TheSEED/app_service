@@ -9,8 +9,8 @@
             "allow_multiple": true,
             "required": 0,
             "default": null,
-            "label": "Genome ID",
-            "desc": "Genome ID",
+            "label": "Genome IDs",
+            "desc": "Genome IDs",
             "type": "string"
         },
         {
@@ -18,8 +18,8 @@
             "allow_multiple": true,
 	    "required": 0,
 	    "default": null,
-	    "label": "Genome protein sequence file",
-	    "desc": "Genome protein sequence file in FASTA",
+	    "label": "Genome protein sequence files",
+	    "desc": "Genome protein sequence files in FASTA",
 	    "wstype": "ProteinSequences",
 	    "type":"wstype"
         },
