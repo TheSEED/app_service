@@ -1,0 +1,9 @@
+{
+  "genome_ids": [ "1001725.3", "1299324.3" ],
+  "user_genomes": [ "/fangfang/home/test/1001724.3.PATRIC.faa" ],
+  "reference_genome_index": 1,
+  "min_seq_cov": 0.35,
+  "max_e_val": 1e-5,
+  "output_path": "/fangfang/home/test/gencomp_15",
+  "output_file": "gencomp_out"
+}

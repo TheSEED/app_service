@@ -1,0 +1,20 @@
+{
+  "experimental_conditions": [
+    "Condition1",
+    "Condition2"
+  ],
+  "strand_specific": false,
+  "single_end_libs": [
+     {
+         "read": "/home/fangfang/test/Example_Condition1.fastq",
+	 "condition": 1
+     },
+     {
+         "read": "/home/fangfang/test/Example_Condition2.fastq",
+	 "condition": 2
+     }
+  ],
+  "recipe": "Rockhopper",
+  "output_path": "/fangfang/home/test/rna_14",
+  "output_file": "Rockhopper_out"
+}
