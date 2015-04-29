@@ -1,0 +1,79 @@
+{
+    "id":"GenomeComparison",
+    "script":"App-GenomeComparison",
+    "label":"Blast-based genome proteome comparison",
+    "description":"Compare the proteome sets from multiple genomes using Blast",
+    "parameters":[
+        {
+            "id": "genome_ids",
+            "allow_multiple": true,
+            "required": 0,
+            "default": null,
+            "label": "Genome ID",
+            "desc": "Genome ID",
+            "type": "string"
+        },
+        {
+            "id": "user_genomes",
+            "allow_multiple": true,
+	    "required": 0,
+	    "default": null,
+	    "label": "Genome protein sequence file",
+	    "desc": "Genome protein sequence file in FASTA",
+	    "wstype": "ProteinSequences",
+	    "type":"wstype"
+        },
+        {
+            "id": "reference_genome_index",
+	    "required": 0,
+	    "default": 1,
+	    "label": "Index of genome to be used as reference",
+	    "desc": "Index of genome to be used as reference (1-based)",
+	    "type": "int"
+        },
+	{
+	    "id": "min_seq_cov",
+	    "label": "Minimum coverage of query and subject",
+	    "required": 0,
+	    "default": 0.30,
+	    "type": "float"
+	},
+	{
+	    "id": "max_e_val",
+	    "label": "Maximum E-value",
+	    "required": 0,
+	    "default": 1e-5,
+	    "type": "float"
+	},
+	{
+	    "id": "min_ident",
+	    "label": "Minimum fraction identity",
+	    "required": 0,
+	    "default": 0.1,
+	    "type": "float"
+	},
+	{
+	    "id": "min_positives",
+	    "label": "Minimum fraction positive-scoring positions",
+	    "required": 0,
+	    "default": 0.2,
+	    "type": "float"
+	},
+        {
+            "id":"output_path",
+            "label":"Output Folder",
+            "required": 1,
+            "default":null,
+            "desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
+            "type":"folder"
+        },
+        {
+            "id":"output_file",
+            "label":"File Basename",
+            "required": 1,
+            "default":null,
+            "desc":"Basename for the generated output files. Defaults to the basename of the input data.",
+            "type":"wsid"
+        }
+    ]
+}
