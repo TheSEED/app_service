@@ -9,6 +9,7 @@ use Data::Dumper;
 use File::Temp;
 use File::Basename;
 use IPC::Run 'run';
+use JSON;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
@@ -41,12 +42,10 @@ sub process_proteomes {
     my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     print "tmpdir = $tmpdir\n";
 
-    my @outputs;
-
     my @genomes = get_genome_faa($tmpdir, $params);
     print STDERR '\@genomes = '. Dumper(\@genomes);
 
-    run_find_bdbh($tmpdir, \@genomes, $params);
+    my @outputs = run_find_bdbh($tmpdir, \@genomes, $params);
 
     for (@outputs) {
 	my ($ofile, $type) = @$_;
@@ -55,7 +54,7 @@ sub process_proteomes {
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
 	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
-					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
+					       (-s "$ofile" > 1000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
 	    warn "Missing desired output file $ofile\n";
@@ -83,13 +82,46 @@ sub run_find_bdbh {
                };
 
     print "BBH options: ", Dumper($opts);
-
-    my $ref = shift @$genomes;
-    for my $g (@$genomes) {
+    my @orgs = @$genomes;
+    my @features;
+    my %hits;
+    my $ref = shift @orgs;
+    for my $g (@orgs) {
         print "Run bidir_best_hits::bbh: ", join(" <=> ", $ref, $g)."\n";
         my ($bbh, $log1, $log2) = bidir_best_hits::bbh($ref, $g, $opts);
-        print Dumper($log1);
+        if (!@features) {
+            @features = map { $_->[0] } @$log1; 
+            for (@$log1) {
+                my ($q_id, $q_len) = @$_;
+                $hits{$q_id} = [$q_id, $q_len];
+            }
+        }
+        for (@$log1) {
+            my ($q_id, $q_len, $arrow, $s_id, $s_len, $fract_id, $fract_pos, $q_coverage, $s_coverage) = @$_;
+            my $type = $arrow eq '<->' ? 'bi' :
+                       $arrow eq ' ->' ? 'uni' : undef;
+            push @{$hits{$q_id}}, ($s_id, $type, $s_len, $fract_id, $fract_pos, $q_coverage, $s_coverage);
+        }
     }
+    my $ofile = "$tmpdir/genome_comparison.txt";
+    open(LOG, ">$ofile") or die "Could not open $ofile";
+    print LOG '##'.join(",", map { basename($_) } @$genomes)."\n";
+    print LOG '##'.join(",", map { filename_to_genome_name($_) } @$genomes)."\n";
+    for (@features) {
+        print LOG join("\t", @{$hits{$_}})."\n";
+    }
+    close(LOG);
+    my @outputs;
+    push @outputs, [ $ofile, 'unspecified' ];
+    return @outputs;
+}
+
+sub filename_to_genome_name {
+    my ($fname) = @_;
+    my $gid = basename($fname);
+    $gid =~ s/\.faa//;
+    my $name = get_patric_genome_name($gid) || $gid;
+    return $name;
 }
 
 sub verify_cmd {
@@ -98,6 +130,7 @@ sub verify_cmd {
 }
 
 sub get_num_procs {
+    # return 8;
     my $n = `cat /proc/cpuinfo | grep processor | wc -l`; chomp($n);
     return $n || 8;
 }
@@ -118,6 +151,18 @@ sub get_genome_faa {
         $genomes[$ref_i] = $tmp;
     }
     return @genomes;
+}
+
+sub get_patric_genome_name {
+    my ($gid) = @_;
+    my $url = "http://www.alpha.patricbrc.org/api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json";
+    my $json = `curl '$url'`;
+    my $name;
+    if ($json) {
+        my $ret = JSON::decode_json($json);
+        $name = $ret->[0]->{genome_name};
+    }
+    return $name;
 }
 
 sub get_patric_genome {
