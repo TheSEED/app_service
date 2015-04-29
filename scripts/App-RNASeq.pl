@@ -110,7 +110,7 @@ sub run_cmd {
     my ($cmd) = @_;
     my ($out, $err);
     my $rc = run($cmd, '>', \$out, '2>', \$err);
-    # $rc and die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
+    $rc or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
     # print STDERR "STDOUT:\n$out\n";
     # print STDERR "STDERR:\n$err\n";
     return ($rc, $out, $err);

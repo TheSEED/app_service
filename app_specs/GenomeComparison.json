@@ -20,7 +20,7 @@
 	    "default": null,
 	    "label": "Genome protein sequence files",
 	    "desc": "Genome protein sequence files in FASTA",
-	    "wstype": "ProteinSequences",
+	    "wstype": "feature_protein_fasta",
 	    "type":"wstype"
         },
         {
