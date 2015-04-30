@@ -4,6 +4,6 @@
   "reference_genome_index": 1,
   "min_seq_cov": 0.35,
   "max_e_val": 1e-5,
-  "output_path": "/fangfang/home/test/gencomp_15",
+  "output_path": "/fangfang/home/test/gencomp_23",
   "output_file": "gencomp_out"
 }

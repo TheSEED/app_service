@@ -109,11 +109,11 @@ sub run_rockhopper {
 sub run_cmd {
     my ($cmd) = @_;
     my ($out, $err);
-    my $rc = run($cmd, '>', \$out, '2>', \$err);
-    $rc or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
+    run($cmd, '>', \$out, '2>', \$err)
+        or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
     # print STDERR "STDOUT:\n$out\n";
     # print STDERR "STDERR:\n$err\n";
-    return ($rc, $out, $err);
+    return ($out, $err);
 }
 
 sub params_to_exps {

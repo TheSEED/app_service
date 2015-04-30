@@ -66,12 +66,15 @@ sub process_proteomes {
 sub run_find_bdbh {
     my ($tmpdir, $genomes, $params) = @_;
 
+    my $coords = get_feature_coords($params->{genome_ids});print STDERR '$coords = '. Dumper($coords);
+                                                           
     my $nproc = get_num_procs();
 
     my $exe = "find_bidir_best_hits";
     my $blastp = "blastp";
 
     verify_cmd($exe) and verify_cmd($blastp);
+
 
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
@@ -84,9 +87,11 @@ sub run_find_bdbh {
 
     print "BBH options: ", Dumper($opts);
     my @orgs = @$genomes;
+    my ($circos_ref, @circos_comps);
     my @features;
     my %hits;
     my $ref = shift @orgs;
+
     for my $g (@orgs) {
         print "Run bidir_best_hits::bbh: ", join(" <=> ", $ref, $g)."\n";
         my ($bbh, $log1, $log2) = bidir_best_hits::bbh($ref, $g, $opts);
@@ -94,16 +99,30 @@ sub run_find_bdbh {
             @features = map { $_->[0] } @$log1; 
             for (@$log1) {
                 my ($q_id, $q_len) = @$_;
-                $hits{$q_id} = [$q_id, $q_len];
+                my ($contig, $start, $end);
+                ($contig, $start, $end) = @{$coords->{$q_id}} if $coords->{$q_id};
+                $hits{$q_id} = [$q_id, $q_len, $contig, $start, $end];
+                push @$circos_ref, [$contig, $start, $end, "id=$q_id"];
             }
         }
+        my @circos_org;
         for (@$log1) {
             my ($q_id, $q_len, $arrow, $s_id, $s_len, $fract_id, $fract_pos, $q_coverage, $s_coverage) = @$_;
             my $type = $arrow eq '<->' ? 'bi' :
                        $arrow eq ' ->' ? 'uni' : undef;
-            push @{$hits{$q_id}}, ($s_id, $type, $s_len, $fract_id, $fract_pos, $q_coverage, $s_coverage);
+            my ($contig, $start, $end);
+            ($contig, $start, $end) = @{$coords->{$s_id}} if $s_id && $coords->{$s_id};
+            push @{$hits{$q_id}}, ($s_id, $type, $s_len, $contig, $start, $end, $fract_id, $fract_pos, $q_coverage, $s_coverage);
+            next unless $s_id;
+            my ($q_contig, $q_start, $q_end);
+            ($q_contig, $q_start, $q_end) = @{$coords->{$q_id}} if $coords->{$q_id};
+            push @circos_org, [$q_contig, $q_start, $q_end, sprintf("%.2f", $fract_id * 100), "id=$s_id"];
         }
+        push @circos_comps, \@circos_org;
     }
+
+    my @outputs;
+
     my $ofile = "$tmpdir/genome_comparison.txt";
     open(LOG, ">$ofile") or die "Could not open $ofile";
     print LOG '##'.join(",", map { basename($_) } @$genomes)."\n";
@@ -112,8 +131,46 @@ sub run_find_bdbh {
         print LOG join("\t", @{$hits{$_}})."\n";
     }
     close(LOG);
-    my @outputs;
+
     push @outputs, [ $ofile, 'unspecified' ];
+
+    # generate circos files
+    $ofile = "$tmpdir/ref_genome.txt";
+    open(REF, ">$ofile") or die "Could not open $ofile";
+    print REF map { join("\t", @$_)."\n" } @$circos_ref;
+    close(REF);
+
+    push @outputs, [ $ofile, 'unspecified' ];
+
+    my $i = 0;
+    for my $comp (@circos_comps) {
+        my $ofile = "$tmpdir/comp_genome_".++$i.".txt";
+        open(COMP, ">$ofile") or die "Could not open $ofile";
+        print COMP map { join("\t", @$_)."\n" } @$comp;
+        close(COMP);
+        push @outputs, [ $ofile, 'unspecified' ];
+    }
+
+    my $contigs = get_genome_contigs($ref);
+    
+    my $ofile ="$tmpdir/karyotype.txt";
+    open(KAR, ">$ofile") or die "Could not open $ofile";
+    for (@$contigs) {
+        my ($acc, $name, $len) = @$_;
+        $name =~ s/\s+/_/g;
+        print KAR join("\t", 'chr', '-', $acc, $name, 0, $len, 'grey')."\n";
+    } 
+    close(KAR);
+
+    push @outputs, [ $ofile, 'unspecified' ];
+
+    $ofile ="$tmpdir/large.tiles.txt";
+    open(TILES, ">$ofile") or die "Could not open $ofile";
+    print TILES map { join("\t", $_->[0], 0, $_->[2])."\n" } @$contigs;
+    close(TILES);
+
+    push @outputs, [ $ofile, 'unspecified' ];
+
     return @outputs;
 }
 
@@ -140,7 +197,7 @@ sub get_genome_faa {
     my ($tmpdir, $params) = @_;
     my @genomes;
     for (@{$params->{genome_ids}}) {
-        push @genomes, get_patric_genome($tmpdir, $_, 'faa');
+        push @genomes, get_patric_genome_faa_seed($tmpdir, $_);
     }
     for (@{$params->{user_genomes}}) {
         push @genomes, get_ws_file($tmpdir, $_);
@@ -156,7 +213,7 @@ sub get_genome_faa {
 
 sub get_patric_genome_name {
     my ($gid) = @_;
-    my $url = "http://www.alpha.patricbrc.org/api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json";
+    my $url = "http://www.alpha.patricbrc.org/api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
     my $json = `curl '$url'`;
     my $name;
     if ($json) {
@@ -166,19 +223,59 @@ sub get_patric_genome_name {
     return $name;
 }
 
-sub get_patric_genome {
-    my ($outdir, $gid, $type) = @_;
-    $type = 'faa' if $type eq 'protein';
-    my $ofile = "$outdir/$gid.$type";
-    my $api_type = "protein+fasta" if $type eq 'faa';
-    my $api_url = "http://www.alpha.patricbrc.org/api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&sort(+accession,+start,+end)&http_accept=application/$api_type";
-    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.$type";
-    my $url = $ftp_url;
-    # my $url = $api_url;
+sub get_patric_genome_faa_seed {
+    my ($outdir, $gid) = @_;
+    my $faa = get_patric_genome_faa($gid);
+    $faa =~ s/>(fig\|\d+\.\d+\.\w+\.\d+)\S+/>$1/g; 
+    my $ofile = "$outdir/$gid.faa";
+    print "\n$ofile, $gid\n";
+    open(FAA, ">$ofile") or die "Could not open $ofile";
+    print FAA $faa;
+    close(FAA);
+    return $ofile;
+}
+
+sub get_patric_genome_faa {
+    my ($gid) = @_;
+    my $api_url = "http://www.alpha.patricbrc.org/api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&sort(+accession,+start,+end)&http_accept=application/protein+fasta&limit(25000)";
+    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.faa";
+    # my $url = $ftp_url;
+    my $url = $api_url;
     my @cmd = ("curl", $url);
     print join(" ", @cmd)."\n";
-    run(\@cmd, ">", $ofile) or die "Error downloading file: $url\n";
-    return $ofile;
+    my ($out) = run_cmd(\@cmd);
+    return $out;
+}
+
+sub get_feature_coords {
+    my ($gids) = @_;
+    my %hash;
+    for my $gid (@$gids) {
+        my $url = "http://www.alpha.patricbrc.org/api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(seed_id,accession,start,end)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+        my @cmd = ("curl", $url);
+        print join(" ", @cmd)."\n";
+        my ($out) = run_cmd(\@cmd);
+        my $json = JSON::decode_json($out);
+        for (@$json) {
+            $hash{$_->{seed_id}} = [ $_->{accession}, $_->{start}, $_->{end} ];
+        }
+    }
+    return \%hash;
+}
+
+sub get_genome_contigs {
+    my ($gid) = @_;
+    ($gid) = $gid =~ /(\d+\.\d+)/;
+    my $url = "http://www.alpha.patricbrc.org/api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
+    my @cmd = ("curl", $url);
+    print join(" ", @cmd)."\n";
+    my ($out) = run_cmd(\@cmd);
+    print STDERR '$gid = '. Dumper($gid);
+    print STDERR '$out = '. Dumper($out);
+    
+    my $json = JSON::decode_json($out);
+    my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
+    return \@contigs;
 }
 
 sub get_ws {
@@ -220,10 +317,10 @@ sub get_ws_file {
 sub run_cmd {
     my ($cmd) = @_;
     my ($out, $err);
-    my $rc = run($cmd, '>', \$out, '2>', \$err);
-    $rc or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
+    run($cmd, '>', \$out, '2>', \$err)
+        or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
     # print STDERR "STDOUT:\n$out\n";
     # print STDERR "STDERR:\n$err\n";
-    return ($rc, $out, $err);
+    return ($out, $err);
 }
 
