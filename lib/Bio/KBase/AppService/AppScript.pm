@@ -252,7 +252,7 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result');
+    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
 
     delete $self->{workspace};
 }
@@ -266,7 +266,7 @@ sub create_result_folder
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
 
-    $self->workspace->create({ objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+    $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
 }
 
 sub token
