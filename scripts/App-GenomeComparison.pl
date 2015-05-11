@@ -17,9 +17,11 @@ use Bio::KBase::AuthToken;
 
 use bidir_best_hits;
 
-my $blastp = "blastp";
-my $circos = "/home/fangfang/programs/circos-0.67-7/bin/circos";
-verify_cmd($blastp) and verify_cmd($circos);
+my $blastp  = "blastp";
+my $circos  = "circos";
+my $openssl = "openssl";
+
+verify_cmd($blastp) and verify_cmd($circos) and verify_cmd($openssl);
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_proteomes);
 my $rc = $script->run(\@ARGV);
@@ -45,6 +47,7 @@ sub process_proteomes {
     # my $tmpdir = File::Temp->newdir();
     my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
+    # my $tmpdir = "/tmp/02noAPprr6";
     print STDERR "tmpdir = $tmpdir\n";
 
     my @genomes = get_genome_faa($tmpdir, $params);
@@ -60,7 +63,7 @@ sub process_proteomes {
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
 	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
 					       # (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       (-s "$ofile" > 5_000_000 ? 1 : 0), # use shock for larger files
+					       (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
 	    warn "Missing desired output file $ofile\n";
@@ -198,14 +201,14 @@ sub run_find_bdbh {
     $ofile = "$circos_dir/ref_genome.txt";
     $circos_opts->{ref_genome} = $ofile;
     write_table($circos_ref, $ofile);
-    # push @outputs, [ $ofile, 'txt' ];
+    push @outputs, [ $ofile, 'txt' ];
 
     my $i = 0;
     for my $comp (@circos_comps) {
         my $ofile = "$circos_dir/comp_genome_".++$i.".txt";
         push @{$circos_opts->{comp_genomes}}, $ofile;
         write_table($comp, $ofile);
-        # push @outputs, [ $ofile, 'txt' ];
+        push @outputs, [ $ofile, 'txt' ];
     }
 
     $ofile ="$circos_dir/karyotype.txt";
@@ -220,14 +223,15 @@ sub run_find_bdbh {
         push @rows, ['chr', '-', $acc, ++$index, 0, $len, 'grey'];
     } 
     write_table(\@rows, $ofile);
-    # push @outputs, [ $ofile, 'txt' ];
+    push @outputs, [ $ofile, 'txt' ];
 
     $ofile ="$circos_dir/large.tiles.txt";
     $circos_opts->{large_tiles} = $ofile;
     @rows = map { [ $_->[0], 0, $_->[2] ] } @$contigs;
     write_table(\@rows, $ofile);
-    # push @outputs, [ $ofile, 'txt' ];
+    push @outputs, [ $ofile, 'txt' ];
 
+    my $final = color_legend()."\n";
     my $conf = prepare_circos_configs($circos_dir, $circos_opts);
     my @cmd = ($circos, '-conf', $conf, '-outputdir', $circos_dir);
     my ($out, $err) = run_cmd(\@cmd);
@@ -236,8 +240,20 @@ sub run_find_bdbh {
     # push @outputs, [ $ofile, 'svg' ];
     push @outputs, [ $ofile, 'unspecified' ];
 
+    my $svg64 = "$circos_dir/svg.base64";
+    @cmd = ('openssl', 'base64', '-in', $ofile, '-out', $svg64);
+    run_cmd(\@cmd);
+    $final .= `cat $circos_dir/circos.html`;
+    $final .= '<img usemap="#circosmap" src="data:image/svg+xml;base64,'.
+              `cat $svg64`; chomp($final);
+    $final .= '">'."\n";
+
     $ofile = "$circos_dir/legend.html";
     write_output(color_legend(), $ofile);
+    push @outputs, [ $ofile, 'html' ];
+
+    $ofile = "$circos_dir/circos_final.html";
+    write_output($final, $ofile);
     push @outputs, [ $ofile, 'html' ];
     
     return @outputs;
@@ -423,16 +439,33 @@ sub prepare_circos_configs {
     my ($dir, $opts) = @_;
 
     $opts->{radius} ||= 450;
-    $opts->{$_} = "$dir/$_.conf" for qw(ticks image ideogram colors plots circos);
+    $opts->{$_} = "$dir/$_.conf" for qw(housekeeping ticks image ideogram colors plots circos);
 
-    write_output(circos_ticks_config(),      $opts->{ticks});
-    write_output(circos_ideogram_config(),   $opts->{ideogram});
-    write_output(circos_colors_config(),     $opts->{colors});
-    write_output(circos_image_config($opts), $opts->{image});
-    write_output(circos_plot_config($opts),  $opts->{plots});
-    write_output(circos_config($opts),       $opts->{circos});
+    write_output(circos_ticks_config(),        $opts->{ticks});
+    write_output(circos_housekeeping_config(), $opts->{housekeeping});
+    write_output(circos_ideogram_config(),     $opts->{ideogram});
+    write_output(circos_colors_config(),       $opts->{colors});
+    write_output(circos_image_config($opts),   $opts->{image});
+    write_output(circos_plot_config($opts),    $opts->{plots});
+    write_output(circos_config($opts),         $opts->{circos});
 
     return $opts->{circos};
+}
+
+sub circos_housekeeping_config {
+    return <<end_of_housekeeping
+
+# Maximum number of image and data elements. If these are exceeded,
+# Circos will quit with an error. These values are arbitrary, but in
+# my experience images with significantly more data points than this
+# are uninterpretable.
+
+max_ticks*            = 5000
+max_ideograms*        = 2000
+max_links*            = 25000
+max_points_per_track* = 25000
+
+end_of_housekeeping
 }
 
 sub circos_ticks_config {
@@ -566,12 +599,13 @@ end_of_ideogram
 sub circos_config {
     my ($opts) = @_;
 
-    my $karyotype = $opts->{karyotype} || 'karyotype.txt';
-    my $ideogram  = $opts->{ideogram}  || 'ideogram.conf';
-    my $ticks     = $opts->{ticks}     || 'ticks.conf';
-    my $plots     = $opts->{plots}     || 'plots.conf';
-    my $image     = $opts->{image}     || 'image.conf';
-    my $colors    = $opts->{colors}    || 'colors.conf';
+    my $karyotype    = $opts->{karyotype}    || 'karyotype.txt';
+    my $housekeeping = $opts->{housekeeping} || 'housekeeping.conf';
+    my $ideogram     = $opts->{ideogram}     || 'ideogram.conf';
+    my $ticks        = $opts->{ticks}        || 'ticks.conf';
+    my $plots        = $opts->{plots}        || 'plots.conf';
+    my $image        = $opts->{image}        || 'image.conf';
+    my $colors       = $opts->{colors}       || 'colors.conf';
 
     return <<"end_of_circos"
 
@@ -597,6 +631,7 @@ chromosomes_display_default    = yes
 
 # system and debug settings
 <<include etc/housekeeping.conf>>
+<<include $housekeeping>>
 
 anti_aliasing* = no
 
@@ -644,7 +679,7 @@ sub circos_plot_config {
 }
 
 sub patric_url {
-    return 'https://www.patricbrc.org/portal/portal/patric/Feature?cType=feature&cId=[id]';
+    return 'portal/portal/patric/Feature?cType=feature&cId=[id]';
 }
 
 sub circos_plot_block {
