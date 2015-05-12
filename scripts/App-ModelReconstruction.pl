@@ -44,8 +44,6 @@ sub reconstruct_model
     	$input->{adminmode} = $params->{adminmode}
     }
     
-    
-	
     my $genome;
     if (defined($params->{reference_genome})) {
     	$genome = $helper->retreive_reference_genome($params->{reference_genome});

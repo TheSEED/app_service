@@ -34,7 +34,7 @@
 		{
 			"id":"alpha",
 			"label":"Comprehensive gapfilling priority",
-			"required":1,
+			"required":0,
 			"default":0,
 			"desc":"Increase alpha to increase piority for comprehensive gapfilling",
 			"type":"float"
@@ -42,9 +42,25 @@
 		{
 			"id":"allreversible",
 			"label":"Make all reactions reversible",
-			"required":1,
+			"required":0,
 			"default":false,
 			"desc":"Ignore existing reaction reversibilities and make all reactions reversible",
+			"type":"bool"
+		},
+		{
+			"id":"allowunbalanced",
+			"label":"Allow unbalanced reactions in gapfilling",
+			"required":0,
+			"default":false,
+			"desc":"Allow unbalanced reactions in gapfilling",
+			"type":"bool"
+		},
+		{
+			"id":"integrate_solution",
+			"label":"Integrate first gapfilling solution",
+			"required":0,
+			"default":false,
+			"desc":"Integrate first gapfilling solution",
 			"type":"bool"
 		},
 		{
@@ -84,11 +100,36 @@
 			"type":"string"
 		},
 		{
+			"id":"target_reactions",
+			"allow_multiple": true,
+			"label":"Target reactions",
+			"required":0,
+			"default":null,
+			"desc":"List of reactions that should be targets for gapfilling",
+			"type":"string"
+		},
+		{
 			"id":"objective_fraction",
 			"label":"Objective fraction",
-			"required":1,
+			"required":0,
 			"default":1,
 			"desc":"Objective fraction for follow up analysis (e.g. FVA, essentiality prediction)",
+			"type":"float"
+		},
+		{
+			"id":"low_expression_theshold",
+			"label":"Threshold of expression for gene to be consider inactive",
+			"required":0,
+			"default":1,
+			"desc":"Threshold of expression for gene to be consider inactive",
+			"type":"float"
+		},
+		{
+			"id":"high_expression_theshold",
+			"label":"Threshold of expression for gene to be consider active",
+			"required":0,
+			"default":1,
+			"desc":"Threshold of expression for gene to be consider active",
 			"type":"float"
 		},
 		{
@@ -98,19 +139,19 @@
 			"default":null,
 			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
 			"type":"wsid"
-		}
+		},
 		{
             "id": "uptake_limit",
             "type": "group",
             "allow_multiple": true,
             "required": 0,
             "default" : null,
-            "group": [
+             "group": [
                 {
                     "id": "atom",
                     "required": 1,
                     "label": "Atom",
-                    "default": "null",
+                    "default": null,
                     "desc": "Atom to limit the uptake of",
                     "enum": ["C","N","O","P","S"],
                     "type": "enum"
@@ -200,6 +241,7 @@
                     "type": "float"
                 }
             ]
-        },
+        }
+        
 	]
 }
