@@ -12,6 +12,7 @@ use IPC::Run 'run';
 use JSON;
 use Storable;
 
+# use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 
@@ -22,6 +23,10 @@ my $circos  = "circos";
 my $openssl = "openssl";
 
 verify_cmd($blastp) and verify_cmd($circos) and verify_cmd($openssl);
+
+# my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
+my $data_api = 'http://www.alpha.patricbrc.org/api';
+# print STDERR "$data_api\n";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_proteomes);
 my $rc = $script->run(\@ARGV);
@@ -297,7 +302,7 @@ sub get_genome_faa {
 
 sub get_patric_genome_name {
     my ($gid) = @_;
-    my $url = "http://www.alpha.patricbrc.org/api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
+    my $url = "$data_api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
     my $json = `curl '$url'`;
     my $name;
     if ($json) {
@@ -321,7 +326,7 @@ sub get_patric_genome_faa_seed {
 
 sub get_patric_genome_faa {
     my ($gid) = @_;
-    my $api_url = "http://www.alpha.patricbrc.org/api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&sort(+accession,+start,+end)&http_accept=application/protein+fasta&limit(25000)";
+    my $api_url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&sort(+accession,+start,+end)&http_accept=application/protein+fasta&limit(25000)";
     my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.faa";
     # my $url = $ftp_url;
     my $url = $api_url;
@@ -335,7 +340,7 @@ sub get_feature_hash {
     my ($gids) = @_;
     my %hash;
     for my $gid (@$gids) {
-        my $url = "http://www.alpha.patricbrc.org/api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(seed_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(seed_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
         my @cmd = ("curl", $url);
         print join(" ", @cmd)."\n";
         my ($out) = run_cmd(\@cmd);
@@ -351,7 +356,7 @@ sub get_feature_hash {
 sub get_genome_contigs {
     my ($gid) = @_;
     ($gid) = $gid =~ /(\d+\.\d+)/;
-    my $url = "http://www.alpha.patricbrc.org/api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
+    my $url = "$data_api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
     my @cmd = ("curl", $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
@@ -395,6 +400,8 @@ sub get_token {
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
     # return $id;
+    $id or die "Missing workspace id\n";
+
     my $ws = get_ws();
     my $token = get_token();
 
