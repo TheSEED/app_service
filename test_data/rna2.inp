@@ -1,26 +1,27 @@
 {
+  "reference_genome_id" : "1310581.3",
   "experimental_conditions": [
-    "Condition1",
-    "Condition2"
+    "no treatment (Mueller Hinton Broth)",
+    "meropenem"
   ],
   "paired_end_libs": [
-     {
-         "read1": "/home/fangfang/test/SAMN02675463/SRR1184547_1.fastq.gz",
-         "read2": "/home/fangfang/test/SAMN02675463/SRR1184547_2.fastq.gz",
-	 "condition": 1
-     },
      {
          "read1": "/home/fangfang/test/SAMN02675483/SRR1184575_1.fastq.gz",
          "read2": "/home/fangfang/test/SAMN02675483/SRR1184575_2.fastq.gz",
 	 "condition": 1
      },
      {
-         "read1": "/home/fangfang/test/SAMN02676226/SRR1184590_1.fastq.gz",
-         "read2": "/home/fangfang/test/SAMN02676226/SRR1184590_2.fastq.gz",
+         "read1": "/home/fangfang/test/SAMN02675463/SRR1184547_1.fastq.gz",
+         "read2": "/home/fangfang/test/SAMN02675463/SRR1184547_2.fastq.gz",
+	 "condition": 1
+     },
+     {
+         "read1": "/home/fangfang/test/SAMN02676238/SRR1184607_1.fastq.gz",
+         "read2": "/home/fangfang/test/SAMN02676238/SRR1184607_2.fastq.gz",
 	 "condition": 2
      }
   ],
   "recipe": "Rockhopper",
-  "output_path": "/fangfang/home/test/rna_pe_1",
+  "output_path": "/fangfang/home/test/rna_pe_5",
   "output_file": "Rockhopper_out"
 }

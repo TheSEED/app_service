@@ -12,7 +12,7 @@ use IPC::Run 'run';
 use JSON;
 use Storable;
 
-# use Bio::KBase::AppService::AppConfig;
+use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 
@@ -24,9 +24,8 @@ my $openssl = "openssl";
 
 verify_cmd($blastp) and verify_cmd($circos) and verify_cmd($openssl);
 
-# my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
-my $data_api = 'http://www.alpha.patricbrc.org/api';
-# print STDERR "$data_api\n";
+my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
+# my $data_api = 'http://www.alpha.patricbrc.org/api';
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_proteomes);
 my $rc = $script->run(\@ARGV);
