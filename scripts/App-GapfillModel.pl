@@ -69,6 +69,25 @@ sub gapfill_model
     
     #Setting output path based on model and then creating results folder
     $params->{output_path} = $model->wsmeta()->[2]."gapfilling";
+    if (!defined($params->{output_file})) {
+	    my $gflist = $helper->workspace_service()->ls({
+			paths => [$model->wsmeta()->[2]."gapfilling"],
+			excludeDirectories => 1,
+			excludeObjects => 0,
+			recursive => 1,
+			query => {type => "fba"}
+		});
+		my $index = @{$gflist};
+		for (my $i=0; $i < @{$gflist}; $i++) {
+			if ($gflist->[$i]->[0] =~ /^gf\.(\d+)$/) {
+				if ($1 > $index) {
+					$index = $1+1;
+				}
+			}
+		}
+		$params->{output_file} = "gf.".$index;
+    }
+    Bio::KBase::ObjectAPI::utilities::set_global("gapfill name",$params->{output_file});
     $script->create_result_folder();
     
     if (defined($params->{source_model})) {
@@ -82,6 +101,9 @@ sub gapfill_model
     if (!defined($fba->gapfillingSolutions()->[0])) {
 		$helper->error("Analysis completed, but no valid solutions found!");
 	}
+	if (@{$fba->gapfillingSolutions()->[0]->gapfillingSolutionReactions()} == 0) {
+		$helper->error("No gapfilling needed on specified condition!");
+	}
 	my $gfsols = [];
 	for (my $i=0; $i < @{$fba->gapfillingSolutions()}; $i++) {
 		for (my $j=0; $j < @{$fba->gapfillingSolutions()->[$i]->gapfillingSolutionReactions()}; $j++) {
@@ -90,8 +112,10 @@ sub gapfill_model
 	}
 	my $solutiondata = Bio::KBase::ObjectAPI::utilities::TOJSON($gfsols);
 	$helper->save_object($app->result_folder()."/".$params->{output_file}.".fba",$fba,"fba",{
+		integrated_solution => 0,
 		solutiondata => $solutiondata,
 		integratedindex => 0,
+		media => $params->{media},
 		integrated => $params->{integrate_solution}
 	});
 }

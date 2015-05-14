@@ -59,6 +59,24 @@ sub flux_balance_analysis
     
     #Setting output path based on model and then creating results folder
     $params->{output_path} = $model->wsmeta()->[2]."fba";
+    if (!defined($params->{output_file})) {
+	    my $list = $helper->workspace_service()->ls({
+			paths => [$model->wsmeta()->[2]."fba"],
+			excludeDirectories => 1,
+			excludeObjects => 0,
+			recursive => 1,
+			query => {type => "fba"}
+		});
+		my $index = @{$list};
+		for (my $i=0; $i < @{$list}; $i++) {
+			if ($list->[$i]->[0] =~ /^fba\.(\d+)$/) {
+				if ($1 > $index) {
+					$index = $1+1;
+				}
+			}
+		}
+		$params->{output_file} = "fba.".$index;
+    }
     $script->create_result_folder();
     
     my $fba = $helper->build_fba_object($model,$params);

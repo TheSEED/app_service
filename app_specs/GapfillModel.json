@@ -112,7 +112,7 @@
 			"id":"objective_fraction",
 			"label":"Objective fraction",
 			"required":0,
-			"default":1,
+			"default":0.001,
 			"desc":"Objective fraction for follow up analysis (e.g. FVA, essentiality prediction)",
 			"type":"float"
 		},
