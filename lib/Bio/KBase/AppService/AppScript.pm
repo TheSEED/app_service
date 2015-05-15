@@ -19,7 +19,7 @@ use base 'Class::Accessor';
 
 use Data::Dumper;
 
-__PACKAGE__->mk_accessors(qw(callback workspace_url workspace params app_definition result_folder));
+__PACKAGE__->mk_accessors(qw(callback donot_create_result_folder workspace_url workspace params app_definition result_folder));
 
 sub new
 {
@@ -200,8 +200,10 @@ sub subproc_run
     $self->{workspace} = $ws;
     $self->{params} = \%proc_param;
     $self->{app_definition} = $app_def; 
-
-    $self->create_result_folder();
+	
+	if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
+    	$self->create_result_folder();
+	}
 
     my $host = `hostname -f`;
     $host = `hostname` if !$host;
@@ -252,7 +254,7 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result');
+    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
 
     delete $self->{workspace};
 }
@@ -266,7 +268,7 @@ sub create_result_folder
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
 
-    $self->workspace->create({ objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+    $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
 }
 
 sub token
