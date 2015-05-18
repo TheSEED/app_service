@@ -182,8 +182,7 @@ sub run_find_bdbh {
         push @rows, [ map { $hits{$fid}->{$_} } @fields ];
     }
     write_table(\@rows, $ofile);
-    # push @outputs, [ $ofile, 'genome_comparison_table' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'genome_comparison_table' ];
 
     $ofile = "$tmpdir/genome_comparison.json";
     my %is_user_genome;
@@ -195,8 +194,7 @@ sub run_find_bdbh {
     my @json_rows = map { $hits{$_} } @fids;
     my $dump = { genome_names => $name_hash, feature_matches => \@json_rows };
     write_output(encode_json($dump), $ofile);
-    # push @outputs, [ $ofile, 'json' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'json' ];
 
     # generate circos files
     # my $circos_dir = $tmpdir;
@@ -244,8 +242,7 @@ sub run_find_bdbh {
     my ($out, $err) = run_cmd(\@cmd);
     $ofile = "$circos_dir/circos.svg";
     -s $ofile or die "Error running cmd=@cmd, stdout:\n$out\nstderr:\n$err\n";
-    # push @outputs, [ $ofile, 'svg' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'svg' ];
 
     my $svg64 = "$circos_dir/svg.base64";
     @cmd = ('openssl', 'base64', '-in', $ofile, '-out', $svg64);
