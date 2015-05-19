@@ -182,19 +182,19 @@ sub run_find_bdbh {
         push @rows, [ map { $hits{$fid}->{$_} } @fields ];
     }
     write_table(\@rows, $ofile);
-    # push @outputs, [ $ofile, 'genome_comparison_table' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'genome_comparison_table' ];
 
     $ofile = "$tmpdir/genome_comparison.json";
+    my %is_user_genome;
     my $name_hash = { ref_genome => filename_to_genome_name($genomes->[0]) };
     for (my $i = 1; $i <= @orgs; $i++) {
         $name_hash->{"comp_genome_$i"} = filename_to_genome_name($orgs[$i-1]);
+        $is_user_genome{$i} = is_faa_user_genome($orgs[$i-1]);
     }
     my @json_rows = map { $hits{$_} } @fids;
     my $dump = { genome_names => $name_hash, feature_matches => \@json_rows };
     write_output(encode_json($dump), $ofile);
-    # push @outputs, [ $ofile, 'json' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'json' ];
 
     # generate circos files
     # my $circos_dir = $tmpdir;
@@ -214,6 +214,7 @@ sub run_find_bdbh {
         write_table($comp, $ofile);
         push @outputs, [ $ofile, 'txt' ];
     }
+    $circos_opts->{is_user_genome} = \%is_user_genome;
 
     $ofile ="$circos_dir/karyotype.txt";
     $circos_opts->{karyotype} = $ofile;
@@ -241,13 +242,14 @@ sub run_find_bdbh {
     my ($out, $err) = run_cmd(\@cmd);
     $ofile = "$circos_dir/circos.svg";
     -s $ofile or die "Error running cmd=@cmd, stdout:\n$out\nstderr:\n$err\n";
-    # push @outputs, [ $ofile, 'svg' ];
-    push @outputs, [ $ofile, 'unspecified' ];
+    push @outputs, [ $ofile, 'svg' ];
 
     my $svg64 = "$circos_dir/svg.base64";
     @cmd = ('openssl', 'base64', '-in', $ofile, '-out', $svg64);
     run_cmd(\@cmd);
-    $final .= `cat $circos_dir/circos.html`;
+    my $svg_map = `cat $circos_dir/circos.html`;
+    $svg_map =~ s/ (alt|title)='\S*cId=/ $1='/g;
+    $final .= $svg_map;
     $final .= '<img usemap="#circosmap" src="data:image/svg+xml;base64,'.
               `cat $svg64`; chomp($final);
     $final .= '">'."\n";
@@ -266,9 +268,16 @@ sub run_find_bdbh {
 sub filename_to_genome_name {
     my ($fname) = @_;
     my $gid = basename($fname);
-    $gid =~ s/\.faa//;
+    $gid =~ s/\.faa$//;
     my $name = get_patric_genome_name($gid) || $gid;
     return $name;
+}
+
+sub is_faa_user_genome {
+    my ($fname) = @_;
+    my $gid = basename($fname);
+    $gid =~ s/\.faa$//;
+    return $gid =~ /^\d+\.\d+$/ ? 0 : 1;
 }
 
 sub verify_cmd {
@@ -649,9 +658,6 @@ sub circos_plot_config {
     
     my $radius = $opts->{radius} || 500;
     my $large_tiles = $opts->{large_tiles} || 'large.tiles.txt';
-    my $ref_genome  = $opts->{ref_genome};
-    my $g1 = $opts->{comp_genomes}->[0];
-    my $g2 = $opts->{comp_genomes}->[1];
     print STDERR 'circos_opts = '. Dumper($opts);
 
     my $outer = 0.95;
@@ -672,20 +678,24 @@ sub circos_plot_config {
     
     my @files = ($opts->{ref_genome}, @{$opts->{comp_genomes}});
     my $r = $outer;
+    my $index = 0; 
     for my $f (@files) {
         if ($f eq $opts->{ref_genome}) {
             push @plots, circos_plot_block($f, $r, { size => $size, color => 'bbh_100', stroke_color => 'bbh_100', url => patric_url() });
+        } elsif ($opts->{is_user_genome}->{$index}) {
+            push @plots, circos_plot_block($f, $r, { size => $size, rules => color_rules() });
         } else {
             push @plots, circos_plot_block($f, $r, { size => $size, rules => color_rules(), url => patric_url() });
         }
         $r = sprintf("%.3f", $r - $fract - $gap);
+        $index++;
     }
 
     return join("\n", '<plots>', @plots, '</plots>');
 }
 
 sub patric_url {
-    return 'portal/portal/patric/Feature?cType=feature&cId=[id]';
+    return '/portal/portal/patric/Feature?cType=feature&cId=[id]';
 }
 
 sub circos_plot_block {
@@ -849,48 +859,37 @@ sub color_legend {
     <TD Align=center Width=25 BgColor=#9999ff>100</TD>
     <TD Align=center Width=25 BgColor=#99c2ff>99.9</TD>
     <TD Align=center Width=25 BgColor=#99daff>99.8</TD>
-<p />
     <TD Align=center Width=25 BgColor=#99fffc>99.5</TD>
     <TD Align=center Width=25 BgColor=#99ffd8>99</TD>
     <TD Align=center Width=25 BgColor=#99ffb1>98</TD>
-
     <TD Align=center Width=25 BgColor=#b5ff99>95</TD>
     <TD Align=center Width=25 BgColor=#deff99>90</TD>
     <TD Align=center Width=25 BgColor=#fff899>80</TD>
-<p />
     <TD Align=center Width=25 BgColor=#ffe099>70</TD>
     <TD Align=center Width=25 BgColor=#ffcf99>60</TD>
     <TD Align=center Width=25 BgColor=#ffc299>50</TD>
-
     <TD Align=center Width=25 BgColor=#ffb799>40</TD>
     <TD Align=center Width=25 BgColor=#ffae99>30</TD>
     <TD Align=center Width=25 BgColor=#ffa699>20</TD>
-<p />
     <TD Align=center Width=25 BgColor=#ff9f99>10</TD>
 </TR>
 <TR><TD>Unidirectional best hit</TD>
     <TD Align=center Width=25 BgColor=#ccccff>100</TD>
-
     <TD Align=center Width=25 BgColor=#cce1ff>99.9</TD>
     <TD Align=center Width=25 BgColor=#ccedff>99.8</TD>
     <TD Align=center Width=25 BgColor=#ccfffe>99.5</TD>
-<p />
     <TD Align=center Width=25 BgColor=#ccffec>99</TD>
     <TD Align=center Width=25 BgColor=#ccffd8>98</TD>
     <TD Align=center Width=25 BgColor=#daffcc>95</TD>
-
     <TD Align=center Width=25 BgColor=#efffcc>90</TD>
     <TD Align=center Width=25 BgColor=#fffccc>80</TD>
     <TD Align=center Width=25 BgColor=#fff0cc>70</TD>
-<p />
     <TD Align=center Width=25 BgColor=#ffe7cc>60</TD>
     <TD Align=center Width=25 BgColor=#ffe1cc>50</TD>
     <TD Align=center Width=25 BgColor=#ffdbcc>40</TD>
-
     <TD Align=center Width=25 BgColor=#ffd7cc>30</TD>
     <TD Align=center Width=25 BgColor=#ffd3cc>20</TD>
     <TD Align=center Width=25 BgColor=#ffcfcc>10</TD>
-<p />
 </TR>
 </TABLE>~;
 }
