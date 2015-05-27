@@ -59,10 +59,10 @@ sub process_genome
 
     my $impl = Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl->new();
 
-    if (exists($params->{tax_id}) && !exists($params->{taxonomy_id}))
+    if (exists($raw_params->{tax_id}) && !exists($params->{taxonomy_id}))
     {
 	print STDERR "Fixup incorrect taxid in parameters\n";
-	$params->{taxonomy_id} = delete $params->{tax_id};
+	$params->{taxonomy_id} = $raw_params->{tax_id};
     }
 
     my $meta = {
