@@ -59,6 +59,12 @@ sub process_genome
 
     my $impl = Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl->new();
 
+    if (exists($params->{tax_id}) && !exists($params->{taxonomy_id}))
+    {
+	print STDERR "Fixup incorrect taxid in parameters\n";
+	$params->{taxonomy_id} = delete $params->{tax_id};
+    }
+
     my $meta = {
 	scientific_name => $params->{scientific_name},
 	genetic_code => $params->{code},
@@ -102,6 +108,32 @@ sub process_genome
     }
 
     my $workflow = $impl->default_workflow();
+
+    my @stages = (
+	      { name => 'call_features_rRNA_SEED' },
+	      { name => 'call_features_tRNA_trnascan' },
+	      { name => 'call_features_repeat_region_SEED',
+		                        repeat_region_SEED_parameters => { } },
+	      { name => 'call_selenoproteins' },
+	      { name => 'call_pyrrolysoproteins' },
+	      { name => 'call_features_strep_suis_repeat',
+		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+	      { name => 'call_features_strep_pneumo_repeat',
+		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+	      { name => 'call_features_crispr', failure_is_not_fatal => 1 },
+	      { name => 'call_features_CDS_prodigal' },
+	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {} },
+	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
+	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_hypothetical_only => 1 } },
+	      { name => 'annotate_proteins_similarity', similarity_parameters => { annotate_hypothetical_only => 1 } },
+	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
+	      { name => 'renumber_features' },
+	      { name => 'annotate_special_proteins' },
+	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
+		  # { name => 'call_features_prophage_phispy' },
+		 );
+    $workflow = { stages => \@stages };
+    
     my $result = $impl->run_pipeline($genome, $workflow);
 
     my $tmp_genome = File::Temp->new;
