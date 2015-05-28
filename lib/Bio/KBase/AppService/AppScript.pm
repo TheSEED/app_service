@@ -19,7 +19,7 @@ use base 'Class::Accessor';
 
 use Data::Dumper;
 
-__PACKAGE__->mk_accessors(qw(callback donot_create_result_folder workspace_url workspace params app_definition result_folder));
+__PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder workspace_url workspace params app_definition result_folder));
 
 sub new
 {
@@ -254,8 +254,9 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
+    if (!defined($self->donot_create_job_result()) || $self->donot_create_job_result() == 0) {
     $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
-
+    }
     delete $self->{workspace};
 }
 

@@ -32,6 +32,7 @@ my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
 $helper->load_from_config();
 $script->{workspace_url} = $helper->workspace_url();
 $script->{donot_create_result_folder} = 1;
+$script->{donot_create_job_result} = 1;
 
 my $rc = $script->run(\@ARGV);
 
