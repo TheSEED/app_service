@@ -855,41 +855,40 @@ sub color_legend {
     <TD Align=center ColSpan=16>Percent protein sequence identity</TD>
 </TR>
 <TR><TD>Bidirectional best hit</TD>
-
-    <TD Align=center Width=25 BgColor=#9999ff>100</TD>
-    <TD Align=center Width=25 BgColor=#99c2ff>99.9</TD>
-    <TD Align=center Width=25 BgColor=#99daff>99.8</TD>
-    <TD Align=center Width=25 BgColor=#99fffc>99.5</TD>
-    <TD Align=center Width=25 BgColor=#99ffd8>99</TD>
-    <TD Align=center Width=25 BgColor=#99ffb1>98</TD>
-    <TD Align=center Width=25 BgColor=#b5ff99>95</TD>
-    <TD Align=center Width=25 BgColor=#deff99>90</TD>
-    <TD Align=center Width=25 BgColor=#fff899>80</TD>
-    <TD Align=center Width=25 BgColor=#ffe099>70</TD>
-    <TD Align=center Width=25 BgColor=#ffcf99>60</TD>
-    <TD Align=center Width=25 BgColor=#ffc299>50</TD>
-    <TD Align=center Width=25 BgColor=#ffb799>40</TD>
-    <TD Align=center Width=25 BgColor=#ffae99>30</TD>
-    <TD Align=center Width=25 BgColor=#ffa699>20</TD>
-    <TD Align=center Width=25 BgColor=#ff9f99>10</TD>
+    <TD style="align:center;width:25px;background:#9999ff">100</TD>
+    <TD style="align:center;width:25px;background:#99c2ff">99.9</TD>
+    <TD style="align:center;width:25px;background:#99daff">99.8</TD>
+    <TD style="align:center;width:25px;background:#99fffc">99.5</TD>
+    <TD style="align:center;width:25px;background:#99ffd8">99</TD>
+    <TD style="align:center;width:25px;background:#99ffb1">98</TD>
+    <TD style="align:center;width:25px;background:#b5ff99">95</TD>
+    <TD style="align:center;width:25px;background:#deff99">90</TD>
+    <TD style="align:center;width:25px;background:#fff899">80</TD>
+    <TD style="align:center;width:25px;background:#ffe099">70</TD>
+    <TD style="align:center;width:25px;background:#ffcf99">60</TD>
+    <TD style="align:center;width:25px;background:#ffc299">50</TD>
+    <TD style="align:center;width:25px;background:#ffb799">40</TD>
+    <TD style="align:center;width:25px;background:#ffae99">30</TD>
+    <TD style="align:center;width:25px;background:#ffa699">20</TD>
+    <TD style="align:center;width:25px;background:#ff9f99">10</TD>
 </TR>
 <TR><TD>Unidirectional best hit</TD>
-    <TD Align=center Width=25 BgColor=#ccccff>100</TD>
-    <TD Align=center Width=25 BgColor=#cce1ff>99.9</TD>
-    <TD Align=center Width=25 BgColor=#ccedff>99.8</TD>
-    <TD Align=center Width=25 BgColor=#ccfffe>99.5</TD>
-    <TD Align=center Width=25 BgColor=#ccffec>99</TD>
-    <TD Align=center Width=25 BgColor=#ccffd8>98</TD>
-    <TD Align=center Width=25 BgColor=#daffcc>95</TD>
-    <TD Align=center Width=25 BgColor=#efffcc>90</TD>
-    <TD Align=center Width=25 BgColor=#fffccc>80</TD>
-    <TD Align=center Width=25 BgColor=#fff0cc>70</TD>
-    <TD Align=center Width=25 BgColor=#ffe7cc>60</TD>
-    <TD Align=center Width=25 BgColor=#ffe1cc>50</TD>
-    <TD Align=center Width=25 BgColor=#ffdbcc>40</TD>
-    <TD Align=center Width=25 BgColor=#ffd7cc>30</TD>
-    <TD Align=center Width=25 BgColor=#ffd3cc>20</TD>
-    <TD Align=center Width=25 BgColor=#ffcfcc>10</TD>
+    <TD style="align:center;width:25px;background:#ccccff">100</TD>
+    <TD style="align:center;width:25px;background:#cce1ff">99.9</TD>
+    <TD style="align:center;width:25px;background:#ccedff">99.8</TD>
+    <TD style="align:center;width:25px;background:#ccfffe">99.5</TD>
+    <TD style="align:center;width:25px;background:#ccffec">99</TD>
+    <TD style="align:center;width:25px;background:#ccffd8">98</TD>
+    <TD style="align:center;width:25px;background:#daffcc">95</TD>
+    <TD style="align:center;width:25px;background:#efffcc">90</TD>
+    <TD style="align:center;width:25px;background:#fffccc">80</TD>
+    <TD style="align:center;width:25px;background:#fff0cc">70</TD>
+    <TD style="align:center;width:25px;background:#ffe7cc">60</TD>
+    <TD style="align:center;width:25px;background:#ffe1cc">50</TD>
+    <TD style="align:center;width:25px;background:#ffdbcc">40</TD>
+    <TD style="align:center;width:25px;background:#ffd7cc">30</TD>
+    <TD style="align:center;width:25px;background:#ffd3cc">20</TD>
+    <TD style="align:center;width:25px;background:#ffcfcc">10</TD>
 </TR>
 </TABLE>~;
 }
