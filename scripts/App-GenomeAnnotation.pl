@@ -41,11 +41,13 @@ sub process_genome
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
     my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
+    my @username_meta;
     if ($token->validate())
     {
 	$ctx->authenticated(1);
 	$ctx->user_id($token->user_id);
 	$ctx->token($token->token);
+	@username_meta = (owner => $token->user_id);
     }
     else
     {
@@ -70,6 +72,7 @@ sub process_genome
 	genetic_code => $params->{code},
 	domain => $params->{domain},
 	($params->{taxonomy_id} ? (ncbi_taxonomy_id => $params->{taxonomy_id}) : ()),
+	@username_meta,
     };
     my $genome = $impl->create_genome($meta);
 
