@@ -132,6 +132,7 @@ sub process_genome
 	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
+	      { name => 'annotate_families_figfam_v1' },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 		  # { name => 'call_features_prophage_phispy' },
 		 );
