@@ -202,7 +202,10 @@ sub process_genome
     #
     if (write_load_files($ws, $tmp_genome))
     {
-	submit_load_files($ws, $token->token, data_api_url, ".");
+	my $load_folder = "$output_folder/load_files";
+	
+	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
+	submit_load_files($ws, $load_folder, $token->token, data_api_url, ".");
     }
 
     $ctx->stderr(undef);
@@ -225,7 +228,7 @@ sub write_load_files
 
 sub submit_load_files
 {
-    my($ws, $token, $url, $dir) = @_;
+    my($ws, $load_folder, $token, $url, $dir) = @_;
 
     my @opts;
     push(@opts, "-H", "Authorization: $token");
@@ -244,6 +247,7 @@ sub submit_load_files
 	if (-f $path)
 	{
 	    push(@opts, "-F", "$key=\@$path");
+	    $ws->save_file_to_file($path, {}, "$load_folder/$file", 'json', 1, 1, $token);
 	}
     }
 
