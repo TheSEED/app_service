@@ -294,7 +294,7 @@ sub get_token {
  
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
-    return $id;
+    # return $id;
     my $ws = get_ws();
     my $token = get_token();
 

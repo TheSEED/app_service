@@ -850,11 +850,11 @@ sub color_tables {
 }
 
 sub color_legend {
-  return qq~<TABLE>
+  return qq~<TABLE style="cellspacing:1px">
 <TR><TD>&nbsp;</TD>
     <TD Align=center ColSpan=16>Percent protein sequence identity</TD>
 </TR>
-<TR><TD>Bidirectional best hit</TD>
+<TR><TD style="width:180px">Bidirectional best hit</TD>
     <TD style="align:center;width:25px;background:#9999ff">100</TD>
     <TD style="align:center;width:25px;background:#99c2ff">99.9</TD>
     <TD style="align:center;width:25px;background:#99daff">99.8</TD>
@@ -872,7 +872,7 @@ sub color_legend {
     <TD style="align:center;width:25px;background:#ffa699">20</TD>
     <TD style="align:center;width:25px;background:#ff9f99">10</TD>
 </TR>
-<TR><TD>Unidirectional best hit</TD>
+<TR><TD style="width:180px">Unidirectional best hit</TD>
     <TD style="align:center;width:25px;background:#ccccff">100</TD>
     <TD style="align:center;width:25px;background:#cce1ff">99.9</TD>
     <TD style="align:center;width:25px;background:#ccedff">99.8</TD>
