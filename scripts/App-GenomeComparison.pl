@@ -96,8 +96,8 @@ sub run_find_bdbh {
     my @fids;
     my %hits;
 
-    my @ref_fields  = qw(contig gene aa_length seed_id locus_tag function start end strand);
-    my @comp_fields = qw(hit contig gene aa_length seed_id locus_tag function percent_identity seq_coverage); # e_value not directly available for Gary's tool
+    my @ref_fields  = qw(contig gene aa_length patric_id locus_tag function start end strand);
+    my @comp_fields = qw(hit contig gene aa_length patric_id locus_tag function percent_identity seq_coverage); # e_value not directly available for Gary's tool
     my @fields      = map { 'ref_genome_'.$_ } @ref_fields;
     my @headers     = (filename_to_genome_name($orgs[0]));
     push @headers, (undef) x $#ref_fields;
@@ -118,11 +118,11 @@ sub run_find_bdbh {
         push @headers, (undef) x $#comp_fields;
 
         if (!@fids) {
-            @fids = map { $_->[0] } @$log1; # reference feature seed_ids
+            @fids = map { $_->[0] } @$log1; # reference feature patric_ids
             for (@$log1) {
                 my ($id, $len) = @$_;
-                my ($id_num) = seed_id_to_number($id);
-                $hits{$id} = { ref_genome_seed_id   => $id,
+                my ($id_num) = patric_id_to_number($id);
+                $hits{$id} = { ref_genome_patric_id => $id,
                                ref_genome_gene      => $id_num,
                                ref_genome_aa_length => $len,
                                ref_genome_contig    => $feaH->{$id}->{accession},
@@ -145,10 +145,10 @@ sub run_find_bdbh {
                            $arrow eq ' ->' ? 'uni' : undef;
             next unless $s_id;
 
-            my $s_id_num = seed_id_to_number($s_id);
+            my $s_id_num = patric_id_to_number($s_id);
 
             my %match = ( hit              => $hit_type,
-                          seed_id          => $s_id,
+                          patric_id        => $s_id,
                           gene             => $s_id_num,
                           aa_length        => $s_len,
                           contig           => $feaH->{$s_id}->{accession},
@@ -348,13 +348,13 @@ sub get_feature_hash {
     my ($gids) = @_;
     my %hash;
     for my $gid (@$gids) {
-        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(seed_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
         my @cmd = ("curl", $url);
         print join(" ", @cmd)."\n";
         my ($out) = run_cmd(\@cmd);
         my $json = JSON::decode_json($out);
         for my $fea (@$json) {
-            my $id = $fea->{seed_id};
+            my $id = $fea->{patric_id};
             $hash{$id} = $fea;
         }
     }
@@ -376,7 +376,7 @@ sub get_genome_contigs {
     return \@contigs;
 }
 
-sub seed_id_to_number {
+sub patric_id_to_number {
     my ($fid) = @_;
     my ($n) = $fid =~ /peg\.(\d+)/;
     return $n;
