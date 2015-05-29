@@ -3,6 +3,7 @@
 #
 
 use Bio::KBase::AppService::AppScript;
+use Bio::KBase::AppService::AppConfig 'data_api_url';
 use Bio::KBase::AuthToken;
 use strict;
 use Data::Dumper;
@@ -11,6 +12,7 @@ use File::Basename;
 use File::Temp;
 use LWP::UserAgent;
 use JSON::XS;
+use IPC::Run 'run';
 
 use Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl;
 use Bio::KBase::GenomeAnnotation::Service;
@@ -41,11 +43,13 @@ sub process_genome
     $ctx->module("App-GenomeAnnotation");
     $ctx->method("App-GenomeAnnotation");
     my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
+    my @username_meta;
     if ($token->validate())
     {
 	$ctx->authenticated(1);
 	$ctx->user_id($token->user_id);
 	$ctx->token($token->token);
+	@username_meta = (owner => $token->user_id);
     }
     else
     {
@@ -59,11 +63,18 @@ sub process_genome
 
     my $impl = Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl->new();
 
+    if (exists($raw_params->{tax_id}) && !exists($params->{taxonomy_id}))
+    {
+	print STDERR "Fixup incorrect taxid in parameters\n";
+	$params->{taxonomy_id} = $raw_params->{tax_id};
+    }
+
     my $meta = {
 	scientific_name => $params->{scientific_name},
 	genetic_code => $params->{code},
 	domain => $params->{domain},
 	($params->{taxonomy_id} ? (ncbi_taxonomy_id => $params->{taxonomy_id}) : ()),
+	@username_meta,
     };
     my $genome = $impl->create_genome($meta);
 
@@ -102,6 +113,33 @@ sub process_genome
     }
 
     my $workflow = $impl->default_workflow();
+
+    my @stages = (
+	      { name => 'call_features_rRNA_SEED' },
+	      { name => 'call_features_tRNA_trnascan' },
+	      { name => 'call_features_repeat_region_SEED',
+		                        repeat_region_SEED_parameters => { } },
+	      { name => 'call_selenoproteins' },
+	      { name => 'call_pyrrolysoproteins' },
+	      { name => 'call_features_strep_suis_repeat',
+		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+	      { name => 'call_features_strep_pneumo_repeat',
+		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+	      { name => 'call_features_crispr', failure_is_not_fatal => 1 },
+	      { name => 'call_features_CDS_prodigal' },
+	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {} },
+	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
+	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_hypothetical_only => 1 } },
+	      { name => 'annotate_proteins_similarity', similarity_parameters => { annotate_hypothetical_only => 1 } },
+	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
+	      { name => 'renumber_features' },
+	      { name => 'annotate_special_proteins' },
+	      { name => 'annotate_families_figfam_v1' },
+	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
+		  # { name => 'call_features_prophage_phispy' },
+		 );
+    $workflow = { stages => \@stages };
+    
     my $result = $impl->run_pipeline($genome, $workflow);
 
     my $tmp_genome = File::Temp->new;
@@ -158,6 +196,69 @@ sub process_genome
 	}
     }
 
+    #
+    # We also export the load files for indexing.
+    # Assume here that AWE has placed us into a directory into which we can write.
+    #
+    if (write_load_files($ws, $tmp_genome))
+    {
+	my $load_folder = "$output_folder/load_files";
+	
+	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
+	submit_load_files($ws, $load_folder, $token->token, data_api_url . "/indexer/genome", ".");
+    }
+
     $ctx->stderr(undef);
     undef $stderr;
+}
+
+sub write_load_files
+{
+    my($ws, $genome_json_file) = @_;
+    my @cmd = ("genomeObj2solr", $genome_json_file);
+    my $rc = system(@cmd);
+    if ($rc != 0)
+    {
+	warn "Error $rc creating site load files (@cmd)\n";
+	return;
+    }
+
+    return 1;
+}
+
+sub submit_load_files
+{
+    my($ws, $load_folder, $token, $url, $dir) = @_;
+
+    my @opts;
+    push(@opts, "-H", "Authorization: $token");
+    push(@opts, "-H", "Content-Type: multipart/form-data");
+
+    my @files = ([genome => "genome.json"],
+		 [genome_feature => "genome_feature.json"],
+		 [genome_sequence => "genome_sequence.json"],
+		 [pathway => "pathway.json"],
+		 [sp_gene => "sp_gene.json"]);
+    
+    for my $tup (@files)
+    {
+	my($key, $file) = @$tup;
+	my $path = "$dir/$file";
+	if (-f $path)
+	{
+	    push(@opts, "-F", "$key=\@$path");
+	    $ws->save_file_to_file($path, {}, "$load_folder/$file", 'json', 1, 1, $token);
+	}
+    }
+
+    push(@opts, $url);
+    print "@opts\n";
+#curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
+
+    my($stdout, $stderr);
+    my $ok = run(["curl", @opts]);
+    if (!$ok)
+    {
+	warn "Error $? invoking curl @opts\n";
+    }
 }
