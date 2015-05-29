@@ -217,7 +217,7 @@ sub write_load_files
     my($ws, $genome_json_file) = @_;
     my @cmd = ("genomeObj2solr", $genome_json_file);
     my $rc = system(@cmd);
-    if (!$rc)
+    if ($rc != 0)
     {
 	warn "Error $rc creating site load files (@cmd)\n";
 	return;
