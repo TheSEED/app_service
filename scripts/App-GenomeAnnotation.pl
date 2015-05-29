@@ -205,7 +205,7 @@ sub process_genome
 	my $load_folder = "$output_folder/load_files";
 	
 	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	submit_load_files($ws, $load_folder, $token->token, data_api_url, ".");
+	submit_load_files($ws, $load_folder, $token->token, data_api_url . "/indexer/genome", ".");
     }
 
     $ctx->stderr(undef);
@@ -255,9 +255,10 @@ sub submit_load_files
     print "@opts\n";
 #curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
 
-    return;
-    
     my($stdout, $stderr);
-    my $ok = run(["curl", @opts], ">", \$stdout, "2>", \$stderr);
-    print "'$stdout'\n'$stderr'\n";
+    my $ok = run(["curl", @opts]);
+    if (!$ok)
+    {
+	warn "Error $? invoking curl @opts\n";
+    }
 }
