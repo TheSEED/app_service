@@ -163,7 +163,7 @@ sub prepare_ref_data {
     my @ctgs = map { $_->{accession} } @$json;
     my %hash = map { $_->{accession} => $_ } @$json;
     
-    $url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&select(accession,start,end,strand,aa_length,seed_id,protein_id,gene,refseq_locus_tag,figfam_id,product)&sort(+accession,+start,+end)&limit(25000)&http_accept=application/json";
+    $url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&select(accession,start,end,strand,aa_length,patric_id,protein_id,gene,refseq_locus_tag,figfam_id,product)&sort(+accession,+start,+end)&limit(25000)&http_accept=application/json";
     $json = curl_json($url);
 
     for (@$json) {
@@ -171,7 +171,7 @@ sub prepare_ref_data {
         push @{$hash{$ctg}->{cds}}, $_;
     }
 
-    $url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,tRNA),eq(feature_type,rRNA)))&select(accession,start,end,strand,na_length,seed_id,protein_id,gene,refseq_locus_tag,figfam_id,product)&sort(+accession,+start,+end)&limit(25000)&http_accept=application/json";
+    $url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,tRNA),eq(feature_type,rRNA)))&select(accession,start,end,strand,na_length,patric_id,protein_id,gene,refseq_locus_tag,figfam_id,product)&sort(+accession,+start,+end)&limit(25000)&http_accept=application/json";
     $json = curl_json($url);
 
     for (@$json) {
@@ -197,9 +197,9 @@ sub prepare_ref_data {
                              map { join("\t", $_->{start}."..".$_->{end},
                                               $_->{strand},
                                               $_->{aa_length}, 
-                                              $_->{seed_id} || $_->{protein_id},
+                                              $_->{patric_id} || $_->{protein_id},
                                               # $_->{refseq_locus_tag},
-                                              $_->{seed_id},
+                                              $_->{patric_id},
                                               # $_->{gene},
                                               join("/", $_->{refseq_locus_tag}, $_->{gene}),
                                               '-',
@@ -214,9 +214,9 @@ sub prepare_ref_data {
                              map { join("\t", $_->{start}."..".$_->{end},
                                               $_->{strand},
                                               $_->{na_length}, 
-                                              $_->{seed_id} || $_->{protein_id},
+                                              $_->{patric_id} || $_->{protein_id},
                                               # $_->{refseq_locus_tag},
-                                              $_->{seed_id},
+                                              $_->{patric_id},
                                               # $_->{gene},
                                               join("/", $_->{refseq_locus_tag}, $_->{gene}),
                                               '-',
