@@ -201,9 +201,9 @@ sub subproc_run
     $self->{params} = \%proc_param;
     $self->{app_definition} = $app_def; 
 	
-	if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
+    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
     	$self->create_result_folder();
-	}
+    }
 
     my $host = `hostname -f`;
     $host = `hostname` if !$host;
@@ -255,7 +255,7 @@ sub subproc_run
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
     if (!defined($self->donot_create_job_result()) || $self->donot_create_job_result() == 0) {
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
     }
     delete $self->{workspace};
 }

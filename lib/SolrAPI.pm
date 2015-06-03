@@ -259,7 +259,32 @@ sub getIDs {
 	}
 
 	return @ids;
+}
 
+sub query_rest
+{
+    my($self, $path) = @_;
+    
+    my $url = $self->{data_api_url};
+    
+    my $solrQ = $url . $path;
+    print STDERR "$solrQ\n";
+
+    my($fh, $result);
+    if (!open($fh, "-|", "curl", "-s", "-k", $solrQ))
+    {
+	die "Error $! retrieving $solrQ";
+    }
+    else
+    {
+	local $/;
+	undef $/;
+	$result = <$fh>;
+	close($fh);
+    }
+    
+    my $resultObj = decode_json($result);
+    return $resultObj;
 }
 
 sub query_solr

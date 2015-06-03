@@ -5,6 +5,8 @@
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 use Bio::KBase::AuthToken;
+use SolrAPI;
+
 use strict;
 use Data::Dumper;
 use gjoseqlib;
@@ -257,9 +259,37 @@ sub submit_load_files
 #curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
 
     my($stdout, $stderr);
-    my $ok = run(["curl", @opts]);
+    
+    my $ok = run(["curl", @opts], '>', \$stdout);
     if (!$ok)
     {
 	warn "Error $? invoking curl @opts\n";
+    }
+
+    my $json = JSON->new->allow_nonref;
+    my $data = $json->decode($stdout);
+
+    my $queue_id = $data->{id};
+
+    print "Submitted indexing job $queue_id\n";
+
+    my $solr = SolrAPI->new($url);
+
+    #
+    # For now, wait up to an hour for the indexing to complete.
+    #
+    my $wait_until = time + 3600;
+
+    while (time < $wait_until)
+    {
+	my $status = $solr->query_rest("/indexer/$queue_id");
+	my $state = $status->{state};
+	print STDERR "status for $queue_id (state=$state): " . Dumper($status);
+	if ($state ne 'queued')
+	{
+	    print STDERR "Finishing with state $state\n";
+	    last;
+	}
+	sleep 60;
     }
 }
