@@ -3,21 +3,19 @@ use strict;
 use JSON;
 use Data::Dumper;
 
+# my $solr = "https://www.beta.patricbrc.org/api/";
 
-my %params = ();
-my ($solr, $format);
+sub new
+{
+  my ($class, $data_api_url) = @_;
 
-my $json = JSON->new->allow_nonref;
-
-sub new{
-
-  my ($class, $solr_db) = @_;
-  my $self = {};
-  bless $self, $class;
-  $solr = "https://www.beta.patricbrc.org/api/";
-	$format = "&http_content-type=application/solrquery+x-www-form-urlencoded&http_accept=application/json&rows=25000";
-  return $self;
-
+  my $self = {
+      data_api_url => $data_api_url,
+      json => JSON->new->allow_nonref,
+      format => "&http_content-type=application/solrquery+x-www-form-urlencoded&http_accept=application/json&rows=25000",
+  };
+  
+  return bless $self, $class;
 }
 
 sub getTaxonLineage {
@@ -29,10 +27,7 @@ sub getTaxonLineage {
 	my $query = "/?q=taxon_id:$taxon_id";
 	my $fields = "&fl=lineage_ids,lineage_names,lineage_ranks";
 
-
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+	my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		$lineage_ids = $record->{lineage_ids};
@@ -54,8 +49,7 @@ sub getEC {
 	my $query = "/?q=ec_number:$ec_no";
 	my $fields = "&fl=ec_number,ec_description";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		$ec = $record->{ec_number}.'|'.$record->{ec_description};
@@ -75,9 +69,7 @@ sub getGO {
 	my $query = "/?q=go_id:\\\"$go_id\\\"";
 	my $fields = "&fl=go_id,go_name";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		$go = $record->{go_id}.'|'.$record->{go_name};
@@ -97,9 +89,7 @@ sub getECGO {
 	my $query = "/?q=ec_number:(".join(" OR ", @ec_no).")";
 	my $fields = "&fl=ec_number,ec_description,go";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		push @ec, $record->{ec_number}.'|'.$record->{ec_description};
@@ -122,9 +112,7 @@ sub getECRef {
 	my $query = "/?q=ec_number:*";
 	my $fields = "&fl=ec_number,ec_description,go";
 
-	my $solrQ = $solr.$core.$query.$fields.$format;
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		$ec->{$record->{ec_number}}->{ec_description} = $record->{ec_description};
@@ -146,10 +134,8 @@ sub getPathways {
   my $query = "/?q=ec_number:(".join(" OR ", @ec_no).")";
   my $fields = "&fl=ec_number,ec_description,pathway_id,pathway_name,pathway_class";
 
-  my $solrQ = $solr.$core.$query.$fields.$format;
-
-  my $resultObj = query_sorl($solrQ);
-
+  my $resultObj = $self->query_solr($core, $query, $fields);
+  
   foreach my $record (@{$resultObj}){
     my $pathway = $record->{pathway_id}.'|'.$record->{pathway_name};
     my $ecpathway = "$record->{ec_number}\t$record->{ec_description}\t$record->{pathway_id}\t$record->{pathway_name}\t$record->{pathway_class}";
@@ -164,16 +150,14 @@ sub getPathways {
 
 sub getPathwayRef {
 
-	my ($self, @ec_no) = @_;
+	my ($self) = @_;
 	my $pathways = ();
 
 	my $core = "pathway_ref";
 	my $query = "/?q=ec_number:*";
 	my $fields = "&fl=ec_number,ec_description,pathway_id,pathway_name,pathway_class";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		my $ec_no = $record->{ec_number};
@@ -195,9 +179,7 @@ sub getSpGeneInfo {
 	my $query = "/?q=source:$source AND source_id:$source_id";
 	my $fields = "&fl=property,locus_tag,organism,function,classification,pmid,assertion";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-	
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		$spgeneinfo = "$record->{property}\t$record->{locus_tag}\t$record->{organism}"
@@ -222,9 +204,7 @@ sub getSpGeneRef {
 	
 	my $start = 0; 
 	while ($start < 200000){
-		my $solrQ = $solr.$core.$query.$fields.$format."&start=$start"; 
-	
-		my $resultObj = query_solr($solrQ);
+		my $resultObj = $self->query_solr($core, $query, $fields, $start);
 
 		foreach my $record (@{$resultObj}){
 			my $key = $record->{source}.'_'.$record->{source_id}; 
@@ -250,9 +230,7 @@ sub getUniprotkbAccns {
 	my $query = "/?q=id_type:$id_type+AND+id_value:$id";
 	my $fields = "&fl=uniprotkb_accession";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		push @accns, $record->{uniprotkb_accession};
@@ -272,9 +250,7 @@ sub getIDs {
 	my $query = "/?q=uniprotkb_accession:(". join(" OR ", @accns). ")";
 	my $fields = "&fl=id_type,id_value";
 
-	my $solrQ = $solr.$core.$query.$fields.$format; 
-
-	my $resultObj = query_solr($solrQ);
+        my $resultObj = $self->query_solr($core, $query, $fields);
 
 	foreach my $record (@{$resultObj}){
 		my $id_str = $record->{id_type}.'|'.$record->{id_value};
@@ -288,10 +264,24 @@ sub getIDs {
 
 sub query_solr
 {
-    my($solrQ) = @_;
+    my($self, $core, $query, $fields, $start) = @_;
     my $fh;
     my $result;
-    if (!open($fh, "-|", "curl", "-k", $solrQ))
+
+    my $url = $self->{data_api_url};
+    $url .= '/' unless $url =~ m,/$,;
+    
+    my $solrQ = join("",
+		     $url,
+		     $core,
+		     $query,
+		     $fields,
+		     $self->{format},
+		     (defined($start) ? "&start=$start" : ()));
+
+    print STDERR "$solrQ\n";
+
+    if (!open($fh, "-|", "curl", "-s", "-k", $solrQ))
     {
 	die "Error $! retrieving $solrQ";
     }
@@ -306,3 +296,5 @@ sub query_solr
     my $resultObj = decode_json($result);
     return $resultObj;
 }
+
+1;

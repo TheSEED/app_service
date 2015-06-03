@@ -17,31 +17,40 @@
 #
 ###########################################################
 
+use strict;
 use FindBin qw($Bin);
 use POSIX;
 use JSON;
 use Data::Dumper;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
+use Getopt::Long::Descriptive;
+use Bio::KBase::AppService::AppConfig;
 
 use lib "$Bin";
 use SolrAPI;
 
-my $solrh = SolrAPI->new();
-my $json = JSON->new->allow_nonref;
+my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
-my $usage = "genomeObj2solr.pl genbankFile\n";
+my $solrh = SolrAPI->new($data_api);
+
+my($opt, $usage) = describe_options("%c %o jsonFile",
+				    ["data-api=s", "Data API URL"],
+				    ["help|h", "Show this help message"]);
+
+print($usage->text), exit 0 if $opt->help;
+print($usage->text), exit 1 if @ARGV != 1;
 
 my $infile = $ARGV[0];
 my $outfile = $infile;
 $outfile=~s/(.gb|.gbf|.json)$//;	
 
-open IN, $infile or die "Can't open input RAST GenomeObj JSON file: $infile\n";
+open IN, $infile or die "Can't open input RAST GenomeObj JSON file: $infile: $!\n";
 my @in = <IN>;
 my $json_str = join "", @in;
 close IN;
 
-my $jsonh = JSON->new->allow_nonref;
-my $genomeObj = $jsonh->decode($json_str);
+my $json = JSON->new->allow_nonref;
+my $genomeObj = $json->decode($json_str);
 
 print "Processing $infile\n";
 
@@ -222,7 +231,7 @@ sub getGenomeFeatures{
 			
 			my ($seq_id, $pstart, $start, $end, $length);
 
-			($seq_id, $pstart, $strand, $length) = @{$locObj};
+			my ($seq_id, $pstart, $strand, $length) = @{$locObj};
 			
 			if ($strand eq "+"){
 				$start = $pstart;
@@ -292,7 +301,7 @@ sub getGenomeFeatures{
 			foreach my $pathway (@{$pathwayRef->{$ec_number}->{pathway}}){
 				my ($pathway_id, $pathway_name, $pathway_class) = split(/\t/, $pathway);
 				push @pathways, $pathway_id.'|'.$pathway_name unless (grep {$_ eq $pathway_id.'|'.$pathway_name} @pathways);
-				$ecpathway = "$ec_number\t$ec_description\t$pathway_id\t$pathway_name\t$pathway_class";
+				my $ecpathway = "$ec_number\t$ec_description\t$pathway_id\t$pathway_name\t$pathway_class";
 				push @ecpathways, $ecpathway unless (grep {$_ eq $ecpathway} @ecpathways);
 			}
 
@@ -303,7 +312,8 @@ sub getGenomeFeatures{
 		$feature->{pathway} = \@pathways if scalar @pathways;
 		push @pathwaymap, preparePathways($feature, \@ecpathways);
 
-		@spgenes = @{$featObj->{similarity_associations}};			
+		my $simassoc = $featObj->{similarity_associations};
+		@spgenes = ref($simassoc) ? @$simassoc :();
 		push @spgenemap, prepareSpGene($feature, $_) foreach(@spgenes);
 
 		push @features, $feature  unless $feature->{feature_type} eq 'gene'; 
@@ -390,7 +400,7 @@ sub preparePathways {
 		my $pathway;
 		my ($ec_number, $ec_description, $pathway_id, $pathway_name, $pathway_class) = split /\t/, $ecpathway;
 		
-		$pathway->{owner} = $owner;
+		$pathway->{owner} = undef;
 		$pathway->{public} = $public;
 
 		$pathway->{genome_id} = $feature->{genome_id};
