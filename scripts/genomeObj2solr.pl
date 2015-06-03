@@ -17,19 +17,19 @@
 #
 ###########################################################
 
-use FindBin;
+use FindBin qw($Bin);
 use POSIX;
 use JSON;
 use Data::Dumper;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
 
-use lib "$FindBin::Bin";
+use lib "$Bin";
 use SolrAPI;
 
 my $solrh = SolrAPI->new();
 my $json = JSON->new->allow_nonref;
 
-my $usage = "genomeObj2solr.pl jsonFile\n";
+my $usage = "genomeObj2solr.pl genbankFile\n";
 
 my $infile = $ARGV[0];
 my $outfile = $infile;
@@ -138,6 +138,7 @@ sub getGenomeInfo {
 	$genome->{sequences} = $sequences;
 	$genome->{genome_length} = $genome_length;
 	$genome->{gc_content} = sprintf("%.2f", ($gc_count*100/$genome_length));
+	$genome->{genome_status} = ($sequences > 1)? "WGS": "Complete";
 
 }
 
@@ -208,15 +209,14 @@ sub getGenomeFeatures{
 
 		$feature->{patric_id} = $featObj->{id};
 
-		$feature->{product} = $featObj->{function};
-		$feature->{product}=~s/\"/''/g;
-
 		$feature->{feature_type} = $featObj->{type};
-		if ($featObj->{type} eq "rna"){
-			$feature->{feature_type} = $1 if $feature->{product}=~/(rRNA|tRNA)/;
-		}else{
-			$feature->{feature_type} eq 'misc_RNA';
-		}
+		$feature->{feature_type} = $1 if ($featObj->{type} eq "rna" && $featObj->{function}=~/(rRNA|tRNA)/);
+		$feature->{feature_type} = 'misc_RNA' if ($featObj->{type} eq "rna" && !$featObj->{function}=~/(rRNA|tRNA)/);
+		$feature->{feature_type} = 'repeat_region' if ($featObj->{type} eq "repeat");
+
+		$feature->{product} = $featObj->{function};
+		$feature->{product} = "hypothetical protein" if ($feature->{feature_type} eq 'CDS' && !$feature->{product});
+		$feature->{product}=~s/\"/''/g;
 		
 		foreach my $locObj (@{$featObj->{location}}){
 			
