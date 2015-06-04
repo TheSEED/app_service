@@ -285,12 +285,19 @@ sub submit_load_files
     while (time < $wait_until)
     {
 	my $status = $solr->query_rest("/indexer/$queue_id");
-	my $state = $status->{state};
-	print STDERR "status for $queue_id (state=$state): " . Dumper($status);
-	if ($state ne 'queued')
+	if (!$status)
 	{
-	    print STDERR "Finishing with state $state\n";
-	    last;
+	    warn "Parse failed for indexer query\n";
+	}
+	else
+	{
+	    my $state = $status->{state};
+	    print STDERR "status for $queue_id (state=$state): " . Dumper($status);
+	    if ($state ne 'queued')
+	    {
+		print STDERR "Finishing with state $state\n";
+		last;
+	    }
 	}
 	sleep 60;
     }
