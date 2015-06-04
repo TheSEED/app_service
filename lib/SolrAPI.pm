@@ -283,14 +283,18 @@ sub query_rest
 	close($fh);
     }
 
+    my $resultObj;
     eval {
-	my $resultObj = decode_json($result);
-	return $resultObj;
+	$resultObj = decode_json($result);
     };
     if ($@)
     {
 	warn "JSON parse failed '$@' on query $solrQ:\n$result\n";
 	return undef;
+    }
+    else
+    {
+	return $resultObj;
     }
 }
 
