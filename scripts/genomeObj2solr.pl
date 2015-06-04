@@ -400,7 +400,7 @@ sub preparePathways {
 		my $pathway;
 		my ($ec_number, $ec_description, $pathway_id, $pathway_name, $pathway_class) = split /\t/, $ecpathway;
 		
-		$pathway->{owner} = undef;
+		$pathway->{owner} = $feature->{owner};
 		$pathway->{public} = $public;
 
 		$pathway->{genome_id} = $feature->{genome_id};
