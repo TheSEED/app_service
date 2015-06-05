@@ -5,6 +5,8 @@
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 use Bio::KBase::AuthToken;
+use SolrAPI;
+
 use strict;
 use Data::Dumper;
 use gjoseqlib;
@@ -135,6 +137,7 @@ sub process_genome
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
 	      { name => 'annotate_families_figfam_v1' },
+	      { name => 'annotate_null_to_hypothetical' },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 		  # { name => 'call_features_prophage_phispy' },
 		 );
@@ -205,7 +208,7 @@ sub process_genome
 	my $load_folder = "$output_folder/load_files";
 	
 	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	submit_load_files($ws, $load_folder, $token->token, data_api_url . "/indexer/genome", ".");
+	submit_load_files($ws, $load_folder, $token->token, data_api_url, ".");
     }
 
     $ctx->stderr(undef);
@@ -228,7 +231,9 @@ sub write_load_files
 
 sub submit_load_files
 {
-    my($ws, $load_folder, $token, $url, $dir) = @_;
+    my($ws, $load_folder, $token, $data_api_url, $dir) = @_;
+
+    my $genome_url = $data_api_url . "/indexer/genome";
 
     my @opts;
     push(@opts, "-H", "Authorization: $token");
@@ -251,14 +256,49 @@ sub submit_load_files
 	}
     }
 
-    push(@opts, $url);
+    push(@opts, $genome_url);
     print "@opts\n";
 #curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
 
     my($stdout, $stderr);
-    my $ok = run(["curl", @opts]);
+    
+    my $ok = run(["curl", @opts], '>', \$stdout);
     if (!$ok)
     {
 	warn "Error $? invoking curl @opts\n";
+    }
+
+    my $json = JSON->new->allow_nonref;
+    my $data = $json->decode($stdout);
+
+    my $queue_id = $data->{id};
+
+    print "Submitted indexing job $queue_id\n";
+
+    my $solr = SolrAPI->new($data_api_url);
+
+    #
+    # For now, wait up to an hour for the indexing to complete.
+    #
+    my $wait_until = time + 3600;
+
+    while (time < $wait_until)
+    {
+	my $status = $solr->query_rest("/indexer/$queue_id");
+	if (!$status)
+	{
+	    warn "Parse failed for indexer query\n";
+	}
+	else
+	{
+	    my $state = $status->{state};
+	    print STDERR "status for $queue_id (state=$state): " . Dumper($status);
+	    if ($state ne 'queued')
+	    {
+		print STDERR "Finishing with state $state\n";
+		last;
+	    }
+	}
+	sleep 60;
     }
 }
