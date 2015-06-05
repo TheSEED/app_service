@@ -294,6 +294,7 @@ sub query_rest
     }
     else
     {
+	print STDERR "Returning valid result " . Dumper($result, $resultObj);
 	return $resultObj;
     }
 }
