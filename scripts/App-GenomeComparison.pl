@@ -311,10 +311,11 @@ sub get_genome_faa {
 sub get_patric_genome_name {
     my ($gid) = @_;
     my $url = "$data_api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
-    my $json = `curl '$url'`;
+    my @cmd = ("curl", curl_options(), $url);
+    my ($out) = run_cmd(\@cmd);
     my $name;
-    if ($json) {
-        my $ret = JSON::decode_json($json);
+    if ($out) {
+        my $ret = JSON::decode_json($out);
         $name = $ret->[0]->{genome_name};
     }
     return $name;
@@ -338,7 +339,7 @@ sub get_patric_genome_faa {
     my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.faa";
     # my $url = $ftp_url;
     my $url = $api_url;
-    my @cmd = ("curl", $url);
+    my @cmd = ("curl", curl_options(), $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
     return $out;
@@ -349,7 +350,7 @@ sub get_feature_hash {
     my %hash;
     for my $gid (@$gids) {
         my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
-        my @cmd = ("curl", $url);
+        my @cmd = ("curl", curl_options(), $url);
         print join(" ", @cmd)."\n";
         my ($out) = run_cmd(\@cmd);
         my $json = JSON::decode_json($out);
@@ -365,7 +366,7 @@ sub get_genome_contigs {
     my ($gid) = @_;
     ($gid) = $gid =~ /(\d+\.\d+)/;
     my $url = "$data_api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
-    my @cmd = ("curl", $url);
+    my @cmd = ("curl", curl_options(), $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
     print STDERR '$gid = '. Dumper($gid);
@@ -374,6 +375,14 @@ sub get_genome_contigs {
     my $json = JSON::decode_json($out);
     my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
     return \@contigs;
+}
+
+sub curl_options {
+    my @opts;
+    my $token = get_token()->token;
+    push(@opts, "-H", "Authorization: $token");
+    push(@opts, "-H", "Content-Type: multipart/form-data");
+    return @opts;
 }
 
 sub patric_id_to_number {
