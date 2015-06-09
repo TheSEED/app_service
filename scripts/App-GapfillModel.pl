@@ -21,16 +21,20 @@ eval {
 };
 
 my $script = Bio::KBase::AppService::AppScript->new(\&gapfill_model);
-
+my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
 my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
-	app => $script,
 	token => $script->token()->token(),
 	username => $script->token()->user_id(),
+	fbajobcache => $config->{fbajobcache},
+	fbajobdir => $config->{fbajobdir},
+	mfatoolkitbin => $config->{mfatoolkitbin},
+	logfile => $config->{logfile},
+	data_api_url => $config->{data_api_url},
+	"workspace-url" => $config->{"workspace-url"},
+	"shock-url" => $config->{"shock_url"},
 	method => "GapfillModel",
-	run_as_app => 1
 });
-$helper->load_from_config();
-$script->{workspace_url} = $helper->workspace_url();
+$script->{workspace_url} = $config->{"workspace-url"};
 $script->{donot_create_result_folder} = 1;
 $script->{donot_create_job_result} = 1;
 
