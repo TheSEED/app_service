@@ -237,6 +237,8 @@ sub run_find_bdbh {
     push @outputs, [ $ofile, 'txt' ];
 
     my $final = color_legend()."\n";
+    $final .= track_legend($genomes);
+
     my $conf = prepare_circos_configs($circos_dir, $circos_opts);
     my @cmd = ($circos, '-conf', $conf, '-outputdir', $circos_dir);
     my ($out, $err) = run_cmd(\@cmd);
@@ -271,6 +273,14 @@ sub filename_to_genome_name {
     $gid =~ s/\.faa$//;
     my $name = get_patric_genome_name($gid) || $gid;
     return $name;
+}
+
+sub filename_to_genome_name_with_id {
+    my ($fname) = @_;
+    my $gid = basename($fname);
+    $gid =~ s/\.faa$//;
+    my $name = get_patric_genome_name($gid) || $gid;
+    $name ? "$name ($gid)" : $fname;
 }
 
 sub is_faa_user_genome {
@@ -901,3 +911,16 @@ sub color_legend {
 </TR>
 </TABLE>~;
 }
+
+sub track_legend {
+    my ($genomes) = @_;
+
+    my @html = ("</br>List of tracks, from outside to inside:</br>", '<ol type="1">');
+    for (@$genomes) {
+        my $item = filename_to_genome_name_with_id($_);
+        push @html, "  <li>$item</li>";
+    }
+    push @html, "</ol>";
+    return join("\n", @html)."\n";
+}
+
