@@ -23,6 +23,8 @@ DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_
 
 STARMAN_WORKERS = 5
 
+DATA_API_URL = https://www.beta.patricbrc.org/api
+
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
 endif

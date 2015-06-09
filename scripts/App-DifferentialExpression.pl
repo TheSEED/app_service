@@ -63,7 +63,8 @@ sub process_diffexp
     close($xfile_fh);
     close($mfile_fh) if $mfile_fh;
 
-    my $dat = { data_api => Bio::KBase::AppService::AppConfig->data_api_url };
+    my $data_api = Bio::KBase::AppService::AppConfig->data_api_url . "/genome_feature/";
+    my $dat = { data_api => $data_api };
     my $sstring = encode_json($dat);
 
     print $sstring_fh $sstring;
