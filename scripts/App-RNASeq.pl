@@ -78,6 +78,47 @@ sub process_rnaseq {
 sub run_rna_rocket {
     my ($params, $tmpdir) = @_;
 
+    my $exps     = params_to_exps($params);
+    my $labels   = $params->{experimental_conditions};
+    my $ref_id   = $params->{reference_genome_id} or die "Reference genome is required for RNA-Rocket\n";
+    my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir);
+
+    print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
+    
+    my $rocket = "/home/fangfang/programs/Prok-tuxedo/prok_tuxedo.py";
+    -e $rocket or die "Could not find RNA-Rocket: $rocket\n";
+
+    my $outdir = "$tmpdir/Rocket";
+
+    my @cmd = ($rocket);
+    push @cmd, ("-o", $outdir);
+    push @cmd, ("-g", $ref_dir);
+    push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
+    push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
+
+    print STDERR "cmd = ", join(" ", @cmd) . "\n\n";
+
+    my ($rc, $out, $err) = run_cmd(\@cmd);
+    print STDERR "STDOUT:\n$out\n";
+    print STDERR "STDERR:\n$err\n";
+
+    run("echo $outdir && ls -ltr $outdir");
+
+    my @files = glob("$outdir/$ref_id/gene* $outdir/$ref_id/*/replicate*/*tracking $outdir/$ref_id/*/replicate*/*gtf");
+    print STDERR '\@files = '. Dumper(\@files);
+    my @new_files;
+    for (@files) {
+        if (m|/\S*?/replicate\d/|) {
+            my $fname = $_; $fname =~ s|/(\S*?)/(replicate\d)/|/$1\_$2\_|;
+            run_cmd(["mv", $_, $fname]);
+            push @new_files, $fname;
+        } else {
+            push @new_files, $_;
+        }
+    }
+    my @outputs = map { [ $_, 'txt' ] } @new_files;
+
+    return @outputs;
 }
 
 sub run_rockhopper {
@@ -151,6 +192,33 @@ sub merge_results {
     }
     push @outputs, ["$dir/summary.txt", 'txt'];
     return @outputs;
+}
+
+sub prepare_ref_data_rocket {
+    my ($gid, $basedir) = @_;
+    $gid or die "Missing reference genome id\n";
+
+    my $dir = "$basedir/$gid";
+    system("mkdir -p $dir");
+
+    my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/gff&limit(25000)";
+    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
+
+    my $url = $ftp_url;
+    my $out = curl_text($url);
+    write_output($out, "$dir/$gid.gff");
+    
+    $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/dna+fasta&limit(25000)";
+    $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
+    
+    # $url = $api_url;
+    $url = $ftp_url;
+    my $out = curl_text($url);
+    # $out = break_fasta_lines($out."\n");
+    $out =~ s/\n+/\n/g;
+    write_output($out, "$dir/$gid.fna");
+
+    return $dir;
 }
 
 sub prepare_ref_data {
@@ -235,15 +303,28 @@ sub prepare_ref_data {
     return join(",",@dirs);
 }
 
-sub curl_json {
+sub curl_text {
     my ($url) = @_;
-    my @cmd = ("curl", $url);
+    my @cmd = ("curl", curl_options(), $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
+    return $out;
+}
+
+sub curl_json {
+    my ($url) = @_;
+    my $out = curl_text($url);
     my $hash = JSON::decode_json($out);
     return $hash;
 }
 
+sub curl_options {
+    my @opts;
+    my $token = get_token()->token;
+    push(@opts, "-H", "Authorization: $token");
+    push(@opts, "-H", "Content-Type: multipart/form-data");
+    return @opts;
+}
 
 sub run_cmd {
     my ($cmd) = @_;
@@ -325,5 +406,19 @@ sub write_output {
     open(F, ">$ofile") or die "Could not open $ofile";
     print F $string;
     close(F);
+}
+
+sub break_fasta_lines {
+    my ($fasta) = @_;
+    my @lines = split(/\n/, $fasta);
+    my @fa;
+    for (@lines) {
+        if (/^>/) {
+            push @fa, $_;
+        } else {
+            push @fa, /.{1,60}/g;
+        }
+    }
+    return join("\n", @fa);
 }
 
