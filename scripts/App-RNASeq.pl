@@ -40,7 +40,7 @@ sub process_rnaseq {
     my $output_base = $params->{output_file};
 
     my $recipe = $params->{recipe};
-    
+
     # my $tmpdir = File::Temp->newdir();
     my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/ZKLUBOtpuf";
@@ -84,8 +84,9 @@ sub run_rna_rocket {
     my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir);
 
     print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
-    
-    my $rocket = "/home/fangfang/programs/Prok-tuxedo/prok_tuxedo.py";
+
+    # my $rocket = "/home/fangfang/programs/Prok-tuxedo/prok_tuxedo.py";
+    my $rocket = "prok_tuxedo.py";
     -e $rocket or die "Could not find RNA-Rocket: $rocket\n";
 
     my $outdir = "$tmpdir/Rocket";
@@ -132,7 +133,8 @@ sub run_rockhopper {
 
     print "Run rockhopper ", Dumper($exps, $labels, $tmpdir);
 
-    my $jar = "/home/fangfang/programs/Rockhopper.jar";
+    # my $jar = "/home/fangfang/programs/Rockhopper.jar";
+    my $jar = $ENV{KB_RUNTIME} . "/lib/Rockhopper.jar";
     -s $jar or die "Could not find Rockhopper: $jar\n";
 
     my $outdir = "$tmpdir/Rockhopper";
@@ -140,7 +142,7 @@ sub run_rockhopper {
     my @cmd = (qw(java -Xmx1200m -cp), $jar, "Rockhopper");
 
     print STDERR '$exps = '. Dumper($exps);
-    
+
     # push @cmd, qw(-SAM -TIME);
     push @cmd, qw(-s false) unless $stranded;
     push @cmd, ("-o", $outdir);
@@ -207,10 +209,10 @@ sub prepare_ref_data_rocket {
     my $url = $ftp_url;
     my $out = curl_text($url);
     write_output($out, "$dir/$gid.gff");
-    
+
     $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/dna+fasta&limit(25000)";
     $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
-    
+
     # $url = $api_url;
     $url = $ftp_url;
     my $out = curl_text($url);
@@ -230,7 +232,7 @@ sub prepare_ref_data {
     # print STDERR '$json = '. Dumper($json);
     my @ctgs = map { $_->{accession} } @$json;
     my %hash = map { $_->{accession} => $_ } @$json;
-    
+
     $url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&select(accession,start,end,strand,aa_length,patric_id,protein_id,gene,refseq_locus_tag,figfam_id,product)&sort(+accession,+start,+end)&limit(25000)&http_accept=application/json";
     $json = curl_json($url);
 
@@ -264,7 +266,7 @@ sub prepare_ref_data {
                              join("\t", qw(Location Strand Length PID Gene Synonym Code FIGfam Product)),
                              map { join("\t", $_->{start}."..".$_->{end},
                                               $_->{strand},
-                                              $_->{aa_length}, 
+                                              $_->{aa_length},
                                               $_->{patric_id} || $_->{protein_id},
                                               # $_->{refseq_locus_tag},
                                               $_->{patric_id},
@@ -281,7 +283,7 @@ sub prepare_ref_data {
                              join("\t", qw(Location Strand Length PID Gene Synonym Code FIGfam Product)),
                              map { join("\t", $_->{start}."..".$_->{end},
                                               $_->{strand},
-                                              $_->{na_length}, 
+                                              $_->{na_length},
                                               $_->{patric_id} || $_->{protein_id},
                                               # $_->{refseq_locus_tag},
                                               $_->{patric_id},
@@ -296,10 +298,10 @@ sub prepare_ref_data {
         write_output($fna, "$dir/$ctg.fna");
         write_output($ptt, "$dir/$ctg.ptt") if $ptt;
         write_output($rnt, "$dir/$ctg.rnt") if $rnt;
-        
+
         push(@dirs, $dir) if $ptt;
     }
-    
+
     return join(",",@dirs);
 }
 
@@ -343,12 +345,12 @@ sub params_to_exps {
         my $index = $_->{condition} - 1;
         $index = 0 if $index < 0;
         push @{$exps[$index]}, [ $_->{read1}, $_->{read2} ];
-    }    
+    }
     for (@{$params->{single_end_libs}}) {
         my $index = $_->{condition} - 1;
         $index = 0 if $index < 0;
         push @{$exps[$index]}, [ $_->{read} ];
-    }    
+    }
     return \@exps;
 }
 
@@ -372,7 +374,7 @@ sub get_ws {
 sub get_token {
     return $global_token;
 }
- 
+
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
     # return $id;
@@ -397,7 +399,7 @@ sub get_ws_file {
     close($fh);
     print "$id $file:\n";
     system("ls -la $tmpdir");
-             
+
     return $file;
 }
 
@@ -421,4 +423,3 @@ sub break_fasta_lines {
     }
     return join("\n", @fa);
 }
-
