@@ -11,8 +11,8 @@
     "/fangfang/home/test/B93_1.fastq",
     "/fangfang/home/test/B93_2.fastq"
   ],
-  "reference_assembly": "/fangfang/test/B93.contigs.fa",
+  "reference_assembly": "/fangfang/home/test/B93.contigs.fa",
   "recipe": "auto",
-  "output_path": "/fangfang/test/assm_2",
+  "output_path": "/fangfang/test/assm_3",
   "output_file": "toy"
 }
