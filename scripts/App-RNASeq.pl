@@ -87,7 +87,7 @@ sub run_rna_rocket {
 
     # my $rocket = "/home/fangfang/programs/Prok-tuxedo/prok_tuxedo.py";
     my $rocket = "prok_tuxedo.py";
-    -e $rocket or die "Could not find RNA-Rocket: $rocket\n";
+    verify_cmd($rocket);
 
     my $outdir = "$tmpdir/Rocket";
 
@@ -422,4 +422,9 @@ sub break_fasta_lines {
         }
     }
     return join("\n", @fa);
+}
+
+sub verify_cmd {
+    my ($cmd) = @_;
+    system("which $cmd >/dev/null") == 0 or die "Command not found: $cmd\n";
 }

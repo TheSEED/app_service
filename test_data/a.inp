@@ -1,18 +1,18 @@
 {
   "paired_end_libs": [
     {
-      "read1": "/fangfang/test/toy_1.fq",
-      "read2": "/fangfang/test/toy_2.fq",
+      "read1": "/fangfang/home/test/toy1.fq",
+      "read2": "/fangfang/home/test/toy2.fq",
       "interleaved": false,
       "insert_size_mean": null
     }
   ],
   "single_end_libs": [
-    "/fangfang/test/B93_1.fastq", 
-    "/fangfang/test/B93_2.fastq"
+    "/fangfang/home/test/B93_1.fastq",
+    "/fangfang/home/test/B93_2.fastq"
   ],
-  "reference_assembly": "/fangfang/test/b99.ref.fa",
-  "recipe": "kiki",
-  "output_path": "/fangfang/test/output",
+  "reference_assembly": "/fangfang/home/test/B93.contigs.fa",
+  "recipe": "auto",
+  "output_path": "/fangfang/test/assm_3",
   "output_file": "toy"
 }

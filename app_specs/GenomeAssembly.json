@@ -79,6 +79,14 @@
 			"enum": ["auto", "full_spades", "fast", "miseq", "smart", "kiki" ]
 		},
 		{
+			"id":"pipeline",
+			"label":"Assembly pipeline arguments",
+			"required": 0,
+			"default": null,
+			"desc":"Advanced assembly pipeline arguments that overrides recipe",
+			"type":"string"
+		},
+		{
 			"id":"output_path",
 			"label":"Output Folder",
 			"required": 1,
