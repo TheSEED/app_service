@@ -50,10 +50,12 @@ sub process_rnaseq {
     $params = localize_params($tmpdir, $params);
 
     my @outputs;
+    my $prefix = $recipe;
     if ($recipe eq 'Rockhopper') {
         @outputs = run_rockhopper($params, $tmpdir);
-    } elsif ($recipe eq 'RNA-Rocket') {
+    } elsif ($recipe eq 'Tuxedo' || $recipe eq 'RNA-Rocket') {
         @outputs = run_rna_rocket($params, $tmpdir);
+        $prefix = 'Tuxedo';
     } else {
         die "Unrecognized recipe: $recipe \n";
     }
@@ -64,7 +66,7 @@ sub process_rnaseq {
             my $filename = basename($ofile);
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
-	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$recipe\_$filename", $type, 1,
+	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
 					       # (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
 					       (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
