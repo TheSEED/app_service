@@ -280,7 +280,7 @@ sub filename_to_genome_name_with_id {
     my $gid = basename($fname);
     $gid =~ s/\.faa$//;
     my $name = get_patric_genome_name($gid) || $gid;
-    $name ? "$name ($gid)" : $fname;
+    $name && $gid =~ /^\d+\.\d+$/ ? "$name ($gid)" : basename($fname);
 }
 
 sub is_faa_user_genome {
