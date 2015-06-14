@@ -1,0 +1,28 @@
+{
+  "reference_genome_id" : "1310581.3",
+  "experimental_conditions": [
+    "Mueller Hinton Broth",
+    "MERO_75",
+    "COL_75"
+  ],
+  "paired_end_libs": [
+     {
+         "read1": "/fangfang/home/test/rna_data/MERO_75_R1.fq.gz",
+         "read2": "/fangfang/home/test/rna_data/MERO_75_R2.fq.gz",
+	 "condition": 2
+     },
+     {
+         "read1": "/fangfang/home/test/rna_data/MHB_R1.fq.gz",
+         "read2": "/fangfang/home/test/rna_data/MHB_R2.fq.gz",
+	 "condition": 1
+     },
+     {
+         "read1": "/fangfang/home/test/rna_data/COL_75_R1.fq.gz",
+         "read2": "/fangfang/home/test/rna_data/COL_75_R2.fq.gz",
+	 "condition": 3
+     }
+  ],
+  "recipe": "Rockhopper",
+  "output_path": "/fangfang/home/test/rna_pe_6_8",
+  "output_file": "small_bau"
+}

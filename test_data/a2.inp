@@ -1,0 +1,15 @@
+{
+  "paired_end_libs": [
+    {
+      "read1": "/fangfang/home/test/toy1.fq",
+      "read2": "/fangfang/home/test/toy2.fq",
+      "interleaved": false,
+      "insert_size_mean": null
+    }
+  ],
+  "reference_assembly": "/fangfang/home/test/B93.contigs.fa",
+  "recipe": "kiki",
+  "pipeline": "tagdust 'kiki velvet'",
+  "output_path": "/fangfang/home/test/assm2_16",
+  "output_file": "toy"
+}

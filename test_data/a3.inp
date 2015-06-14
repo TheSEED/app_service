@@ -1,0 +1,13 @@
+{
+  "paired_end_libs": [
+    {
+      "read1": "/fangfang/home/test/toy1.fq",
+      "read2": "/fangfang/home/test/toy2.fq",
+      "interleaved": false,
+      "insert_size_mean": null
+    }
+  ],
+  "recipe": "kiki",
+  "output_path": "/fangfang/home/test/assm3_2",
+  "output_file": "toy"
+}
