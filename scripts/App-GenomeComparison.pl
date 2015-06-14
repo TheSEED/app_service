@@ -48,8 +48,8 @@ sub process_proteomes {
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
 
-    # my $tmpdir = File::Temp->newdir();
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
     # my $tmpdir = "/tmp/02noAPprr6";
     print STDERR "tmpdir = $tmpdir\n";
@@ -66,8 +66,8 @@ sub process_proteomes {
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
 	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
-					       # (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
+					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
+					       # (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
 	    warn "Missing desired output file $ofile\n";
@@ -96,8 +96,8 @@ sub run_find_bdbh {
     my @fids;
     my %hits;
 
-    my @ref_fields  = qw(contig gene aa_length patric_id locus_tag function start end strand);
-    my @comp_fields = qw(hit contig gene aa_length patric_id locus_tag function percent_identity seq_coverage); # e_value not directly available for Gary's tool
+    my @ref_fields  = qw(contig gene aa_length patric_id locus_tag gene_name function start end strand);
+    my @comp_fields = qw(hit contig gene aa_length patric_id locus_tag gene_name function percent_identity seq_coverage); # e_value not directly available for Gary's tool
     my @fields      = map { 'ref_genome_'.$_ } @ref_fields;
     my @headers     = (filename_to_genome_name($orgs[0]));
     push @headers, (undef) x $#ref_fields;
@@ -127,6 +127,7 @@ sub run_find_bdbh {
                                ref_genome_aa_length => $len,
                                ref_genome_contig    => $feaH->{$id}->{accession},
                                ref_genome_locus_tag => $feaH->{$id}->{refseq_locus_tag},
+                               ref_genome_gene_name => $feaH->{$id}->{gene},
                                ref_genome_function  => $feaH->{$id}->{product},
                                ref_genome_start     => $feaH->{$id}->{start},
                                ref_genome_end       => $feaH->{$id}->{end},
@@ -153,6 +154,7 @@ sub run_find_bdbh {
                           aa_length        => $s_len,
                           contig           => $feaH->{$s_id}->{accession},
                           locus_tag        => $feaH->{$s_id}->{refseq_locus_tag},
+                          gene_name        => $feaH->{$s_id}->{gene},
                           function         => $feaH->{$s_id}->{product},
                           percent_identity => $fract_id,
                           seq_coverage     => $s_coverage );
@@ -223,10 +225,10 @@ sub run_find_bdbh {
     for (@$contigs) {
         my ($acc, $name, $len) = @$_;
         $name =~ s/\s+/_/g;
-        # push @rows, ['chr', '-', $acc, $name, 0, $len, 'grey']; 
-        # push @rows, ['chr', '-', $acc, $acc, 0, $len, 'grey']; 
+        # push @rows, ['chr', '-', $acc, $name, 0, $len, 'grey'];
+        # push @rows, ['chr', '-', $acc, $acc, 0, $len, 'grey'];
         push @rows, ['chr', '-', $acc, ++$index, 0, $len, 'grey'];
-    } 
+    }
     write_table(\@rows, $ofile);
     push @outputs, [ $ofile, 'txt' ];
 
@@ -263,7 +265,7 @@ sub run_find_bdbh {
     $ofile = "$circos_dir/circos_final.html";
     write_output($final, $ofile);
     push @outputs, [ $ofile, 'html' ];
-    
+
     return @outputs;
 }
 
@@ -334,7 +336,7 @@ sub get_patric_genome_name {
 sub get_patric_genome_faa_seed {
     my ($outdir, $gid) = @_;
     my $faa = get_patric_genome_faa($gid);
-    $faa =~ s/>(fig\|\d+\.\d+\.\w+\.\d+)\S+/>$1/g; 
+    $faa =~ s/>(fig\|\d+\.\d+\.\w+\.\d+)\S+/>$1/g;
     my $ofile = "$outdir/$gid.faa";
     print "\n$ofile, $gid\n";
     open(FAA, ">$ofile") or die "Could not open $ofile";
@@ -359,7 +361,7 @@ sub get_feature_hash {
     my ($gids) = @_;
     my %hash;
     for my $gid (@$gids) {
-        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
         my @cmd = ("curl", curl_options(), $url);
         print join(" ", @cmd)."\n";
         my ($out) = run_cmd(\@cmd);
@@ -381,7 +383,7 @@ sub get_genome_contigs {
     my ($out) = run_cmd(\@cmd);
     print STDERR '$gid = '. Dumper($gid);
     print STDERR '$out = '. Dumper($out);
-    
+
     my $json = JSON::decode_json($out);
     my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
     return \@contigs;
@@ -423,7 +425,7 @@ sub get_ws {
 sub get_token {
     return $global_token;
 }
- 
+
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
     # return $id;
@@ -450,7 +452,7 @@ sub get_ws_file {
     close($fh);
     print STDERR "$id $file:\n";
     # system("ls -la $tmpdir");
-             
+
     return $file;
 }
 
@@ -674,7 +676,7 @@ end_of_circos
 
 sub circos_plot_config {
     my ($opts) = @_;
-    
+
     my $radius = $opts->{radius} || 500;
     my $large_tiles = $opts->{large_tiles} || 'large.tiles.txt';
     print STDERR 'circos_opts = '. Dumper($opts);
@@ -694,10 +696,10 @@ sub circos_plot_config {
 
     my @plots;
     push @plots, circos_plot_block($large_tiles, 1, { size => 15, color => 'vdblue', stroke_color => 'vdblue' });
-    
+
     my @files = ($opts->{ref_genome}, @{$opts->{comp_genomes}});
     my $r = $outer;
-    my $index = 0; 
+    my $index = 0;
     for my $f (@files) {
         if ($f eq $opts->{ref_genome}) {
             push @plots, circos_plot_block($f, $r, { size => $size, color => 'bbh_100', stroke_color => 'bbh_100', url => patric_url() });
@@ -722,7 +724,7 @@ sub circos_plot_block {
 
     my ($r0, $r1);
     my $size = $opts->{size} || 25;
-    
+
     if ($outer) {
         $r0 = $outer.'r-'.$size.'p';
         $r1 = $outer.'r';
@@ -734,17 +736,17 @@ sub circos_plot_block {
     # see definition of tracks, tiles, margin, etc defined here:
     # http://circos.ca/documentation/tutorials/2d_tracks/tiles/images
 
-    my $thickness        = $opts->{thickness}        || $size;  
+    my $thickness        = $opts->{thickness}        || $size;
     my $show             = $opts->{show}             || 'yes';
     my $type             = $opts->{type}             || 'tile';
     my $orientation      = $opts->{orientation}      || 'in';
     my $stroke_color     = $opts->{stroke_color}     || 'green';
     my $color            = $opts->{color}            || 'green';
-    my $margin           = $opts->{margin}           || '0.02'; 
+    my $margin           = $opts->{margin}           || '0.02';
     my $layers           = $opts->{layers}           || 1;
     my $padding          = $opts->{padding}          || 1;
     my $stroke_thickness = $opts->{stroke_thickness} || 0.1;
-    my $url              = $opts->{url}; 
+    my $url              = $opts->{url};
     my $rules            = $opts->{rules};
 
     $margin    .= 'u'   if $margin =~ /\d$/;
@@ -769,7 +771,7 @@ sub circos_plot_block {
 
         r0 = $r0
         r1 = $r1
-       
+
         $url
 
         $rules
@@ -805,7 +807,7 @@ sub color_rules {
                 condition    = var(value) >= $ident
                 color        = bbh_$ident
                 stroke_color = bbh_$ident
-            </rule>              
+            </rule>
 end_of_bbh_rule
     }
     for (@$ubh) {
@@ -815,7 +817,7 @@ end_of_bbh_rule
                 condition    = var(value) <= -$ident
                 color        = ubh_$ident
                 stroke_color = ubh_$ident
-            </rule>              
+            </rule>
 end_of_ubh_rule
     }
     return join("\n", '<rules>', @rules, "</rules>\n");

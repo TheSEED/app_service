@@ -7,12 +7,7 @@
       "insert_size_mean": null
     }
   ],
-  "single_end_libs": [
-    "/fangfang/home/test/B93_1.fastq",
-    "/fangfang/home/test/B93_2.fastq"
-  ],
-  "reference_assembly": "/fangfang/home/test/B93.contigs.fa",
   "recipe": "kiki",
-  "output_path": "/fangfang/home/test/assm_5",
+  "output_path": "/fangfang/home/test/assm3_2",
   "output_file": "toy"
 }
