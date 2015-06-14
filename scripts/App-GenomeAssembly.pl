@@ -39,9 +39,9 @@ sub process_reads {
 
     verify_cmd($ar_run) and verify_cmd($ar_get) and verify_cmd($ar_filter);
 
-    my $output_path = $params->{output_path};
-    my $output_base = $params->{output_file};
-    my $output_name = "$output_base.contigs";
+    my $output_folder = $app->result_folder();
+    # my $output_base   = $params->{output_file};
+    my $output_name   = "contigs";
 
     my $recipe = $params->{recipe};
     my @method = ("-r", $recipe) if $recipe;
@@ -51,8 +51,8 @@ sub process_reads {
 
     @method = ("-p", parse_pipeline_args($pipeline)) if $pipeline;
 
-    # my $tmpdir = File::Temp->newdir();
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
 
     my @ai_params = parse_input($tmpdir, $params);
 
@@ -98,8 +98,8 @@ sub process_reads {
 
     my ($report) = glob("$tmpdir/$arast_job*report.txt");
     if ($report) {
-        system("mv $report $tmpdir/$output_base.report.txt");
-        push @outputs, ["$tmpdir/$output_base.report.txt", 'txt'];
+        system("mv $report $tmpdir/report.txt");
+        push @outputs, ["$tmpdir/report.txt", 'txt'];
     }
 
     my @assemblies = glob("$tmpdir/$arast_job*contigs.fa");
@@ -112,9 +112,9 @@ sub process_reads {
 	my ($ofile, $type) = @$_;
 	if (-f "$ofile") {
             my $filename = basename($ofile);
-            print STDERR "Output folder = $output_path\n";
-            print STDERR "Saving $ofile => $output_path/$filename ...\n";
-	    $app->workspace->save_file_to_file("$ofile", {}, "$output_path/$filename", $type, 1,
+            print STDERR "Output folder = $output_folder\n";
+            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
+	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
 					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
