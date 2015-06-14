@@ -12,7 +12,7 @@
     "/fangfang/home/test/B93_2.fastq"
   ],
   "reference_assembly": "/fangfang/home/test/B93.contigs.fa",
-  "recipe": "auto",
-  "output_path": "/fangfang/test/assm_3",
+  "recipe": "kiki",
+  "output_path": "/fangfang/home/test/assm_5",
   "output_file": "toy"
 }
