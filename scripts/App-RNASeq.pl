@@ -35,14 +35,15 @@ sub process_rnaseq {
 
     $global_token = $app->token();
     $global_ws = $app->workspace;
+
     my $output_folder = $app->result_folder();
-    my $output_path = $params->{output_path};
-    my $output_base = $params->{output_file};
+    # my $output_base   = $params->{output_file};
 
     my $recipe = $params->{recipe};
 
-    # my $tmpdir = File::Temp->newdir();
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    # my $tmpdir = "/tmp/nxmyAFcE2a";
     # my $tmpdir = "/tmp/ZKLUBOtpuf";
     # my $tmpdir = "/tmp/_jfhupHJs8";
     system("chmod 755 $tmpdir");
@@ -65,10 +66,10 @@ sub process_rnaseq {
 	if (-f "$ofile") {
             my $filename = basename($ofile);
             print STDERR "Output folder = $output_folder\n";
-            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
+            print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
 	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
-					       # (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
+					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
+					       # (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
 	} else {
 	    warn "Missing desired output file $ofile\n";
@@ -107,7 +108,7 @@ sub run_rna_rocket {
 
     run("echo $outdir && ls -ltr $outdir");
 
-    my @files = glob("$outdir/$ref_id/gene* $outdir/$ref_id/*/replicate*/*tracking $outdir/$ref_id/*/replicate*/*gtf");
+    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam");
     print STDERR '\@files = '. Dumper(\@files);
     my @new_files;
     for (@files) {
@@ -120,6 +121,8 @@ sub run_rna_rocket {
         }
     }
     my @outputs = map { [ $_, 'txt' ] } @new_files;
+
+    push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
 
     return @outputs;
 }
@@ -145,11 +148,13 @@ sub run_rockhopper {
 
     print STDERR '$exps = '. Dumper($exps);
 
-    # push @cmd, qw(-SAM -TIME);
+    my @conditions = clean_labels($labels);
+
+    push @cmd, qw(-SAM -TIME);
     push @cmd, qw(-s false) unless $stranded;
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir) if $ref_dir;
-    push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
+    push @cmd, ("-L", join(",", @conditions)) if $labels && @$labels;
     push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
 
     print STDERR "cmd = ", join(" ", @cmd) . "\n\n";
@@ -162,15 +167,81 @@ sub run_rockhopper {
 
     my @outputs;
     if ($ref_id) {
-        @outputs = merge_results($outdir, $ref_id, $ref_dir);
+        @outputs = merge_rockhoppper_results($outdir, $ref_id, $ref_dir);
+        my $gmx = make_diff_exp_gene_matrix($outdir, $ref_id, \@conditions);
+        push @outputs, [ $gmx, 'diffexp_input_data' ];
     } else {
         my @files = glob("$outdir/*.txt");
         @outputs = map { [ $_, 'txt' ] } @files;
     }
+
     return @outputs;
 }
 
-sub merge_results {
+sub make_diff_exp_gene_matrix {
+    my ($dir, $ref_id, $conditions) = @_;
+
+    my $transcript = "$dir/$ref_id\_transcripts.txt";
+    my $num = scalar@$conditions;
+    return unless -s $transcript && $num > 1;
+
+    my @genes;
+    my %hash;
+    my @comps;
+
+    my @lines = `cat $transcript`;
+    shift @lines;
+    my $comps_built;
+    for (@lines) {
+        my @cols = split /\t/;
+        my $gene = $cols[6]; next unless $gene =~ /\w/;
+        my @exps = @cols[9..8+$num];
+        # print join("\t", $gene, @exps) . "\n";
+        push @genes, $gene;
+        for (my $i = 0; $i < @exps; $i++) {
+            for (my $j = $i+1; $j < @exps; $j++) {
+                my $ratio = log_ratio($exps[$i], $exps[$j]);
+                my $comp = comparison_name($conditions->[$i], $conditions->[$j]);
+                $hash{$gene}->{$comp} = $ratio;
+                push @comps, $comp unless $comps_built;
+            }
+        }
+        $comps_built = 1;
+    }
+
+    my $outf = "$dir/$ref_id\_gene_exp.gmx";
+    my @outlines;
+    push @outlines, join("\t", 'Gene ID', @comps);
+    for my $gene (@genes) {
+        my $line = $gene;
+        $line .= "\t".$hash{$gene}->{$_} for @comps;
+        push @outlines, $line;
+    }
+    my $out = join("\n", @outlines)."\n";
+    write_output($out, $outf);
+
+    return $outf;
+}
+
+sub log_ratio {
+    my ($exp1, $exp2) = @_;
+    $exp1 = 0.01 if $exp1 < 0.01;
+    $exp2 = 0.01 if $exp2 < 0.01;
+    return sprintf("%.3f", log($exp2/$exp1) / log(2));
+}
+
+sub comparison_name {
+    my ($cond1, $cond2) = @_;
+    return join('|', $cond2, $cond1);
+}
+
+sub clean_labels {
+    my ($labels) = @_;
+    return undef unless $labels && @$labels;
+    return map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels;
+}
+
+sub merge_rockhoppper_results {
     my ($dir, $gid, $ref_dir_str) = @_;
     my @outputs;
 
@@ -194,7 +265,19 @@ sub merge_results {
         write_output($out, $outf);
         push @outputs, [ $outf, $type ];
     }
+
+    my @sams = glob("$dir/*.sam");
+    for my $f (@sams) {
+        my $sam = basename($f);
+        my $bam = $sam;
+        $bam =~ s/_R[12]\.sam$/.bam/;
+        $bam = "$dir/$bam";
+        my @cmd = ("samtools", "view", "-bS", $f, "-o", $bam);
+        run_cmd(\@cmd);
+        push @outputs, [ $bam, 'unspecified' ];
+    }
     push @outputs, ["$dir/summary.txt", 'txt'];
+
     return @outputs;
 }
 
@@ -379,12 +462,14 @@ sub get_token {
 
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
-    # return $id;
+    # return $id; # DEBUG
     my $ws = get_ws();
     my $token = get_token();
 
     my $base = basename($id);
     my $file = "$tmpdir/$base";
+    # return $file; # DEBUG
+
     my $fh;
     open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
