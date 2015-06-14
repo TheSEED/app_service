@@ -61,6 +61,7 @@ sub process_rnaseq {
         die "Unrecognized recipe: $recipe \n";
     }
 
+    print STDERR '\@outputs = '. Dumper(\@outputs);
     for (@outputs) {
 	my ($ofile, $type) = @$_;
 	if (-f "$ofile") {
@@ -169,7 +170,7 @@ sub run_rockhopper {
     if ($ref_id) {
         @outputs = merge_rockhoppper_results($outdir, $ref_id, $ref_dir);
         my $gmx = make_diff_exp_gene_matrix($outdir, $ref_id, \@conditions);
-        push @outputs, [ $gmx, 'diffexp_input_data' ];
+        push @outputs, [ $gmx, 'diffexp_input_data' ] if -s $gmx;
     } else {
         my @files = glob("$outdir/*.txt");
         @outputs = map { [ $_, 'txt' ] } @files;
@@ -270,7 +271,8 @@ sub merge_rockhoppper_results {
     for my $f (@sams) {
         my $sam = basename($f);
         my $bam = $sam;
-        $bam =~ s/_R[12]\.sam$/.bam/;
+        $bam =~ s/_R[12]\.sam$/.sam/;
+        $bam =~ s/\.sam$/.bam/;
         $bam = "$dir/$bam";
         my @cmd = ("samtools", "view", "-bS", $f, "-o", $bam);
         run_cmd(\@cmd);
