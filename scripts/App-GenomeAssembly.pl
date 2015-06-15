@@ -94,7 +94,7 @@ sub process_reads {
 
     my $analysis_dir = "$arast_job\_analysis";
     system("cd $tmpdir && zip -r $arast_job\_analysis.zip $analysis_dir");
-    push @outputs, ["$tmpdir/$arast_job\_analysis.zip", 'unspecified'] if -s "$tmpdir/$arast_job\_analysis.zip";
+    push @outputs, ["$tmpdir/$arast_job\_analysis.zip", 'zip'] if -s "$tmpdir/$arast_job\_analysis.zip";
 
     my ($report) = glob("$tmpdir/$arast_job*report.txt");
     if ($report) {
@@ -102,7 +102,7 @@ sub process_reads {
         push @outputs, ["$tmpdir/report.txt", 'txt'];
     }
 
-    my @assemblies = glob("$tmpdir/$arast_job*contigs.fa");
+    my @assemblies = glob("$tmpdir/$arast_job*.fa $tmpdir/$arast_job*.fasta");
     push @outputs, [ $_, 'contigs' ] for @assemblies;
 
     system("mv $out_tmp $out_tmp.fa");

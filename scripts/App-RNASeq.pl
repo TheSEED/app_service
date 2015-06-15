@@ -121,7 +121,7 @@ sub run_rna_rocket {
             push @new_files, $_;
         }
     }
-    my @outputs = map { [ $_, 'txt' ] } @new_files;
+    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : [ $_, 'txt' ] } @new_files;
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
 
@@ -276,7 +276,7 @@ sub merge_rockhoppper_results {
         $bam = "$dir/$bam";
         my @cmd = ("samtools", "view", "-bS", $f, "-o", $bam);
         run_cmd(\@cmd);
-        push @outputs, [ $bam, 'unspecified' ];
+        push @outputs, [ $bam, 'bam' ];
     }
     push @outputs, ["$dir/summary.txt", 'txt'];
 
