@@ -153,6 +153,7 @@ sub run_rockhopper {
 
     push @cmd, qw(-SAM -TIME);
     push @cmd, qw(-s false) unless $stranded;
+    push @cmd, ("-p", 1);
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir) if $ref_dir;
     push @cmd, ("-L", join(",", @conditions)) if $labels && @$labels;
@@ -293,15 +294,16 @@ sub prepare_ref_data_rocket {
     my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/gff&limit(25000)";
     my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
 
-    my $url = $ftp_url;
+    my $url = $api_url;
+    # my $url = $ftp_url;
     my $out = curl_text($url);
     write_output($out, "$dir/$gid.gff");
 
     $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/dna+fasta&limit(25000)";
     $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
 
-    # $url = $api_url;
-    $url = $ftp_url;
+    $url = $api_url;
+    # $url = $ftp_url;
     my $out = curl_text($url);
     # $out = break_fasta_lines($out."\n");
     $out =~ s/\n+/\n/g;
