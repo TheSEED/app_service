@@ -81,7 +81,8 @@ sub run_find_bdbh {
 
     my $feaH = get_feature_hash($params->{genome_ids});
 
-    my $nproc = get_num_procs();
+    my $nproc = 1;
+    #my $nproc = get_num_procs();
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
                  min_ident     => $params->{min_ident},
