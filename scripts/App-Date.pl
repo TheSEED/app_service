@@ -26,6 +26,6 @@ sub date
     my $folder = $app->result_folder();
 
     my $date = `date`;
-    $app->workspace->save_data_to_file($date, {}, "$folder/now");
+    $app->workspace->save_data_to_file($date, {}, "$folder/now", undef, 1);
 
 }
