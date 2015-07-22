@@ -262,7 +262,7 @@ sub merge_rockhoppper_results {
             my @lines = `cat $f`;
             my $hdr = shift @lines;
             $out ||= join("\t", 'Contig', $hdr);
-            $out  .= join('', map { join("\t", $ctg, $_ ) } @lines);
+            $out  .= join('', map { join("\t", $ctg, $_ ) } grep { /\S/ } @lines);
         }
         write_output($out, $outf);
         push @outputs, [ $outf, $type ];
