@@ -285,9 +285,9 @@ sub submit_load_files
     while (time < $wait_until)
     {
 	my $status = $solr->query_rest("/indexer/$queue_id");
-	if (!$status)
+	if (ref($status) ne 'HASH')
 	{
-	    warn "Parse failed for indexer query\n";
+	    warn "Parse failed for indexer query for $queue_id: " . Dumper($status);
 	}
 	else
 	{
