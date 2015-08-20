@@ -451,7 +451,7 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    my $json = JSON::XS->new->pretty(1);
+    my $json = JSON::XS->new->ascii->pretty(1);
 
     #
     # Create a new workflow for this task.
