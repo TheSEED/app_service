@@ -234,7 +234,7 @@ sub parse_pe_lib {
     push @params, "--pair";
     push @params, get_ws_file($tmpdir, $lib->{read1});
     push @params, get_ws_file($tmpdir, $lib->{read2});
-    my @ks = qw(insert_size_mean insert_size_std_dev);
+    my @ks = qw(insert_size_mean insert_size_std_dev read_orientation_outward);
     for my $k (@ks) {
         push @params, $k."=".$lib->{$k} if $lib->{$k};
     }
