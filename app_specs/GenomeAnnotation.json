@@ -141,7 +141,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":""i
+                            "desc":""
                     ]
                 },
                 {
