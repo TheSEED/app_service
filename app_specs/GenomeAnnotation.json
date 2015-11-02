@@ -124,8 +124,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -142,9 +141,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
-                        }
+                            "desc":""i
                     ]
                 },
                 {
@@ -160,8 +157,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -201,8 +197,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -220,7 +215,7 @@
                             "type":"string",
                             "default":null,
                             "desc":"",
-                            "default:""
+                            "default":""
                         }
                     ]
                 },
@@ -238,7 +233,7 @@
                             "type":"string",
                             "default":null,
                             "desc":"",
-                            "default:""
+                            "default":""
                         }
                     ]
                 },
@@ -254,9 +249,8 @@
                             "id":"condition",
                             "required":0,
                             "type":"string",
-                            "default":null,
                             "desc":"",
-                            "default:"$genome->"
+                            "default":"$genome->"
                         }
                     ]
                 },
@@ -272,9 +266,8 @@
                             "id":"condition",
                             "required":0,
                             "type":"string",
-                            "default":null,
                             "desc":"",
-                            "default:"$genome->"
+                            "default":"$genome->"
                         }
                     ]
                 },
@@ -291,8 +284,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -309,8 +301,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -343,8 +334,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -362,7 +352,7 @@
                             "type":"string",
                             "default":null,
                             "desc":"",
-                            "default:""
+                            "default":""
                         }
                     ]
                 },
@@ -379,8 +369,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -421,8 +410,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -463,8 +451,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -505,8 +492,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -547,8 +533,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         },
                         {
                             "id":"parameters",
@@ -581,8 +566,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -599,8 +583,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 },
@@ -617,8 +600,7 @@
                             "required":0,
                             "type":"string",
                             "default":null,
-                            "desc":"",
-                            "default:""
+                            "desc":""
                         }
                     ]
                 }
