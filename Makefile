@@ -24,6 +24,9 @@ DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_
 STARMAN_WORKERS = 5
 
 DATA_API_URL = https://www.beta.patricbrc.org/api
+GITHUB_ISSUE_REPO_OWNER = olsonanl
+GITHUB_ISSUE_REPO_NAME = app_service
+
 
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
@@ -36,6 +39,9 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define data_api_url=$(DATA_API_URL) \
+	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
+	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
+	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)

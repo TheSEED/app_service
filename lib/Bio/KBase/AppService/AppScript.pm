@@ -14,6 +14,7 @@ use Bio::KBase::AuthToken;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
+use Bio::KBase::AppService::AppConfig ':all';
 
 use base 'Class::Accessor';
 
@@ -131,6 +132,14 @@ sub run
     my $x = waitpid($pid, 0);
     my $rc = $?;
     $self->write_block("exitcode","$rc\n");
+
+    # if ($rc != 0)
+    # {
+    # 	my $id;
+    # 	eval {
+    # 	    $id = submit_github_issue($rc, $rest, $task_id, $args);
+    # 	}
+    # }
 
     return $rc >> 8;
 }
