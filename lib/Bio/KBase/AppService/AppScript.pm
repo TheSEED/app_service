@@ -57,6 +57,8 @@ sub run
 	$task_id = "UNK-$$";
     }
 
+    @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
+    
     my $appserv_url = shift @$args;
 
     my $ua = LWP::UserAgent->new();
@@ -153,8 +155,6 @@ sub write_block
 sub subproc_run
 {
     my($self, $args) = @_;
-    
-    @$args == 2 or @$args == 4 or die "Usage: $0 app-definition.json param-values.json [stdout-file stderr-file]\n";
     
     my $json = JSON::XS->new->pretty(1);
 
