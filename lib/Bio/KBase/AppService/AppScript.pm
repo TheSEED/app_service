@@ -61,6 +61,16 @@ sub run
     
     my $appserv_url = shift @$args;
 
+    #
+    # If we are running at the terminal, do not set up this infrastructure.
+    #
+
+    if (-t STDIN)
+    {
+	$self->subproc_run($args);
+	exit(0);
+    }
+
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
     $rest->setHost("$appserv_url/$task_id");
