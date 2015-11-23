@@ -1,6 +1,6 @@
 {
-	"id":"GenomeAnnotation",
-	"script":"App-GenomeAnnotation",
+	"id":"GenomeAnnotationGenbank",
+	"script":"App-GenomeAnnotationGenbank",
 	"label":"Annotate genome",
 	"description":"Calls genes and functionally annotate input contig set.",
 	"parameters":[
