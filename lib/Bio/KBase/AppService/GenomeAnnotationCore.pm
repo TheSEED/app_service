@@ -129,7 +129,7 @@ sub run_pipeline
 
 sub write_output
 {
-    my($self, $genome, $result, $meta) = @_;
+    my($self, $genome, $result, $meta, $genbank_file) = @_;
     
     my $tmp_genome = File::Temp->new;
     print $tmp_genome $self->json->encode($result);
@@ -193,7 +193,7 @@ sub write_output
     # We also export the load files for indexing.
     # Assume here that AWE has placed us into a directory into which we can write.
     #
-    if (write_load_files($ws, $tmp_genome))
+    if (write_load_files($ws, $tmp_genome, $genbank_file))
     {
 	my $load_folder = "$output_folder/load_files";
 	
@@ -205,8 +205,17 @@ sub write_output
 
 sub write_load_files
 {
-    my($ws, $genome_json_file) = @_;
-    my @cmd = ("genomeObj2solr", $genome_json_file);
+    my($ws, $genome_json_file, $genbank_file, $public) = @_;
+    my @cmd = ("rast2solr", "--genomeobj-file", $genome_json_file);
+    if ($genbank_file && -f $genbank_file)
+    {
+	push(@cmd, "--genbank-file", $genbank_file);
+    }
+    if ($public)
+    {
+	push(@cmd, "--public");
+    }
+	
     my $rc = system(@cmd);
     if ($rc != 0)
     {

@@ -57,33 +57,44 @@ sub process_genome
     #
     # Read genbank file data
     #
+    # If the genbank file is compressed, uncompress and use that. Downstream
+    # code in rast2solr needs the uncompressed data.
+    #
 
-    my $temp = File::Temp->new();
+    my $gb_temp = File::Temp->new();
 
-    $ws->copy_files_to_handles(1, $core->token, [[$input_path, $temp]]);
+    $ws->copy_files_to_handles(1, $core->token, [[$input_path, $gb_temp]]);
     
     my $genbank_data_fh;
-    close($temp);
-    open($genbank_data_fh, "<", $temp) or die "Cannot open contig temp $temp: $!";
+    close($gb_temp);
+    open($genbank_data_fh, "<", $gb_temp) or die "Cannot open contig temp $gb_temp: $!";
 
     #
     # Read first block to see if this is a gzipped file.
     #
     my $block;
     $genbank_data_fh->read($block, 256);
+
+    my $gb_file;
     if ($block =~ /^\037\213/)
     {
 	#
-	# Gzipped. Close and reopen from gunzip.
+	# Gzipped. Uncompress into temp.
 	#
-	
+	$gb_file = File::Temp->new();
+	my $ok = run(["gunzip", "-d", "-c",  $gb_temp],
+	    ">", $gb_file);
+	$ok or die "Could not gunzip $gb_temp: $!";
+	close($gb_file);
+		
 	close($genbank_data_fh);
 	undef $genbank_data_fh;
-	open($genbank_data_fh, "-|", "gzip", "-d", "-c", "$temp") or die "Cannot open gzip from $temp: $!";
+	open($genbank_data_fh, "<", $gb_file) or die "Cannot open $gb_file: $!";
     }
     else
     {
 	$genbank_data_fh->seek(0, 0);
+	$gb_file = $gb_temp;
     }
     
     my $gb_data = read_file($genbank_data_fh);
@@ -103,7 +114,7 @@ sub process_genome
 
     #
     # TODO fill in metadata?
-    $core->write_output($genome, $result, {});
+    $core->write_output($genome, $result, {}, $gb_file);
 
     $core->ctx->stderr(undef);
 }
