@@ -30,7 +30,7 @@ use Bio::SeqFeature::Generic;
 use Date::Parse;
 use Bio::DB::EUtilities;
 use XML::Simple;
-#use Bio::KBase::AppService::AppConfig;
+use Bio::KBase::AppService::AppConfig;
 
 use lib "$Bin";
 use SolrAPI;
@@ -38,27 +38,29 @@ use SolrAPI;
 #my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 #my $solrh = SolrAPI->new($data_api);
 
-my $solrh = SolrAPI->new();
 my $json = JSON->new->allow_nonref;
 
+my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
 my ($opt, $usage) = describe_options( 
 		"%c %o",
 		[],
-		["genomeobj_file|genomeobj=s", "RASTtk annotations as GenomeObj.json file"],
-		["genbank_file|genbank=s", "Original GenBank file that was used as input to RASTtk"],
+		["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
+		["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
+		["data-api=s", "Data API URL", { default => $data_api }],
 		["public", "public, default is private"],
 		[],
 		["help|h", "Print usage message and exit"] );
 
 print($usage->text), exit 0 if $opt->help;
-print($usage->text), exit 1 unless $opt->genomeobj_file;
+die($usage->text) unless $opt->genomeobj_file;
 
+my $solrh = SolrAPI->new($opt->data_api);
 
 my $genomeobj_file = $opt->genomeobj_file;
 my $genbank_file = $opt->genbank_file;
 my $outfile = $genomeobj_file;
-$outfile=~s/(.gb|.gbf|.json)$//;
+$outfile =~ s/(.gb|.gbf|.json)$//;
 
 print "Processing $genomeobj_file\n";
 
