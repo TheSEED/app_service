@@ -64,6 +64,14 @@
 			"type":"wsid"
 		},
         {
+            "id": "reference_genome_id",
+            "required": 0,
+            "default": null,
+            "label": "Reference genome ID",
+            "desc": "Reference genome ID",
+            "type": "string"
+        },
+        {
             "id":"fix_errors",
             "label":"Automatically fix errors?",
             "required":0,
