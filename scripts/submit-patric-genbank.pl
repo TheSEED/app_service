@@ -61,20 +61,20 @@ try {
 my @to_process;
 for my $gb (@genbank_files)
 {
+    my $base_file = basename($gb);
     my $dir = basename($gb);
     $dir =~ s/\.[^.]*$//;
     my $path = "$ws_dir/$dir";
 
-    push(@to_process, [$gb, $path, $dir]);
+    push(@to_process, [$gb, $base_file, $path, $dir]);
 }
-
-ws_mkdir(map { $_->[1] } @to_process);
+ws_mkdir(map { $_->[2] } @to_process);
 
 for my $ent (@to_process)
 {
-    my($file, $dir, $base) = @$ent;
-    my $ws_path = "$dir/$file";
-    print STDERR "Uploading $file to workspace\n";
+    my($file, $base_file, $dir, $base) = @$ent;
+    my $ws_path = "$dir/$base_file";
+    print STDERR "Uploading $file to workspace at $ws_path\n";
     my $res = $ws->save_file_to_file($file, {}, $ws_path, "genbank_file", 1, 1, $token);
 
     print STDERR "Submitting\n";
@@ -89,6 +89,7 @@ for my $ent (@to_process)
 	my $task = $app_service->start_app("GenomeAnnotationGenbank", $params, $ws_path);
 	print "Created task $task\n";
 	print Dumper($task);
+	print $log_fh "$file\t$ws_path\t$task->{id}\n";
     } catch {
 	die "Failure creating task for $file: $_";
     };
