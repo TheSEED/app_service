@@ -14,6 +14,14 @@
 			"type":"wstype"
 		},
 		{
+			"id":"public",
+			"required": 0,
+			"default": false,
+			"label":"Public",
+			"desc":"Make this genome public",
+			"type":"bool"
+		},
+		{
 			"id":"output_path",
 			"label":"Output Folder",
 			"required":0,

@@ -35,32 +35,28 @@ use Bio::KBase::AppService::AppConfig;
 use lib "$Bin";
 use SolrAPI;
 
-#my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
-#my $solrh = SolrAPI->new($data_api);
+my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 
 my $json = JSON->new->allow_nonref;
 
-my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
-
-my ($opt, $usage) = describe_options( 
-		"%c %o",
-		[],
-		["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
-		["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
-		["data-api=s", "Data API URL", { default => $data_api }],
-		["public", "public, default is private"],
-		[],
-		["help|h", "Print usage message and exit"] );
+my ($opt, $usage) = describe_options("%c %o",
+				     [],
+				     ["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
+				     ["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
+				     ["public", "public, default is private"],
+				     ["data-api=s", "Data API URL", { default => $data_api }],
+				     [],
+				     ["help|h", "Print usage message and exit"] );
 
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) unless $opt->genomeobj_file;
-
+ 
 my $solrh = SolrAPI->new($opt->data_api);
 
 my $genomeobj_file = $opt->genomeobj_file;
 my $genbank_file = $opt->genbank_file;
 my $outfile = $genomeobj_file;
-$outfile =~ s/(.gb|.gbf|.json)$//;
+$outfile=~s/(.gb|.gbf|.json)$//;
 
 print "Processing $genomeobj_file\n";
 
@@ -90,6 +86,7 @@ my @sequences = ();
 my @features = ();
 my @pathwaymap = ();
 my @spgenemap = (); 
+my @taxonomy = ();
 my $featureIndex;
 
 
@@ -123,7 +120,8 @@ sub writeJson {
 	my $feature_json = $json->pretty->encode(\@features);
 	my $pathwaymap_json = $json->pretty->encode(\@pathwaymap);
 	my $spgenemap_json = $json->pretty->encode(\@spgenemap);
-
+	my $taxonomy_json = $json->pretty->encode(\@taxonomy);
+	
 	open FH, ">genome.json"; 
 	print FH "[".$genome_json."]";
 	close FH;
@@ -144,6 +142,10 @@ sub writeJson {
 	print FH $spgenemap_json;
 	close FH;
 
+	open FH, ">taxonomy.json"; 
+	print FH $taxonomy_json;
+	close FH;
+
 }
 
 sub getGenomeInfo {
@@ -161,6 +163,8 @@ sub getGenomeInfo {
 	$genome->{taxon_id}    =  $genomeObj->{ncbi_taxonomy_id};
 	($genome->{taxon_lineage_ids}, $genome->{taxon_lineage_names}, $taxon_lineage_ranks)  = $solrh->getTaxonLineage($genome->{taxon_id});
 
+	prepareTaxonomy($genome->{taxon_lineage_ids}) if $public;
+
 	my $i=0;
 	for my $rank (@{$taxon_lineage_ranks}){
 		$genome->{kingdom} = $genome->{taxon_lineage_names}[$i] if $rank=~/kingdom/i;
@@ -176,6 +180,8 @@ sub getGenomeInfo {
 	foreach my $type (@{$genomeObj->{typing}}){
 		$genome->{mlst} .= "," if $genome->{mlst};
 		$genome->{mlst} .= $type->{typing_method}.".".$type->{database}.".".$type->{tag};
+		#$genome->{mlst} .= "," if $genome->{mlst};
+		#$genome->{mlst} .= @{$type}[0].".".@{$type}[1].".".@{$type}[2];
 	}	
 
 	foreach my $seqObj (@{$genomeObj->{contigs}}) {
@@ -590,6 +596,8 @@ sub getMetadataFromBioProject {
 		($bioproject_id) = $eutil->get_ids;
 	}
 
+	return unless $bioproject_id;
+
 	my $eutil = Bio::DB::EUtilities->new(-eutil => 'efetch', -db => 'bioproject', -retmode => 'xml', -id => $bioproject_id);
 	$eutil->get_Response(-file => "$outfile.bioproject.xml");
 
@@ -598,7 +606,7 @@ sub getMetadataFromBioProject {
 	$project =~s/\n//g;
 	close XML;
 
-	#`rm $outfile.bioproject.xml`;
+	`rm $outfile.bioproject.xml`;
 
 	my ($projID, $projDescription, $subgroup, $organism, $description, $var, $serovar, $biovar, $pathovar, $strain, $cultureCollection, $typeStrain);
 	my ($isolateComment, $source, $month, $year, $country, $method, $person, $epidemic, $location, $altitude, $depth);
@@ -736,10 +744,6 @@ sub getMetadataFromBioProject {
 
 }
 
-sub getMetadataFromBioSample {
-
-}
-
 
 sub getGenomeFeaturesFromGenBankFile {
 
@@ -854,3 +858,27 @@ sub getGenomeFeaturesFromGenBankFile {
 
 
 }
+
+
+sub getMetadataFromBioSample {
+
+}
+
+
+sub prepareTaxonomy {
+
+	my ($taxon_lineage_ids) = @_;
+
+	foreach my $taxon_id (@{$taxon_lineage_ids}){
+	
+		my $taxon;	
+		$taxon->{taxon_id} = $taxon_id;
+		$taxon->{genomes}->{inc} = 1;		
+
+		push @taxonomy, $taxon
+
+	}
+
+}
+
+
