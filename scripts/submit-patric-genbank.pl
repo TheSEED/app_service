@@ -10,6 +10,7 @@ use Bio::KBase::AppService::Client;
 use Try::Tiny;
 use IO::Handle;
 use Data::Dumper;
+use File::Basename;
 
 my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...]",
 				    ["Process the given set of genbank files for annotation. Use ws-dir as the base directory to store the input and output data in the PATRIC workspace"],
@@ -60,7 +61,7 @@ try {
 my @to_process;
 for my $gb (@genbank_files)
 {
-    my $dir = $gb;
+    my $dir = basename($gb);
     $dir =~ s/\.[^.]*$//;
     my $path = "$ws_dir/$dir";
 
