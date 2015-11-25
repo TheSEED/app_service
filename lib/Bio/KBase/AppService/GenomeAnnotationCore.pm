@@ -273,6 +273,8 @@ sub submit_load_files
 
     print "Submitted indexing job $queue_id\n";
 
+    return if $queue_nowait;
+
     my $solr = SolrAPI->new($data_api_url);
 
     #
