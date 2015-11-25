@@ -122,6 +122,8 @@ sub run_pipeline
     
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
 
+    print STDERR "Running pipeline on host " . `hostname`. "\n";
+
     my $result = $self->impl->run_pipeline($genome, $workflow);
 
     return $result;
