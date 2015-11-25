@@ -15,6 +15,7 @@ use File::Basename;
 my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...]",
 				    ["Process the given set of genbank files for annotation. Use ws-dir as the base directory to store the input and output data in the PATRIC workspace"],
 				    ["public", "Mark the genomes public"],
+				    ["index-nowait", "Don't wait for indexing to complete before marking job done"],
 				    ["log=s", "Logfile"],
 				    ["workspace-url=s", "Use this workspace URL"],
 				    ["app-service-url=s", "Use this app service URL"],
@@ -83,6 +84,7 @@ for my $ent (@to_process)
 	output_path => $dir,
 	output_file => $base,
 	public => ($opt->public ? 1 : 0),
+	queue_nowait => ($opt->index_nowait ? 1 : 0),
     };
 
     try {

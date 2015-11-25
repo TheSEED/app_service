@@ -129,7 +129,7 @@ sub run_pipeline
 
 sub write_output
 {
-    my($self, $genome, $result, $meta, $genbank_file, $public_flag) = @_;
+    my($self, $genome, $result, $meta, $genbank_file, $public_flag, $queue_nowait) = @_;
     
     my $tmp_genome = File::Temp->new;
     print $tmp_genome $self->json->encode($result);
@@ -198,7 +198,7 @@ sub write_output
 	my $load_folder = "$output_folder/load_files";
 	
 	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	$self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".");
+	$self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
     }
 }
 
@@ -228,7 +228,7 @@ sub write_load_files
 
 sub submit_load_files
 {
-    my($self, $ws, $load_folder, $token, $data_api_url, $dir) = @_;
+    my($self, $ws, $load_folder, $token, $data_api_url, $dir, $queue_nowait) = @_;
 
     my $genome_url = $data_api_url . "/indexer/genome";
 

@@ -114,7 +114,7 @@ sub process_genome
 
     #
     # TODO fill in metadata?
-    $core->write_output($genome, $result, {}, $gb_file, $params->{public} ? 1 : 0);
+    $core->write_output($genome, $result, {}, $gb_file, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
 
     $core->ctx->stderr(undef);
 }
