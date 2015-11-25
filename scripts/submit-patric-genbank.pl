@@ -19,6 +19,7 @@ my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...
 				    ["log=s", "Logfile"],
 				    ["workspace-url=s", "Use this workspace URL"],
 				    ["app-service-url=s", "Use this app service URL"],
+				    ["test", "Submit to test service"],
 				    ["help|h", "Show this help message"],
 				    );
 
@@ -88,7 +89,8 @@ for my $ent (@to_process)
     };
 
     try {
-	my $task = $app_service->start_app("GenomeAnnotationGenbank", $params, $ws_path);
+	my $app = $opt->test ? "GenomeAnnotationGenbankTest" : "GenomeAnnotationGenbank";
+	my $task = $app_service->start_app($app, $params, $ws_path);
 	print "Created task $task\n";
 	print Dumper($task);
 	print $log_fh "$file\t$ws_path\t$task->{id}\n";

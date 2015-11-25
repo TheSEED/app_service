@@ -208,7 +208,7 @@ sub getGenomeInfo {
 				$genome->{publication} .= $reference->{PUBMED}."," unless $genome->{publication}=~/$reference->{PUBMED}/;
 			}
 			$genome->{publication}=~s/,*$//g;
-			$genome->{release_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date});
+			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date});
 		}
 		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[1]."," if $seqObj->{genbank_locus}->{accession}[1]=~/00000000$/;
 		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless $seqObj->{genbank_locus}->{accession}[1]=~/00000000$/;
