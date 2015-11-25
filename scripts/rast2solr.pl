@@ -601,13 +601,6 @@ sub getMetadataFromBioProject {
 	my $eutil = Bio::DB::EUtilities->new(-eutil => 'efetch', -db => 'bioproject', -retmode => 'xml', -id => $bioproject_id);
 	$eutil->get_Response(-file => "$outfile.bioproject.xml");
 
-	open XML, "$outfile.bioproject.xml";
-	my $project = join("", <XML>);
-	$project =~s/\n//g;
-	close XML;
-
-	`rm $outfile.bioproject.xml`;
-
 	my ($projID, $projDescription, $subgroup, $organism, $description, $var, $serovar, $biovar, $pathovar, $strain, $cultureCollection, $typeStrain);
 	my ($isolateComment, $source, $month, $year, $country, $method, $person, $epidemic, $location, $altitude, $depth);
 	my ($hostName, $hostGender, $hostAge, $hostHealth);
