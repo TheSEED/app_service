@@ -240,7 +240,8 @@ sub submit_load_files
 		 [genome_feature => "genome_feature.json"],
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
-		 [sp_gene => "sp_gene.json"]);
+		 [sp_gene => "sp_gene.json"],
+		 [taxonomy => "taxonomy.json"]);
     
     for my $tup (@files)
     {
