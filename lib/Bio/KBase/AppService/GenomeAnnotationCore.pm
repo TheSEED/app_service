@@ -213,11 +213,16 @@ sub write_load_files
     {
 	push(@cmd, "--genbank-file", $genbank_file);
     }
+    else
+    {
+	print STDERR "Skipping genbank '$genbank_file'\n";
+    }
     if ($public_flag)
     {
 	push(@cmd, "--public");
     }
-	
+
+    print STDERR "Processing for indexing: @cmd\n";
     my $rc = system(@cmd);
     if ($rc != 0)
     {
