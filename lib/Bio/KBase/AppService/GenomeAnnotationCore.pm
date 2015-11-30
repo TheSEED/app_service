@@ -209,14 +209,16 @@ sub write_load_files
 {
     my($ws, $genome_json_file, $genbank_file, $public_flag) = @_;
     my @cmd = ("rast2solr", "--genomeobj-file", $genome_json_file);
-    if ($genbank_file && -f $genbank_file)
+    if ($genbank_file)
     {
+	system("ls", "-l", $genbank_file);
+	if (!-f $genbank_file)
+	{
+	    print "Perl thinks no gb file $genbank_file\n";
+	}
 	push(@cmd, "--genbank-file", $genbank_file);
     }
-    else
-    {
-	print STDERR "Skipping genbank '$genbank_file'\n";
-    }
+
     if ($public_flag)
     {
 	push(@cmd, "--public");
