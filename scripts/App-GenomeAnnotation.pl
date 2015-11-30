@@ -79,7 +79,7 @@ sub process_genome
 
     my $temp = File::Temp->new();
 
-    $ws->copy_files_to_handles(1, $token, [[$input_path, $temp]]);
+    $ws->copy_files_to_handles(1, $core->token, [[$input_path, $temp]]);
     
     my $contig_data_fh;
     close($temp);
@@ -108,7 +108,7 @@ sub process_genome
     my $n = 0;
     while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($contig_data_fh))
     {
-	$impl->add_contigs($genome, [{ id => $id, dna => $seq }]);
+	$core->impl->add_contigs($genome, [{ id => $id, dna => $seq }]);
 	$n++;
     }
     close(FH);
@@ -123,6 +123,5 @@ sub process_genome
 
     $core->write_output($genome, $result);
 
-    $ctx->stderr(undef);
-    undef $stderr;
+    $core->ctx->stderr(undef);
 }
