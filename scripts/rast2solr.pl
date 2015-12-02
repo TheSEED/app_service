@@ -922,8 +922,11 @@ sub getMetadataFromBioSample {
 		}else{
 			my $patric_attrib_name = biosample2patricAttrib($attrib_name);
 			next unless ($patric_attrib_name && $attrib_value && not $attrib_value=~/^ *(-|missing|NA|not available|not provided|not determined|nd) *$/i);
-			
-			if ($patric_attrib_name=~/other|additional|comments/){
+		
+			if ($patric_attrib_name=~/other|additional/i){
+				my ($attrib1, $attrib2) = $patric_attrib_name=~/^([^:]*):(.*)/;
+				push @{$genome->{$attrib1}}, "$attrib2:$attrib_value";
+			}elsif ($patric_attrib_name=~/comments/i){
 				push @{$genome->{$patric_attrib_name}}, $attrib_value;
 			}else{
 				$genome->{$patric_attrib_name} = $attrib_value;
