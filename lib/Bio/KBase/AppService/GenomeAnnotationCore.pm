@@ -247,6 +247,7 @@ sub submit_load_files
 
     my @files = ([genome => "genome.json"],
 		 [genome_feature => "genome_feature.json"],
+		 [genome_amr => "genome_amr.json"],
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
 		 [sp_gene => "sp_gene.json"],
