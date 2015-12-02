@@ -4,17 +4,20 @@
 #
 # rast2solr.pl: 
 #
-# Script to convert RASTtk genome object into separate JSON
-# objects for each of the Solr cores.  
+# Script to parse RASTtk genome object and input genbank file
+# and prepare separate JSON files for each of the Solr cores.  
 #
-# Input: JSON file containing RASTtk genome object
-#		Optional Original GenBank file used as input to RASTtk job 
+# Input: 
+#	- JSON file containing RASTtk genome object
+#	- Optional Original GenBank file used as input to RASTtk job 
 # 
-# Output: Five JSON files each correspodning to a Solr core:
-#	   genome.json, genome_sequence.json, genome_feature.json,
-#	   pathway.json, sp_gene.json  
-#
-# Usage: rast2solr.pl annotation.genome
+# Output: Six JSON files each correspodning to a Solr core
+#	- genome.json
+#	- genome_sequence.json
+#	- genome_feature.json
+#	- pathway.json
+#	- sp_gene.json
+# - genome_amr.json  
 #
 ###########################################################
 
@@ -28,14 +31,23 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 use Bio::SeqIO;
 use Bio::SeqFeature::Generic;
 use Date::Parse;
-use Bio::DB::EUtilities;
 use XML::Simple;
-use Bio::KBase::AppService::AppConfig;
+our $have_config;
+eval
+{
+    require Bio::KBase::AppService::AppConfig;
+    $have_config = 1;
+};
+    
 
 use lib "$Bin";
 use SolrAPI;
 
-my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
+my $data_api_url;
+if ($have_config)
+{
+    $data_api_url = Bio::KBase::AppService::AppConfig->data_api_url;
+}
 
 my $json = JSON->new->allow_nonref;
 
@@ -44,14 +56,14 @@ my ($opt, $usage) = describe_options("%c %o",
 				     ["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
 				     ["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
 				     ["public", "public, default is private"],
-				     ["data-api=s", "Data API URL", { default => $data_api }],
+				     ["data-api-url=s", "Data API URL", { default => $data_api_url }],
 				     [],
 				     ["help|h", "Print usage message and exit"] );
 
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) unless $opt->genomeobj_file;
- 
-my $solrh = SolrAPI->new($opt->data_api);
+
+my $solrh = SolrAPI->new($opt->data_api_url);
 
 my $genomeobj_file = $opt->genomeobj_file;
 my $genbank_file = $opt->genbank_file;
@@ -87,27 +99,27 @@ my @features = ();
 my @pathwaymap = ();
 my @spgenemap = (); 
 my @taxonomy = ();
+my @genome_amr = ();
 my $featureIndex;
 
 
 # Process GenomeObj
 getGenomeInfo();
+
+# Get additional genome metadata 
+getMetadataFromGenBankFile($genbank_file) if -f $genbank_file;
+getMetadataFromBioProject($genome->{bioproject_accession}) if $genome->{bioproject_accession};
+getMetadataFromBioSample($genome->{biosample_accession}) if $genome->{biosample_accession};
+
+# Get genome sequences
 getGenomeSequences();
+
+# Get Genome features from genome obj
 getGenomeFeatures();
 
+# Get additional features from the GenBank file
+getGenomeFeaturesFromGenBankFile($genbank_file) if -f $genbank_file;
 
-# Process GenBank file and get additional data/metadata 
-if (-f $genbank_file){
-
-	# Get additional genome metadata 
-	getMetadataFromGenBankFile($genbank_file);
-	getMetadataFromBioProject($genome->{bioproject_accession}) if $genome->{bioproject_accession};
-	getMetadataFromBioSample($genome->{biosample_accession}) if $genome->{biosample_accession};
-
-	# Get additional features from the GenBank file
-	getGenomeFeaturesFromGenBankFile($genbank_file);
-
-}
 
 # write to json files
 writeJson();
@@ -115,40 +127,49 @@ writeJson();
 
 sub writeJson {
 
+	print "Preparing JSON files ...\n";
+
 	my $genome_json = $json->pretty->encode($genome);
 	my $sequence_json = $json->pretty->encode(\@sequences);
 	my $feature_json = $json->pretty->encode(\@features);
 	my $pathwaymap_json = $json->pretty->encode(\@pathwaymap);
 	my $spgenemap_json = $json->pretty->encode(\@spgenemap);
 	my $taxonomy_json = $json->pretty->encode(\@taxonomy);
+	my $genome_amr_json = $json->pretty->encode(\@genome_amr);
 	
-	open FH, ">genome.json"; 
+	open FH, ">genome.json" or die "Cannot write genome.json: $!"; 
 	print FH "[".$genome_json."]";
 	close FH;
 
-	open FH, ">genome_sequence.json"; 
+	open FH, ">genome_sequence.json" or die "Cannot write genome_sequence.json: $!"; 
 	print FH $sequence_json;
 	close FH;
 
-	open FH, ">genome_feature.json"; 
+	open FH, ">genome_feature.json" or die "Cannot write genome_feature.json: $!"; 
 	print FH $feature_json;
 	close FH;
 
-	open FH, ">pathway.json"; 
+	open FH, ">pathway.json" or die "Cannot write pathway.json: $!"; 
 	print FH $pathwaymap_json;
 	close FH;
 
-	open FH, ">sp_gene.json"; 
+	open FH, ">sp_gene.json" or die "Cannot write sp_gene.json: $!"; 
 	print FH $spgenemap_json;
 	close FH;
 
-	open FH, ">taxonomy.json"; 
+	open FH, ">taxonomy.json" or die "Cannot write taxonomy.json: $!"; 
 	print FH $taxonomy_json;
+	close FH;
+
+	open FH, ">genome_amr.json" or die "Cannot write genome_amr.json: $!"; 
+	print FH $genome_amr_json;
 	close FH;
 
 }
 
 sub getGenomeInfo {
+
+	print "Getting genome metadata ...\n";
 
 	my ($chromosomes, $plasmids, $contigs, $sequences, $cds, $genome_length, $gc_count, $taxon_lineage_ranks);
 
@@ -210,8 +231,8 @@ sub getGenomeInfo {
 			$genome->{publication}=~s/,*$//g;
 			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date});
 		}
-		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[1]."," if $seqObj->{genbank_locus}->{accession}[1]=~/00000000$/;
-		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless $seqObj->{genbank_locus}->{accession}[1]=~/00000000$/;
+		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[1]."," if $seqObj->{genbank_locus}->{accession}[1]=~/000000$/ && not $genome->{genbank_accessions}=~/$seqObj->{genbank_locus}->{accession}[1]/;
+		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless $seqObj->{genbank_locus}->{accession}[1]=~/000000$/;
 	}
 	$genome->{genbank_accessions}=~s/,*$//g;
 	
@@ -227,6 +248,8 @@ sub getGenomeInfo {
 
 
 sub getGenomeSequences {
+
+	print "Getting genome sequences ...\n";
 
 	my $count=0;
 
@@ -294,6 +317,7 @@ sub getGenomeSequences {
 
 sub getGenomeFeatures{
 	
+	print "Getting genome features ...\n";
 
 	foreach my $featObj (@{$genomeObj->{features}}){
 			
@@ -313,12 +337,13 @@ sub getGenomeFeatures{
 
 		$feature->{feature_type} = $featObj->{type};
 		$feature->{feature_type} = $1 if ($featObj->{type} eq "rna" && $featObj->{function}=~/(rRNA|tRNA)/);
-		$feature->{feature_type} = 'misc_RNA' if ($featObj->{type} eq "rna" && !$featObj->{function}=~/(rRNA|tRNA)/);
+		$feature->{feature_type} = 'misc_RNA' if ($featObj->{type} eq "rna" && !($featObj->{function}=~/rRNA|tRNA/));
 		$feature->{feature_type} = 'repeat_region' if ($featObj->{type} eq "repeat");
 
 		$feature->{product} = $featObj->{function};
 		$feature->{product} = "hypothetical protein" if ($feature->{feature_type} eq 'CDS' && !$feature->{product});
 		$feature->{product}=~s/\"/''/g;
+		$feature->{product}=~s/^'* *| *'*$//g;
 		
 		foreach my $locObj (@{$featObj->{location}}){
 			
@@ -425,8 +450,8 @@ sub getGenomeFeatures{
 sub prepareSpGene {
 
 		my ($feature, $spgene_match) = @_;
-		my $spgene;
 
+		my $spgene;
 		my ($source, $source_id, $qcov, $scov, $identity, $evalue) = @$spgene_match;
 
 		$source_id=~s/^\S*\|//;
@@ -540,7 +565,9 @@ sub getMetadataFromGenBankFile {
 
 	my ($genbak_file) = @_;
 
-	open GB, "<$genbank_file";
+	print "Getting genome metadata from genbank file: $genbank_file ...\n";
+
+	open GB, "<$genbank_file" || return "Can't open genbank file: $genbank_file\n";
 	my @gb = <GB>;
 	my $gb = join "", @gb;
 	close GB;
@@ -587,20 +614,19 @@ sub getAssemblyAccession {
 }
 
 sub getMetadataFromBioProject {
-
+	
 	my($bioproject_accn) = @_;
-	my $bioproject_id = $bioproject_accn;
 
-	if ($bioproject_accn =~/^PRJ/){	
-		my $eutil = Bio::DB::EUtilities->new(-eutil => 'esearch', -db => 'bioproject', -retmode => 'xml', -term => $bioproject_accn.'[Project Accession]');
-		($bioproject_id) = $eutil->get_ids;
-	}
+	print "Getting genome metadata from BioProject: $bioproject_accn...\n";
 
-	return unless $bioproject_id;
+  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=bioproject&term=$bioproject_accn"`;
+  $xml=~s/\n//;
+  my ($bioproject_id) = $xml=~/<Id>(\d+)<\/Id>/;
 
-	my $eutil = Bio::DB::EUtilities->new(-eutil => 'efetch', -db => 'bioproject', -retmode => 'xml', -id => $bioproject_id);
-	$eutil->get_Response(-file => "$outfile.bioproject.xml");
+	`wget -q -O "$outfile.bioproject.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=bioproject&retmode=xml&id=$bioproject_id"`;
 
+	return unless -f "$outfile.bioproject.xml";
+	
 	my ($projID, $projDescription, $subgroup, $organism, $description, $var, $serovar, $biovar, $pathovar, $strain, $cultureCollection, $typeStrain);
 	my ($isolateComment, $source, $month, $year, $country, $method, $person, $epidemic, $location, $altitude, $depth);
 	my ($hostName, $hostGender, $hostAge, $hostHealth);
@@ -609,12 +635,20 @@ sub getMetadataFromBioProject {
 
 	my $xml = XMLin("$outfile.bioproject.xml");
 	my $root = $xml->{DocumentSummary};
-	
-	$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name}->{content};
+
+	#print Dumper $xml;
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
+	
+	if ($root->{Submission}->{Description}->{Organization}->{Name} eq "HASH"){
+		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name}->{content};	
+	}else{
+		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name};
+	}
 
 	$genome->{strain} = $organism->{Strain};
+	$genome->{genome_name} .= "strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
 	$genome->{temperature_range} = $1 if $organism->{BiologicalProperties}->{Environment}->{TemperatureRange}=~/^e*(.*)/;
 	$genome->{optimal_temperature} = $organism->{BiologicalProperties}->{Environment}->{OptimumTemperature};
@@ -624,8 +658,12 @@ sub getMetadataFromBioProject {
 	$genome->{motility} = $1 if $organism->{BiologicalProperties}->{Morphology}->{Motility}=~/^e*(.*)/;
 	$genome->{gram_stain} = $1 if $organism->{BiologicalProperties}->{Morphology}->{Gram}=~/^e*(.*)/;
 
-	foreach my $pmid (keys %{$root->{Project}->{ProjectDescr}->{Publication}}){
-		$genome->{publication} .= ",$pmid" unless $genome->{publication}=~/$pmid/; 
+	if (ref($root->{Project}->{ProjectDescr}->{Publication}->{id}) eq "HASH"){
+		foreach my $pmid (keys %{$root->{Project}->{ProjectDescr}->{Publication}}){
+			$genome->{publication} .= ",$pmid" unless $genome->{publication}=~/$pmid/; 
+		}
+	}else{
+		my $pmid = $root->{Project}->{ProjectDescr}->{Publication}->{id};
 	}
 	$genome->{publication}=~s/^,|,$//g;
 
@@ -633,7 +671,8 @@ sub getMetadataFromBioProject {
 
 	$description=~s/&lt;\/*.&gt;|&#x0D;|<\/*.>//g;
 	$description=~s/&lt;.*?&gt;|<.*?>//g;
-	$description=~s/^ *|\t+| *$/ /g;
+	$description=~s/^ *| *$//g;
+	$description=~s/\t+/ /g;
 	$description=~s/Dr\.\s*/Dr /g;
 
 	$typeStrain="Yes" if($description=~/type str/i);
@@ -702,8 +741,6 @@ sub getMetadataFromBioProject {
 
 	# Organism Info
 
-	#$genome->{taxon_id} = $taxonID if $taxonID;	
-	$genome->{strain} = $strain if $strain;
 	$genome->{serovar} = $serovar if $serovar;
 	$genome->{biovar} = $biovar if $biovar;
 	$genome->{pathovar} = $pathovar if $pathovar;
@@ -742,6 +779,8 @@ sub getGenomeFeaturesFromGenBankFile {
 
 	my ($genbank_file) = @_;
 
+	print "Getting genome features from the genbank file: $genbank_file ...\n";
+	
 	my $annotation = "RefSeq";
 
 	my $genomeObj = Bio::SeqIO->new( -file   => "<$genbank_file", -format => 'GenBank');
@@ -855,10 +894,140 @@ sub getGenomeFeaturesFromGenBankFile {
 
 sub getMetadataFromBioSample {
 
+	my($biosample_accn) = @_;
+
+	print "Getting genome metadata from BioSample: $biosample_accn ...\n";
+  
+	my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=biosample&term=$biosample_accn"`;
+  $xml=~s/\n//;
+  my ($biosample_id) = $xml=~/<Id>(\d+)<\/Id>/;
+
+	`wget -q -O "$outfile.biosample.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=biosample&retmode=xml&id=$biosample_id"`;
+
+	return unless -f "$outfile.biosample.xml";
+	
+	my $xml = XMLin("$outfile.biosample.xml");
+
+	#return unless ref $xml->{BioSample}->{Attributes}->{Attribute} eq 'ARRAY';
+
+	foreach my $attrib (@{$xml->{BioSample}->{Attributes}->{Attribute}}){
+	
+		my $attrib_name = $attrib->{harmonized_name};
+		my $attrib_value = $attrib->{content};
+
+		if ($attrib_name=~/lat_lon/i){ 
+			my ($latitude, $longitude) = $attrib=~/(\d+\.*\d* [NS])\s+(\d+\.*\d* [EW])/;
+			$genome->{latitude} = $latitude;
+			$genome->{longitude} = $longitude;	
+		}else{
+			my $patric_attrib_name = biosample2patricAttrib($attrib_name);
+			next unless ($patric_attrib_name && $attrib_value && not $attrib_value=~/^ *(-|missing|NA|not available|not provided|not determined|nd) *$/i);
+			
+			if ($patric_attrib_name=~/other|additional|comments/){
+				push @{$genome->{$patric_attrib_name}}, $attrib_value;
+			}else{
+				$genome->{$patric_attrib_name} = $attrib_value;
+			} 
+		}
+
+	}
+	
+	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	
+	# parse AMR metadata
+
+	return unless $xml->{BioSample}->{Description}->{Comment}->{Table}->{class}=~/Antibiogram/i;
+
+	foreach my $row (@{$xml->{BioSample}->{Description}->{Comment}->{Table}->{Body}->{Row}}){
+	
+		my @amr1 = @{$row->{Cell}};
+
+		my $amr;
+
+		$amr->{owner} = $genome->{owner};
+		$amr->{public} = $public;
+		$amr->{genome_id} = $genome->{genome_id};
+		$amr->{genome_name} = $genome->{genome_name};
+		$amr->{taxon_id} = $genome->{taxon_id};
+
+		$amr->{antibiotic} = $amr1[0]; 	
+		$amr->{resistant_phenotype} = ucfirst $amr1[1];	
+		$amr->{measurement_sign} = $amr1[2] unless ref $amr1[2] eq ref {};	
+		$amr->{measurement_value} = $amr1[3] unless ref $amr1[3] eq ref {};
+		$amr->{measurement} = $amr->{measurement_sign}.$amr->{measurement_value}; 	
+		$amr->{measurement_unit} = $amr1[4] unless ref $amr1[4] eq ref {}; 	
+		$amr->{laboratory_typing_method} = $amr1[5] unless ref $amr1[5] eq ref {}; 	
+		$amr->{laboratory_typing_platform} = $amr1[6] unless ref $amr1[6] eq ref {}; 	
+		$amr->{vendor} = $amr1[7] unless ref $amr1[7] eq ref {}; 	
+		$amr->{laboratory_typing_method_version} = $amr1[8] unless ref $amr1[8] eq ref {}; 	
+		$amr->{testing_standard} = $amr1[9] unless ref $amr1[9] eq ref {}; 	
+
+		push @{$genome->{antimicrobial_resistance}}, ucfirst $amr->{resistant_phenotype} unless (grep {$_ eq ucfirst $amr->{resistant_phenotype}} @{$genome->{antimicrobial_resistance}}); 
+		$genome->{antimicrobial_resistance_evidence} = "AMR Panel";
+	
+		push @genome_amr, $amr;
+
+	}
+
+}
+
+
+sub biosample2patricAttrib{
+
+	my ($attribute) = @_;
+
+	my %biosample2patric = (
+
+		"altitude" => "altitude",
+		"biomaterial_provider" => "additional_metadata:biomaterial_provider",
+		"collected_by" => "additional_metadata:collected_by",
+		"collection_date" => "collection_date",			
+		"culture_collection" => "culture_collection", 
+		"depth" => "depth", 
+		"description" => "comments", 
+		"env_biome" => "other_environmental:env_biome", 
+		"genotype" => "other_typing:genotype", 
+		"geo_loc_name" => "geographic_location", 
+		"host" => "host_name", 
+		"host_age" => "host_age", 
+		"host_description" => "other_clinical:host_description", 
+		"host_disease" => "host_health",
+		"host_disease_outcome" => "other_clinical:host_disease_outcome",
+		"host_disease_stage" => "other_clinical:host_disease_stage",
+		"host_health_state" => "other_clinical:host_health_state",
+		"host_sex" => "host_gender",
+		"host_subject_id" => "other_clinical:host_subject_id", 
+		"host_tissue_sampled" => "isolation_source",
+		"identified_by" => "additional_metadata:identified_by",
+		"isolate" => "additional_metadata:isolate", 
+		"isolation_source" => "isolation_source", 
+		"lab_host" => "additional_metadata:lab_host", 
+		"lat_lon" => "other_environmental:lat_lon", 
+		"mating_type" => "additional_metadata:mating_type", 
+		"organism" => "",
+		"passage_history" => "additional_metadata:passage_history",
+		"pathotype" => "pathovar",
+		"sample_name" => "",
+		"sample_title" => "",
+		"sample_type" => "additional_metadata:sample_type",
+		"samp_size" => "",
+		"serotype" => "serovar",
+		"serovar" => "serovar",
+		"specimen_voucher" => "additional_metadata:specimen_voucher", 
+		"strain" => "strain", 
+		"subgroup" => "",
+		"subtype" => "",
+		"temp" => "other_environmental:temperature"
+	);
+
+	return $biosample2patric{$attribute} if $attribute;	
+
 }
 
 
 sub prepareTaxonomy {
+	
+	"Preparing taxonomy update ...\n";
 
 	my ($taxon_lineage_ids) = @_;
 
