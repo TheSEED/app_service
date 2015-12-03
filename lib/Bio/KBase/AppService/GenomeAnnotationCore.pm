@@ -228,8 +228,7 @@ sub write_load_files
     my $rc = system(@cmd);
     if ($rc != 0)
     {
-	warn "Error $rc creating site load files (@cmd)\n";
-	return;
+	die "Error $rc creating site load files (@cmd)\n";
     }
 
     return 1;
