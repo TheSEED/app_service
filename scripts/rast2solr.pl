@@ -640,14 +640,14 @@ sub getMetadataFromBioProject {
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
 	
-	if ($root->{Submission}->{Description}->{Organization}->{Name} eq "HASH"){
+	if (ref($root->{Submission}->{Description}->{Organization}->{Name}) eq "HASH"){
 		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name}->{content};	
 	}else{
 		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name};
 	}
 
 	$genome->{strain} = $organism->{Strain};
-	$genome->{genome_name} .= "strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
 	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
 	$genome->{temperature_range} = $1 if $organism->{BiologicalProperties}->{Environment}->{TemperatureRange}=~/^e*(.*)/;
@@ -935,7 +935,7 @@ sub getMetadataFromBioSample {
 
 	}
 	
-	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
 	
 	# parse AMR metadata
 
