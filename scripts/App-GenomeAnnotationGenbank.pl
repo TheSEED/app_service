@@ -125,7 +125,7 @@ sub process_genome
 	    if (ref($res) eq 'ARRAY' && @$res)
 	    {
 		$gc = $res->[0]->{genetic_code};
-		warn "Setting GC=$gc basd on tax id $tax\n";
+		warn "Setting GC=$gc based on tax id $tax\n";
 	    }
 	}
 	if ($gc !~ /^\d+$/)
