@@ -110,6 +110,48 @@ sub process_genome
 	$genome->{owner} = $core->user_id;
     }
 
+    #
+    # See if we are missing a genetic code, and if so, look it up in the
+    # data api.
+    #
+    if (!$genome->{genetic_code})
+    {
+	my $gc = '';
+	my $tax = $genome->{ncbi_taxonomy_id};
+	if ($tax =~ /^\d+$/)
+	{
+	    my $solr = SolrAPI->new(data_api_url);
+	    my $res = $solr->query_solr('taxonomy', '/?q=taxon_id:' . $tax, '&fl=genetic_code');
+	    if (ref($res) eq 'ARRAY' && @$res)
+	    {
+		$gc = $res->[0]->{genetic_code};
+		warn "Setting GC=$gc basd on tax id $tax\n";
+	    }
+	}
+	if ($gc !~ /^\d+$/)
+	{
+	    my @list = ('Acholeplasma',
+			'Candidatus Hepatoplasma',
+			'Candidatus Hodgkinia',
+			'Entomoplasma',
+			'Mesoplasma',
+			'Mycoplasma',
+			'Spiroplasma',
+			'Ureaplasma');
+	    if (grep { $genome->{scientific_name} =~ /^$_\s/ } @list)
+	    {
+		warn "Falling back to GC=4 based on name $genome->{scientific_name}\n";
+		$gc = 4;
+	    }
+	    else
+	    {
+		warn "Setting default GC=11 based on failed lookup for '$tax' and no match for $genome->{scientific_name}\n";
+		$gc = 11;
+	    }
+	}
+	$genome->{genetic_code} = $gc;
+    }
+
     my $result = $core->run_pipeline($genome);
 
     #
