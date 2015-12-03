@@ -20,6 +20,7 @@ my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...
 				    ["workspace-url=s", "Use this workspace URL"],
 				    ["app-service-url=s", "Use this app service URL"],
 				    ["test", "Submit to test service"],
+				    ["clientgroup=s", "Use this AWE clientgroup instead of the default"],
 				    ["help|h", "Show this help message"],
 				    );
 
@@ -86,6 +87,7 @@ for my $ent (@to_process)
 	output_file => $base,
 	public => ($opt->public ? 1 : 0),
 	queue_nowait => ($opt->index_nowait ? 1 : 0),
+	($opt->clientgroup ? (_clientgroup => $opt->clientgroup) : ()),
     };
 
     try {
