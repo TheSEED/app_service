@@ -633,21 +633,22 @@ sub getMetadataFromBioProject {
 	my ($publication, $taxonID, $epidemiology);
 
 
-	my $xml = XMLin("$outfile.bioproject.xml");
+	my $xml = XMLin("$outfile.bioproject.xml", ForceArray => ["Organization"]);
 	my $root = $xml->{DocumentSummary};
 
 	#print Dumper $xml;
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
-	
-	if ($root->{Submission}->{Description}->{Organization}->{Name} eq "HASH"){
-		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name}->{content};	
+
+	my $organization = $root->{Submission}->{Description}->{Organization};	
+	if (ref($organization->[0]->{Name}) eq "HASH"){
+		$genome->{sequencing_centers} = $organization->[0]->{Name}->{content};
 	}else{
-		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name};
+		$genome->{sequencing_centers} = $organization->[0]->{Name};
 	}
 
 	$genome->{strain} = $organism->{Strain};
-	$genome->{genome_name} .= "strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
 	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
 	$genome->{temperature_range} = $1 if $organism->{BiologicalProperties}->{Environment}->{TemperatureRange}=~/^e*(.*)/;
@@ -935,7 +936,7 @@ sub getMetadataFromBioSample {
 
 	}
 	
-	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
 	
 	# parse AMR metadata
 
