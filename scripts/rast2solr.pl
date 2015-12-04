@@ -909,7 +909,7 @@ sub getMetadataFromBioSample {
 	
 	my $xml = XMLin("$outfile.biosample.xml");
 
-	#return unless ref $xml->{BioSample}->{Attributes}->{Attribute} eq 'ARRAY';
+	return unless ref $xml->{BioSample}->{Attributes}->{Attribute} eq 'ARRAY';
 
 	foreach my $attrib (@{$xml->{BioSample}->{Attributes}->{Attribute}}){
 	
