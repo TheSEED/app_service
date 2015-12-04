@@ -633,17 +633,18 @@ sub getMetadataFromBioProject {
 	my ($publication, $taxonID, $epidemiology);
 
 
-	my $xml = XMLin("$outfile.bioproject.xml");
+	my $xml = XMLin("$outfile.bioproject.xml", ForceArray => ["Organization"]);
 	my $root = $xml->{DocumentSummary};
 
 	#print Dumper $xml;
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
-	
-	if (ref($root->{Submission}->{Description}->{Organization}->{Name}) eq "HASH"){
-		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name}->{content};	
+
+	my $organization = $root->{Submission}->{Description}->{Organization};	
+	if (ref($organization->[0]->{Name}) eq "HASH"){
+		$genome->{sequencing_centers} = $organization->[0]->{Name}->{content};
 	}else{
-		$genome->{sequencing_centers} = $root->{Submission}->{Description}->{Organization}->{Name};
+		$genome->{sequencing_centers} = $organization->[0]->{Name};
 	}
 
 	$genome->{strain} = $organism->{Strain};
