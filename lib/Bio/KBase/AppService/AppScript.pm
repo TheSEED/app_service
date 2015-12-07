@@ -14,12 +14,13 @@ use Bio::KBase::AuthToken;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
+use Bio::KBase::AppService::AppConfig ':all';
 
 use base 'Class::Accessor';
 
 use Data::Dumper;
 
-__PACKAGE__->mk_accessors(qw(callback workspace_url workspace params app_definition result_folder));
+__PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder workspace_url workspace params app_definition result_folder));
 
 sub new
 {
@@ -56,7 +57,19 @@ sub run
 	$task_id = "UNK-$$";
     }
 
+    @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
+    
     my $appserv_url = shift @$args;
+
+    #
+    # If we are running at the terminal, do not set up this infrastructure.
+    #
+
+    if (-t STDIN)
+    {
+	$self->subproc_run($args);
+	exit(0);
+    }
 
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
@@ -132,6 +145,14 @@ sub run
     my $rc = $?;
     $self->write_block("exitcode","$rc\n");
 
+    # if ($rc != 0)
+    # {
+    # 	my $id;
+    # 	eval {
+    # 	    $id = submit_github_issue($rc, $rest, $task_id, $args);
+    # 	}
+    # }
+
     return $rc >> 8;
 }
 
@@ -144,8 +165,6 @@ sub write_block
 sub subproc_run
 {
     my($self, $args) = @_;
-    
-    @$args == 2 or @$args == 4 or die "Usage: $0 app-definition.json param-values.json [stdout-file stderr-file]\n";
     
     my $json = JSON::XS->new->pretty(1);
 
@@ -200,8 +219,10 @@ sub subproc_run
     $self->{workspace} = $ws;
     $self->{params} = \%proc_param;
     $self->{app_definition} = $app_def; 
-
-    $self->create_result_folder();
+	
+    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
+    	$self->create_result_folder();
+    }
 
     my $host = `hostname -f`;
     $host = `hostname` if !$host;
@@ -252,8 +273,9 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result');
-
+    if (!defined($self->donot_create_job_result()) || $self->donot_create_job_result() == 0) {
+	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+    }
     delete $self->{workspace};
 }
 
@@ -266,7 +288,7 @@ sub create_result_folder
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
 
-    $self->workspace->create({ objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+    $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
 }
 
 sub token

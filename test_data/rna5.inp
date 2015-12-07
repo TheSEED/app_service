@@ -1,0 +1,12 @@
+{
+  "reference_genome_id": "588858.6",
+  "paired_end_libs": [
+     {
+         "read1": "/fangfang/home/test/READ1_SHORT.fastq",
+         "read2": "/fangfang/home/test/READ2_SHORT.fastq"
+     }
+  ],
+  "recipe": "RNA-Rocket",
+  "output_path": "/fangfang/home/test/rna5_9",
+  "output_file": "rocket_out"
+}

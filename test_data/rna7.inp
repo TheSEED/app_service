@@ -1,0 +1,23 @@
+{
+  "reference_genome_id": "588858.6",
+  "experimental_conditions": [
+    "cond 1",
+    "cond 2"
+  ],
+  "paired_end_libs": [
+     {
+         "read1": "/fangfang/home/test/READ1_SHORT.fastq",
+         "read2": "/fangfang/home/test/READ2_SHORT.fastq",
+	 "condition": 1
+     }
+  ],
+  "single_end_libs": [
+     {
+         "read": "/fangfang/home/test/READ1_SHORT.fastq",
+	 "condition": 2
+     }
+  ],
+  "recipe": "RNA-Rocket",
+  "output_path": "/fangfang/home/test/rna7_2",
+  "output_file": "rocket_out"
+}

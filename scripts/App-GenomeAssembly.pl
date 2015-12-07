@@ -34,19 +34,25 @@ sub process_reads {
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
-    $global_token = Bio::KBase::AuthToken->new(ignore_authrc => 1);
+    $global_token = $app->token();
     $global_ws = $app->workspace;
 
     verify_cmd($ar_run) and verify_cmd($ar_get) and verify_cmd($ar_filter);
 
-    my $output_path = $params->{output_path};
-    my $output_base = $params->{output_file};
-    my $output_name = "$output_base.contigs";
+    my $output_folder = $app->result_folder();
+    # my $output_base   = $params->{output_file};
+    my $output_name   = "contigs";
 
     my $recipe = $params->{recipe};
     my @method = ("-r", $recipe) if $recipe;
 
+    my $pipeline = $params->{pipeline};
+    print "PIPELINE: $pipeline\n";
+
+    @method = ("-p", parse_pipeline_args($pipeline)) if $pipeline;
+
     my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
 
     my @ai_params = parse_input($tmpdir, $params);
 
@@ -54,11 +60,12 @@ sub process_reads {
 
     my $token = get_token();
 
-    $ENV{KB_AUTH_TOKEN} = $token->token;
-    $ENV{ARAST_AUTH_USER} = $token->user_id;
-    $ENV{KB_RUNNING_IN_IRIS} = 1;
+    $ENV{ARAST_AUTH_TOKEN} = $token->token;
+    $ENV{ARAST_AUTH_USER}  = $token->user_id;
 
     my @submit_cmd = ($ar_run, @method, @ai_params);
+    print STDERR '\@submit_cmd = '. Dumper(\@submit_cmd);
+
 
     my @get_cmd = ($ar_get, '-w', '-p');
     my @filter_cmd = ($ar_filter, '-l', 300, '-c', '5'); # > $out_tmp";
@@ -67,10 +74,7 @@ sub process_reads {
     my $submit_err;
     print STDERR "Running @submit_cmd\n";
     my $submit_ok = run(\@submit_cmd, '>', \$submit_out, '2>', \$submit_err);
-    if (!$submit_ok)
-    {
-	die "Error submitting run. Run command=@submit_cmd, stdout:\n$submit_out\nstderr:\n$submit_err\n";
-    }
+    $submit_ok or die "Error submitting run. Run command=@submit_cmd, stdout:\n$submit_out\nstderr:\n$submit_err\n";
 
     print STDERR "Submission returns\n$submit_out\n";
     my($arast_job) = $submit_out =~ /job\s+id:\s+(\d+)/i;
@@ -81,24 +85,96 @@ sub process_reads {
     print STDERR "Running pull: @get_cmd -j $arast_job | @filter_cmd\n";
     my $pull_ok = run([@get_cmd, "-j", $arast_job], "|",
 		      \@filter_cmd, '>', $out_tmp);
-    if (!$pull_ok)
-    {
-	die "Error retrieving results from job $arast_job\n";
+    $pull_ok or die "Error retrieving results from job $arast_job\n";
+
+    my $download_ok = run([$ar_get, "-j", $arast_job, "-o", $tmpdir]);
+    $download_ok or die "Error downloading results from $arast_job\n";
+
+    my @outputs;
+
+    my $analysis_dir = "$arast_job\_analysis";
+    system("cd $tmpdir && zip -r $arast_job\_analysis.zip $analysis_dir");
+    push @outputs, ["$tmpdir/$arast_job\_analysis.zip", 'zip'] if -s "$tmpdir/$arast_job\_analysis.zip";
+
+    my ($report) = glob("$tmpdir/$arast_job*report.txt");
+    if ($report) {
+        system("mv $report $tmpdir/report.txt");
+        push @outputs, ["$tmpdir/report.txt", 'txt'];
     }
 
-    my $ws = get_ws();
-    my $meta;
+    my @assemblies = glob("$tmpdir/$arast_job*.fa $tmpdir/$arast_job*.fasta");
+    push @outputs, [ $_, 'contigs' ] for @assemblies;
 
-    my $result_folder = $app->result_folder();
-    $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", 'contigs',
-                           1, 1, $token);
+    system("mv $out_tmp $out_tmp.fa");
+    push @outputs, ["$out_tmp.fa", 'contigs'];
+
+    for (@outputs) {
+	my ($ofile, $type) = @$_;
+	if (-f "$ofile") {
+            my $filename = basename($ofile);
+            print STDERR "Output folder = $output_folder\n";
+            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
+	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
+					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
+					       $global_token);
+	} else {
+	    warn "Missing desired output file $ofile\n";
+	}
+    }
+
+    # my $ws = get_ws();
+    # my $meta;
+
+    # my $result_folder = $app->result_folder();
+    # $ws->save_file_to_file("$out_tmp", $meta, "$result_folder/$output_name", 'contigs',
+    #                        1, 1, $token);
 
     undef $global_ws;
     undef $global_token;
 
-    return {
-	arast_job_id => $arast_job,
-    };
+    return { arast_job_id => $arast_job };
+}
+
+sub parse_pipeline_args {
+    my ($pipe) = @_;
+
+    my @chars = split('', $pipe);
+
+    my $qc;        # flag:  in any quotes
+    my ($qs, $qd); # flags: in double and single quotes
+    my ($beg, $len) = (0, 0);
+    my @args;
+    for my $c (@chars) {
+        $qs = !$qs if $c eq "'";
+        $qd = !$qd if $c eq '"';
+        if (!$qc && $qs+$qd) {  # entering quotes
+            my $arg = clean_arg(substr($pipe, $beg, $len));
+            $beg += $len;
+            $len = 0;
+            push @args, split(/\s+/, $arg) if $arg;
+        } elsif ($qc && !($qs+$qd)) { # exiting quotes
+            my $arg = clean_arg(substr($pipe, $beg, $len+1));
+            $beg += $len+1;
+            $len = -1;
+            push @args, $arg if $arg;
+        }
+        $qc = $qs + $qd;
+        $len++;
+    }
+
+    my $arg = clean_arg(substr($pipe, $beg, $len));
+    push @args, split(/\s+/, $arg) if $arg;
+
+    return @args;
+}
+
+sub clean_arg {
+    my ($arg) = @_;
+    return $1 if $arg =~ /^\s*"(.*)"\s*$/;
+    return $1 if $arg =~ /^\s*'(.*)'\s*$/;
+    $arg =~ s/^\s+//;
+    $arg =~ s/\s+$//;
+    $arg;
 }
 
 sub get_ws {
@@ -108,7 +184,7 @@ sub get_ws {
 sub get_token {
     return $global_token;
 }
- 
+
 my $global_file_count;
 sub get_ws_file {
     my ($tmpdir, $id) = @_;
@@ -134,7 +210,7 @@ sub get_ws_file {
     close($fh);
     print "$id $file:\n";
     system("ls -la $tmpdir");
-             
+
     return $file;
 }
 
@@ -142,7 +218,7 @@ sub parse_input {
     my ($tmpdir, $input) = @_;
 
     my @params;
-    
+
     my ($pes, $ses, $ref) = ($input->{paired_end_libs}, $input->{single_end_libs}, $input->{reference_assembly});
 
     for (@$pes) { push @params, parse_pe_lib($tmpdir, $_) }
@@ -158,7 +234,7 @@ sub parse_pe_lib {
     push @params, "--pair";
     push @params, get_ws_file($tmpdir, $lib->{read1});
     push @params, get_ws_file($tmpdir, $lib->{read2});
-    my @ks = qw(insert_size_mean insert_size_std_dev);
+    my @ks = qw(insert_size_mean insert_size_std_dev read_orientation_outward);
     for my $k (@ks) {
         push @params, $k."=".$lib->{$k} if $lib->{$k};
     }

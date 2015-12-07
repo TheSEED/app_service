@@ -35,6 +35,13 @@
 			    "type": "bool"
 			},
 			{
+			    "id": "read_orientation_outward",
+			    "label": "Do the two reads in each pair face outward?",
+			    "required": 0,
+			    "default": false,
+			    "type": "bool"
+			},
+			{
 			    "id": "insert_size_mean",
 			    "label": "Average insert size",
 			    "required": 0,
@@ -77,6 +84,14 @@
 			"desc":"Recipe used for assembly",
 			"type":"enum",
 			"enum": ["auto", "full_spades", "fast", "miseq", "smart", "kiki" ]
+		},
+		{
+			"id":"pipeline",
+			"label":"Assembly pipeline arguments",
+			"required": 0,
+			"default": null,
+			"desc":"Advanced assembly pipeline arguments that overrides recipe",
+			"type":"string"
 		},
 		{
 			"id":"output_path",

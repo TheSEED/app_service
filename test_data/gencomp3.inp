@@ -1,0 +1,8 @@
+{
+  "genome_ids": [ "83331.22", "33892.12", "83332.12" ],
+  "reference_genome_index": 1,
+  "min_seq_cov": 0.35,
+  "max_e_val": 1e-5,
+  "output_path": "/fangfang/home/test/gencomp_41",
+  "output_file": "gencomp_out"
+}
