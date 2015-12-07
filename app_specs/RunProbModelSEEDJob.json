@@ -1,0 +1,24 @@
+{
+	"id":"RunProbModelSEEDJob",
+	"script":"App-RunProbModelSEEDJob",
+	"label":"Runs a ProbModelSEED job",
+	"description":"Runs a ProbModelSEED modeling job",
+	"parameters":[
+		{
+			"id":"command",
+			"label":"Command",
+			"required": 1,
+			"default":null,
+			"desc":"ProbModelSEED command to run",
+			"type":"string"
+		},
+		{
+			"id":"arguments",
+			"label":"Arguments",
+			"required": 1,
+			"default":null,
+			"desc":"ProbModelSEED arguments",
+			"type":"string"
+		}
+	]
+}
