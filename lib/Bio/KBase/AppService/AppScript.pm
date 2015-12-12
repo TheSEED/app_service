@@ -242,10 +242,12 @@ sub subproc_run
 	$job_output = $self->callback->($self, $app_def, $params, \%proc_param);
     }
 
+	if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0)
+	{
     my $end_time = gettimeofday;
     my $elap = $end_time - $start_time;
-
-    my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
+	
+	my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
 
     #
     # Hack to finding task id.
@@ -273,9 +275,8 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    if (!defined($self->donot_create_job_result()) || $self->donot_create_job_result() == 0) {
-	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
-    }
+    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+	}
     delete $self->{workspace};
 }
 

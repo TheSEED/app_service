@@ -16,21 +16,11 @@ eval {
 
 my $script = Bio::KBase::AppService::AppScript->new(\&run_probmodelseed_job);
 my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
-my $targets = [split(/;/,$config->{cache_targets})];
-my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
-	token => $script->token()->token(),
-	username => $script->token()->user_id(),
-	fbajobcache => $config->{fbajobcache},
-	fbajobdir => $config->{fbajobdir},
-	mfatoolkitbin => $config->{mfatoolkitbin},
-	logfile => $config->{logfile},
-	data_api_url => $config->{data_api_url},
-	file_cache => undef,
-    cache_targets => $targets,
-	"workspace-url" => $config->{"workspace-url"},
-	"shock-url" => $config->{"shock_url"},
-	method => "ModelReconstruction",
-});
+$config->{token} = $script->token()->token();
+$config->{username} = $script->token()->user_id();
+$config->{cache_targets} = [split(/;/,$config->{cache_targets})];
+$config->{method} = "ModelReconstruction";
+my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new($config);
 $script->{workspace_url} = $config->{"workspace-url"};
 $script->{donot_create_result_folder} = 1;
 $script->{donot_create_job_result} = 1;
@@ -44,6 +34,9 @@ sub run_probmodelseed_job
     my($app, $app_def, $raw_params, $params) = @_;
     print "Running job: ", Dumper($app_def, $raw_params, $params);
 	my $command = $params->{command};
-	my $args = Bio::KBase::ObjectAPI::utilities::FROMJSON($params->{arguments});
+	my $args = $params->{arguments};
+	if (!ref($args)) {
+		$args = Bio::KBase::ObjectAPI::utilities::FROMJSON($args);
+	}
 	$helper->app_harness($command,$args);
 }
