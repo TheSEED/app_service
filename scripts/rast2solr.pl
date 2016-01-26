@@ -572,8 +572,8 @@ sub getMetadataFromGenBankFile {
 	my $gb = join "", @gb;
 	close GB;
 
-	$genome->{geographic_location} =~s/\n */ /g;
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
+	$genome->{geographic_location} =~s/\n */ /g;
 	
 	$genome->{host_name} = $1 if $gb=~/\/host="([^"]*)"/;
 	$genome->{host_name} =~s/\n */ /g;
@@ -808,6 +808,7 @@ sub getGenomeFeaturesFromGenBankFile {
 			$feature->{annotation} = $annotation;
 			
 			$feature->{genome_id} = $genome->{genome_id};
+			$feature->{genome_name} = $genome->{genome_name};
 			$feature->{taxon_id} = $genome->{taxon_id};
 
 			$feature->{sequence_id} = $sequence_id;
