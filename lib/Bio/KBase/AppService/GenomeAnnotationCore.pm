@@ -109,6 +109,7 @@ sub run_pipeline
               { name => 'propagate_genbank_feature_metadata',
 		    propagate_genbank_feature_metadata_parameters => {} },
 	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
+	      { name => 'classify_amr', failure_is_not_fatal => 1 },
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
 	      { name => 'annotate_families_figfam_v1' },
