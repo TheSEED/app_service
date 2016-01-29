@@ -131,7 +131,7 @@ sub run_pipeline
 
 sub write_output
 {
-    my($self, $genome, $result, $meta, $genbank_file, $public_flag, $queue_nowait) = @_;
+    my($self, $genome, $result, $meta, $genbank_file, $public_flag, $queue_nowait, $no_index) = @_;
     
     my $tmp_genome = File::Temp->new;
     print $tmp_genome $self->json->encode($result);
@@ -195,12 +195,16 @@ sub write_output
     # We also export the load files for indexing.
     # Assume here that AWE has placed us into a directory into which we can write.
     #
-    if (write_load_files($ws, $tmp_genome, $genbank_file, $public_flag))
+
+    if (!$no_index)
     {
-	my $load_folder = "$output_folder/load_files";
-	
-	$ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	$self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
+	if (write_load_files($ws, $tmp_genome, $genbank_file, $public_flag))
+	{
+	    my $load_folder = "$output_folder/load_files";
+	    
+	    $ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
+	    $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
+	}
     }
 }
 
