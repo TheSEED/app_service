@@ -38,7 +38,8 @@ while (my $job = $jobs->next)
     my $user = $job->{info}->{user};
     my $app = $job->{info}->{userattr}->{app_id};
     next if $app eq 'Sleep' or $app eq 'Date';
-    my $colkey = $user;
+    # my $colkey = $user;
+    my $colkey = $app;
 
     my $elap = $finish->epoch - $start->epoch;
     $elap /= 60;
@@ -56,18 +57,18 @@ while (my $job = $jobs->next)
     $total_by_app{$app}++;
 }
 
-my @applist = qw(GenomeAssembly GenomeAnnotation GenomeComparison ModelReconstruction GapfillModel RNASeq DifferentialExpression);
+my @applist = qw(GenomeAssembly GenomeAnnotation GenomeAnnotationGenbank GenomeComparison RunProbModelSEEDJob ModelReconstruction GapfillModel RNASeq DifferentialExpression);
 for my $app (@applist)
 {
     print "$app\t$total_by_app{$app}\n";
     delete $total_by_app{$app};
 }
-die Dumper(\%total_by_app);
-exit;
+#die Dumper(\%total_by_app);
+#exit;
 
 my @users = sort { $a cmp $b } keys %user;
 
-# my @users = qw(GenomeAssembly GenomeAnnotation GenomeComparison ModelReconstruction GapfillModel RNASeq DifferentialExpression);
+my @users = qw(GenomeAssembly GenomeAnnotation GenomeComparison ModelReconstruction GapfillModel RNASeq DifferentialExpression RunProbModelSEEDJob);
 
 print join("\t", "Week", "Date", @users), "\n";
 

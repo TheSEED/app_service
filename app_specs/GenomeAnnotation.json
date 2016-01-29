@@ -48,6 +48,22 @@
 			"enum":["Bacteria", "Archaea"]
 		},
 		{
+			"id":"public",
+			"required": 0,
+			"default": false,
+			"label":"Public",
+			"desc":"Make this genome public",
+			"type":"bool"
+		},
+		{
+			"id":"queue_nowait",
+			"required": 0,
+			"default": false,
+			"label":"Don't wait on indexing queue",
+			"desc":"If set, don't wait for the indexing to finish before marking the job complete.",
+			"type":"bool"
+		},
+		{
 			"id":"output_path",
 			"label":"Output Folder",
 			"required":0,
