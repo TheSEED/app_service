@@ -121,7 +121,7 @@ sub process_genome
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
     my $result = $core->run_pipeline($genome);
 
-    $core->write_output($genome, $result, {}, undef, $parms->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
+    $core->write_output($genome, $result, {}, undef, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
 
     $core->ctx->stderr(undef);
 }
