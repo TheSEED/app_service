@@ -1,0 +1,20 @@
+<html>
+<head>
+<title>[% title %]</title>
+</head>
+<body>
+<div id='header'>
+<h1>[% title %]</h1>
+[% IF session.user -%] 
+Logged in as [% session.user %]<br>
+<a href="logout">Logout </a>
+[% ELSE %]
+<a href="login">Login</a>
+[% END %]
+<hr>
+</div>
+<div id='content'>
+[% content %]
+</div>
+</body>
+</html>
