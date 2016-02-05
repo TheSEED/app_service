@@ -1,0 +1,9 @@
+[% USE DataPrinter(dp = { colored = 0 }) %]
+
+<a href="[% details.stdout_url %]">Standard output</a><br> 
+<a href="[% details.stderr_url %]">Standard error</a><br> 
+
+<pre>
+[% awe_txt %]
+</pre>
+

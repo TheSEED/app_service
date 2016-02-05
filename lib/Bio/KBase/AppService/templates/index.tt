@@ -1,0 +1,14 @@
+Jobs:
+
+<table>
+[% FOR j IN jobs %]
+<tr>
+<td><a href="task/[% j.id %]">[% j.id %]</a></td>
+<td>[% j.user %]</td>
+<td>[% j.app %]</td>
+<td>[% j.state %]</td>
+<td>[% j.started %]</td>
+<td>[% j.completed %]</td>
+</tr>
+[% END %]
+</table>

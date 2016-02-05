@@ -23,7 +23,7 @@ DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_
 
 STARMAN_WORKERS = 5
 
-DATA_API_URL = https://www.beta.patricbrc.org/api
+DATA_API_URL = https://www.patricbrc.org/api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
@@ -100,6 +100,8 @@ deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
 	$(TPAGE) $(TPAGE_ARGS) service/stop_service.tt > $(TARGET)/services/$(SERVICE)/stop_service
 	chmod +x $(TARGET)/services/$(SERVICE)/stop_service
 	rsync -arv app_specs $(TARGET)/services/$(SERVICE)/.
+
+
 
 deploy-service-scripts:
 	export KB_TOP=$(TARGET); \
