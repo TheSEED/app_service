@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 ###########################################################
 #
@@ -52,13 +52,13 @@ if ($have_config)
 my $json = JSON->new->allow_nonref;
 
 my ($opt, $usage) = describe_options("%c %o",
-				     [],
-				     ["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
-				     ["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
-				     ["public", "public, default is private"],
-				     ["data-api-url=s", "Data API URL", { default => $data_api_url }],
-				     [],
-				     ["help|h", "Print usage message and exit"] );
+				[],
+				["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
+				["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
+				["public", "public, default is private"],
+				["data-api-url=s", "Data API URL", { default => $data_api_url }],
+				[],
+				["help|h", "Print usage message and exit"] );
 
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) unless $opt->genomeobj_file;
@@ -229,10 +229,15 @@ sub getGenomeInfo {
 				$genome->{publication} .= $reference->{PUBMED}."," unless $genome->{publication}=~/$reference->{PUBMED}/;
 			}
 			$genome->{publication}=~s/,*$//g;
-			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date});
+			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date}) if $seqObj->{genbank_locus}->{date};
 		}
-		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[1]."," if $seqObj->{genbank_locus}->{accession}[1]=~/000000$/ && not $genome->{genbank_accessions}=~/$seqObj->{genbank_locus}->{accession}[1]/;
-		$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless $seqObj->{genbank_locus}->{accession}[1]=~/000000$/;
+
+		if ($seqObj->{genbank_locus}->{accession}[0]=~/^([A-Z]{4})\d{8}$/){ # wgs, capture only master accession
+			$genome->{genbank_accessions} .= $1."00000000" unless $genome->{genbank_accessions}=~/$1.0000000/;
+		}else{
+			$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0].",";
+		}
+
 	}
 	$genome->{genbank_accessions}=~s/,*$//g;
 	
@@ -572,6 +577,12 @@ sub getMetadataFromGenBankFile {
 	my $gb = join "", @gb;
 	close GB;
 
+	my $strain = $2 if $gb=~/\/(strain|isolate)="([^"]*)"/;
+	$strain =~s/\n */ /g;
+	$genome->{strain} = $strain unless $strain=~/^ *(-|missing|na|n\/a|not available|not provided|not determined|nd|unknown) *$/i;
+	
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
 	$genome->{geographic_location} =~s/\n */ /g;
 	
@@ -647,7 +658,7 @@ sub getMetadataFromBioProject {
 		$genome->{sequencing_centers} = $organization->[0]->{Name};
 	}
 
-	$genome->{strain} = $organism->{Strain};
+	$genome->{strain} = $organism->{Strain} if $organism->{Strain} && not $genome->{strain};
 	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
 	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
@@ -923,7 +934,7 @@ sub getMetadataFromBioSample {
 			$genome->{longitude} = $longitude;	
 		}else{
 			my $patric_attrib_name = biosample2patricAttrib($attrib_name);
-			next unless ($patric_attrib_name && $attrib_value && not $attrib_value=~/^ *(-|missing|NA|not available|not provided|not determined|nd) *$/i);
+			next unless ($patric_attrib_name && $attrib_value && not $attrib_value=~/^ *(-|missing|na|n\/a|not available|not provided|not determined|nd|unknown) *$/i);
 		
 			if ($patric_attrib_name=~/other|additional/i){
 				my ($attrib1, $attrib2) = $patric_attrib_name=~/^([^:]*):(.*)/;
@@ -1019,7 +1030,8 @@ sub biosample2patricAttrib{
 		"serotype" => "serovar",
 		"serovar" => "serovar",
 		"specimen_voucher" => "additional_metadata:specimen_voucher", 
-		"strain" => "strain", 
+		"strain" => "strain",
+		"isolate" => "strain",
 		"subgroup" => "",
 		"subtype" => "",
 		"temp" => "other_environmental:temperature"
