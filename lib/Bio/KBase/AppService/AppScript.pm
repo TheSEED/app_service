@@ -14,6 +14,7 @@ use Bio::KBase::AuthToken;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
+use Bio::KBase::AppService::AppConfig ':all';
 
 use base 'Class::Accessor';
 
@@ -56,7 +57,19 @@ sub run
 	$task_id = "UNK-$$";
     }
 
+    @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
+    
     my $appserv_url = shift @$args;
+
+    #
+    # If we are running at the terminal, do not set up this infrastructure.
+    #
+
+    if (-t STDIN)
+    {
+	$self->subproc_run($args);
+	exit(0);
+    }
 
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
@@ -132,6 +145,14 @@ sub run
     my $rc = $?;
     $self->write_block("exitcode","$rc\n");
 
+    # if ($rc != 0)
+    # {
+    # 	my $id;
+    # 	eval {
+    # 	    $id = submit_github_issue($rc, $rest, $task_id, $args);
+    # 	}
+    # }
+
     return $rc >> 8;
 }
 
@@ -144,8 +165,6 @@ sub write_block
 sub subproc_run
 {
     my($self, $args) = @_;
-    
-    @$args == 2 or @$args == 4 or die "Usage: $0 app-definition.json param-values.json [stdout-file stderr-file]\n";
     
     my $json = JSON::XS->new->pretty(1);
 
@@ -223,10 +242,12 @@ sub subproc_run
 	$job_output = $self->callback->($self, $app_def, $params, \%proc_param);
     }
 
+	if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0)
+	{
     my $end_time = gettimeofday;
     my $elap = $end_time - $start_time;
-
-    my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
+	
+	my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
 
     #
     # Hack to finding task id.
@@ -254,9 +275,8 @@ sub subproc_run
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    if (!defined($self->donot_create_job_result()) || $self->donot_create_job_result() == 0) {
-	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
-    }
+    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+	}
     delete $self->{workspace};
 }
 

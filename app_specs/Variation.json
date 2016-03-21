@@ -1,0 +1,115 @@
+{
+  "id": "Variation",
+  "script": "App-Variation",
+  "label": "Identify SNVs",
+  "description": "Identify and annotate small nucleotide variations relative to a reference genome",
+  "parameters": [
+    {
+      "id": "reference_genome",
+      "label": "Reference genome",
+      "allow_multiple": false,
+      "required": 1,
+      "default": null,
+      "type": "string"
+    },
+    {
+      "id": "paired_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "read1",
+          "required": 1,
+          "label": "Read file 1",
+          "desc": "Read file in FASTQ",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
+        {
+          "id": "read2",
+          "required": 0,
+          "label": "Read file 2",
+          "desc": "Read file in FASTQ",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
+        {
+          "id": "interleaved",
+          "label": "Are the paired end reads interleaved?",
+          "required": 0,
+          "default": false,
+          "type": "bool"
+        },
+        {
+          "id": "insert_size_mean",
+          "label": "Average insert size",
+          "required": 0,
+          "default": null,
+          "type": "int"
+        },
+        {
+          "id": "insert_size_stdev",
+          "label": "Average insert standard deviation",
+          "required": 0,
+          "default": null,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "single_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "read",
+          "required": 1,
+          "label": "Read file",
+          "desc": "Read file in FASTQ",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        }
+      ]
+    },
+    {
+      "id": "reference_genome_id",
+      "required": 0,
+      "default": null,
+      "label": "Reference genome ID",
+      "desc": "Reference genome ID",
+      "type": "string"
+    },
+    {
+      "id": "recipe",
+      "label": "RNAseq recipe",
+      "required": 0,
+      "default": "RNA-Rocket",
+      "desc": "Recipe used for RNAseq analysis",
+      "type": "enum",
+      "enum": [
+        "RNA-Rocket",
+        "Rockhopper"
+      ]
+    },
+    {
+      "id": "output_path",
+      "label": "Output Folder",
+      "required": 1,
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data.",
+      "type": "folder"
+    },
+    {
+      "id": "output_file",
+      "label": "File Basename",
+      "required": 1,
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
+      "type": "wsid"
+    }
+  ]
+}

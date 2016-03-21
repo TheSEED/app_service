@@ -1,51 +1,17 @@
 {
-	"id":"GenomeAnnotation",
-	"script":"App-GenomeAnnotation",
+	"id":"GenomeAnnotationGenbankTest",
+	"script":"App-GenomeAnnotationGenbankTest",
 	"label":"Annotate genome",
 	"description":"Calls genes and functionally annotate input contig set.",
 	"parameters":[
 		{
-			"id":"contigs",
+			"id":"genbank_file",
 			"required":1,
 			"default":null,
-			"label":"Contig file",
-			"desc":"Input set of DNA contigs for annotation",
-			"wstype":"Contigs",
+			"label":"Genbank file",
+			"desc":"Genome to process",
+			"wstype":"genbank_file",
 			"type":"wstype"
-		},
-		{
-			"id":"scientific_name",
-			"label":"Scientific Name",
-			"required":1,
-			"default":null,
-			"desc":"Scientific name of genome to be annotated",
-			"type":"string"
-		},
-		{
-			"id":"taxonomy_id",
-			"label":"NCBI Taxonomy ID",
-			"required":0,
-			"default":null,
-			"desc":"NCBI Taxonomy identfier for this genome",
-			"type":"int"
-		},
-		{
-			"id":"code",
-			"label":"Genetic Code",
-			"required":1,
-			"default":11,
-			"desc":"Genetic code used in translation of DNA sequences",
-			"type":"enum",
-			"enum":["11","4"]
-		},
-		{
-			"id":"domain",
-			"label":"Domain",
-			"required":1,
-			"default":"Bacteria",
-			"desc":"Domain of the submitted genome",
-			"type":"enum",
-			"enum":["Bacteria", "Archaea"]
 		},
 		{
 			"id":"public",
@@ -79,14 +45,6 @@
 			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
 			"type":"wsid"
 		},
-        {
-            "id": "reference_genome_id",
-            "required": 0,
-            "default": null,
-            "label": "Reference genome ID",
-            "desc": "Reference genome ID",
-            "type": "string"
-        },
         {
             "id":"fix_errors",
             "label":"Automatically fix errors?",

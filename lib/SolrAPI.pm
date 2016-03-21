@@ -329,7 +329,7 @@ sub query_solr
 	$result = <$fh>;
 	close($fh);
     }
-    
+
     my $resultObj = decode_json($result);
     return $resultObj;
 }

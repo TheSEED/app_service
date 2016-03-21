@@ -482,12 +482,18 @@ sub start_app
 	workspace => $workspace,
 	task_file_id => $task_file_id,
     };
+
+    my $clientgroup = $self->{awe_clientgroup};
+    if ($params->{_clientgroup})
+    {
+	$clientgroup = $params->{_clientgroup};
+    }
 	
     my $job = $awe->create_job_description(pipeline => 'AppService',
 					   name => $app_id,
 					   project => 'AppService',
 					   user => $ctx->user_id,
-					   clientgroups => $self->{awe_clientgroup},
+					   clientgroups => $clientgroup,
 					   userattr => $userattr,
 					   priority => 2,
 					  );

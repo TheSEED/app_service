@@ -23,7 +23,10 @@ DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_
 
 STARMAN_WORKERS = 5
 
-DATA_API_URL = https://www.beta.patricbrc.org/api
+DATA_API_URL = https://www.patricbrc.org/api
+GITHUB_ISSUE_REPO_OWNER = olsonanl
+GITHUB_ISSUE_REPO_NAME = app_service
+
 
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
@@ -36,6 +39,9 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define data_api_url=$(DATA_API_URL) \
+	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
+	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
+	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)
@@ -94,6 +100,8 @@ deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
 	$(TPAGE) $(TPAGE_ARGS) service/stop_service.tt > $(TARGET)/services/$(SERVICE)/stop_service
 	chmod +x $(TARGET)/services/$(SERVICE)/stop_service
 	rsync -arv app_specs $(TARGET)/services/$(SERVICE)/.
+
+
 
 deploy-service-scripts:
 	export KB_TOP=$(TARGET); \
