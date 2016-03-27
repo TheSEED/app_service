@@ -67,6 +67,7 @@ if (eval "defined(&map_with_$algo)") {
             print $@ if $@;
             compute_consensus() unless $@;
         }
+        summarize() unless -s "summary.txt";
     }
 } else {
     die "Mapping algorithm not defined: $algo\n";
@@ -121,7 +122,6 @@ sub compute_stats {
     -s "depth.hist"     or run("bedtools genomecov -ibam aln.bam > depth.hist");
     -s "uncov.10"       or run("bedtools genomecov -ibam aln.bam -bga | perl -ne 'chomp; \@c=split/\t/; \$ln=\$c[2]-\$c[1]; print join(\"\\t\", \@c, \$ln).\"\\n\" if \$c[3]<10;' > uncov.10" );
     # BED start position 0-based and the end position 1-based (Example: NC_000962,1987085,1987701,0,616; the 0 coverage base really starts at 1987086)
-    -s "summary.txt"    or summarize();
 }
 
 sub map_with_bwa_mem {
