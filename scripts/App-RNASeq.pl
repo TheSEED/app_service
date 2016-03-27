@@ -32,6 +32,7 @@ sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc RNASeq ", Dumper($app_def, $raw_params, $params);
+    my $time1 = `date`;
 
     $global_token = $app->token();
     $global_ws = $app->workspace;
@@ -76,6 +77,8 @@ sub process_rnaseq {
 	}
     }
 
+    my $time2 = `date`;
+    write_output("Start: $time1"."End:   $time2", "$tmpdir/DONE");
 }
 
 sub run_rna_rocket {
