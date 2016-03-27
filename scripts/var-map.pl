@@ -261,7 +261,7 @@ sub map_with_mosaik_se {
 }
 
 sub map_with_last {
-    verify_cmd(qw(lastdb parallel-fastq last-pair-probs samtools));
+    verify_cmd(qw(lastdb lastal parallel-fastq last-pair-probs maf-convert samtools));
     -s "ref.fa"         or run("ln -s $ref ref.fa");
     -s "read_1.fq"      or run("ln -s $read1 read_1.fq");
     -s "read_2.fq"      or run("ln -s $read2 read_2.fq");
