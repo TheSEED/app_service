@@ -1,0 +1,17 @@
+{
+  "reference_genome": "83332.12",
+  "paired_end_libs": [
+     {
+         "read1": "/fangfang@patricbrc.org/home/test/AF2BMXXXX_1_3nf_1.fastq.gz",
+         "read2": "/fangfang@patricbrc.org/home/test/AF2BMXXXX_1_3nf_2.fastq.gz"
+     }
+  ],
+  "single_end_libs": [
+     {
+         "read": "/fangfang@patricbrc.org/home/test/AF2BMXXXX_1_5nf_1.fastq.gz"
+     }
+  ],
+  "recipe": "bowtie2",
+  "output_path": "/fangfang@patricbrc.org/home/test/var3",
+  "output_file": "var_out"
+}
