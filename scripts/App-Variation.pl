@@ -35,9 +35,9 @@ sub process_variation_data {
 
     my $output_folder = $app->result_folder();
 
-    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/oIGe_LLBbt";
-    my $tmpdir = "/disks/tmp/oIGe_LLBbt";
+    # my $tmpdir = "/disks/tmp/oIGe_LLBbt";
     # my $tmpdir = "/disks/tmp/var_debug";
     $params = localize_params($tmpdir, $params);
 
