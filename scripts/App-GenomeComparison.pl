@@ -57,7 +57,9 @@ sub process_proteomes {
     my @genomes = get_genome_faa($tmpdir, $params);
     print STDERR '\@genomes = ', Dumper(\@genomes);
 
-    my @outputs = run_find_bdbh($tmpdir, \@genomes, $params);
+    my $ref_type = get_ref_type($params);
+
+    my @outputs = run_find_bdbh($tmpdir, \@genomes, $ref_type, $params);
 
     for (@outputs) {
 	my ($ofile, $type) = @$_;
@@ -77,12 +79,12 @@ sub process_proteomes {
 }
 
 sub run_find_bdbh {
-    my ($tmpdir, $genomes, $params) = @_;
+    my ($tmpdir, $genomes, $ref_type, $params) = @_;
 
     my $feaH = get_feature_hash($params->{genome_ids});
 
-    # my $nproc = 1;
-    my $nproc = get_num_procs();
+    my $nproc = 1;
+    # my $nproc = get_num_procs();
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
                  min_ident     => $params->{min_ident},
@@ -107,6 +109,11 @@ sub run_find_bdbh {
     my $ref = shift @orgs;
     my $gi = 0;
 
+    my @user_ref_contigs;
+    my $user_ref_contig_num  = 0;
+    my $user_ref_contig_len  = 0;
+    my $user_ref_contig_name = 'UNKNOWN';
+
     for my $g (@orgs) {
         $gi++;
         print STDERR "Run bidir_best_hits::bbh: ", join(" <=> ", $ref, $g)."\n";
@@ -123,21 +130,37 @@ sub run_find_bdbh {
             @fids = map { $_->[0] } @$log1; # reference feature patric_ids
             for (@$log1) {
                 my ($id, $len) = @$_;
-                my ($id_num) = patric_id_to_number($id);
-                $hits{$id} = { ref_genome_patric_id => $id,
-                               ref_genome_gene      => $id_num,
-                               ref_genome_aa_length => $len,
-                               ref_genome_contig    => $feaH->{$id}->{accession},
-                               ref_genome_locus_tag => $feaH->{$id}->{refseq_locus_tag},
-                               ref_genome_gene_name => $feaH->{$id}->{gene},
-                               ref_genome_function  => $feaH->{$id}->{product},
-                               ref_genome_start     => $feaH->{$id}->{start},
-                               ref_genome_end       => $feaH->{$id}->{end},
-                               ref_genome_strand    => $feaH->{$id}->{strand} };
+                if ($ref_type eq 'user_genome') {
+                    my $unknown_contig = $user_ref_contig_name . ++$user_ref_contig_num;
+                    $hits{$id} = { ref_genome_patric_id => $id,
+                                   ref_genome_contig    => $unknown_contig,
+                                   ref_genome_start     => 1,
+                                   ref_genome_end       => $len * 3 };
+                                   # ref_genome_start     => $pos + 1,
+                                   # ref_genome_end       => $pos + $len * 3 };
+                    # $pos += $len * 3 + 100;
+                    push @user_ref_contigs, [ $unknown_contig, $id, $len * 3 ];
+                } else {
+                    my $id_num = patric_id_to_number($id);
+                    $hits{$id} = { ref_genome_patric_id => $id,
+                                   ref_genome_gene      => $id_num,
+                                   ref_genome_aa_length => $len,
+                                   ref_genome_contig    => $feaH->{$id}->{accession},
+                                   ref_genome_locus_tag => $feaH->{$id}->{refseq_locus_tag},
+                                   ref_genome_gene_name => $feaH->{$id}->{gene},
+                                   ref_genome_function  => $feaH->{$id}->{product},
+                                   ref_genome_start     => $feaH->{$id}->{start},
+                                   ref_genome_end       => $feaH->{$id}->{end},
+                                   ref_genome_strand    => $feaH->{$id}->{strand} };
+                }
 
-                push @$circos_ref, [ $feaH->{$id}->{accession},
-                                     $feaH->{$id}->{start},
-                                     $feaH->{$id}->{end}, "id=$id" ];
+                # push @$circos_ref, [ $feaH->{$id}->{accession},
+                #                      $feaH->{$id}->{start},
+                #                      $feaH->{$id}->{end}, "id=$id" ];
+                push @$circos_ref, [ $hits{$id}->{ref_genome_contig},
+                                     $hits{$id}->{ref_genome_start},
+                                     $hits{$id}->{ref_genome_end},
+                                     "id=$id" ];
             }
         }
 
@@ -170,16 +193,23 @@ sub run_find_bdbh {
 
             my $score = sprintf("%.2f", $fract_id * 100);
             $score = -$score if $hit_type eq 'uni'; # use negative score to invoke color rules for unidirectional best hit
-            push @circos_org, [ $feaH->{$id}->{accession},
-                                $feaH->{$id}->{start},
-                                $feaH->{$id}->{end},
+            # push @circos_org, [ $feaH->{$id}->{accession},
+            #                     $feaH->{$id}->{start},
+            #                     $feaH->{$id}->{end},
+            #                     $score,
+            #                     "id=$s_id" ];
+            push @circos_org, [ $hits{$id}->{ref_genome_contig},
+                                $hits{$id}->{ref_genome_start},
+                                $hits{$id}->{ref_genome_end},
                                 $score,
                                 "id=$s_id" ];
         }
         push @circos_comps, \@circos_org;
     }
 
-    my $contigs = get_genome_contigs($ref);
+    my $contigs = $ref_type eq 'user_genome' ? \@user_ref_contigs :
+                                               get_genome_contigs($ref);
+
     my @outputs;
 
     # generate big comparison table
@@ -211,6 +241,7 @@ sub run_find_bdbh {
     my $circos_opts;
     $ofile = "$circos_dir/ref_genome.txt";
     $circos_opts->{ref_genome} = $ofile;
+    $circos_opts->{ref_type} = $ref_type;
     write_table($circos_ref, $ofile);
     push @outputs, [ $ofile, 'txt' ];
 
@@ -305,6 +336,14 @@ sub verify_cmd {
 sub get_num_procs {
     my $n = `cat /proc/cpuinfo | grep processor | wc -l`; chomp($n);
     return $n || 8;
+}
+
+sub get_ref_type {
+    my ($params) = @_;
+    my $index = $params->{reference_genome_index};
+    my $type = ($index <= @{$params->{genome_ids}}) ? 'genome_id' :
+               ($index <= @{$params->{genome_ids}} + @{$params->{user_genomes}}) ? 'user_genome' : 'user_feature_group';
+    return $type;
 }
 
 sub get_genome_faa {
@@ -707,7 +746,11 @@ sub circos_plot_config {
     my $index = 0;
     for my $f (@files) {
         if ($f eq $opts->{ref_genome}) {
-            push @plots, circos_plot_block($f, $r, { size => $size, color => 'bbh_100', stroke_color => 'bbh_100', url => patric_url() });
+            if ($opts->{ref_type} eq 'user_genome') {
+                push @plots, circos_plot_block($f, $r, { size => $size, color => 'bbh_100', stroke_color => 'bbh_100' });
+            } else {
+                push @plots, circos_plot_block($f, $r, { size => $size, color => 'bbh_100', stroke_color => 'bbh_100', url => patric_url() });
+            }
         } elsif ($opts->{is_user_genome}->{$index}) {
             push @plots, circos_plot_block($f, $r, { size => $size, rules => color_rules() });
         } else {
