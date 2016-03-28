@@ -48,10 +48,10 @@ sub process_proteomes {
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
 
-    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir();
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
-    # my $tmpdir = "/tmp/02noAPprr6";
+    my $tmpdir = "/tmp/9nGp1LR4k3";
     print STDERR "tmpdir = $tmpdir\n";
 
     my @genomes = get_genome_faa($tmpdir, $params);
@@ -81,8 +81,8 @@ sub run_find_bdbh {
 
     my $feaH = get_feature_hash($params->{genome_ids});
 
-    my $nproc = 1;
-    #my $nproc = get_num_procs();
+    # my $nproc = 1;
+    my $nproc = get_num_procs();
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
                  min_ident     => $params->{min_ident},
@@ -144,6 +144,9 @@ sub run_find_bdbh {
         my @circos_org;
         for (@$log1) {
             my ($id, $len, $arrow, $s_id, $s_len, $fract_id, $fract_pos, $q_coverage, $s_coverage) = @$_;
+            next if $fract_id < $params->{min_ident};
+            next if $q_coverage < $params->{min_seq_cov} || $s_coverage < $params->{min_seq_cov},;
+
             my $hit_type = $arrow eq '<->' ? 'bi' :
                            $arrow eq ' ->' ? 'uni' : undef;
             next unless $s_id;
