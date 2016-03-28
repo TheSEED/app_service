@@ -135,11 +135,11 @@ sub run_find_bdbh {
                     $hits{$id} = { ref_genome_patric_id => $id,
                                    ref_genome_contig    => $unknown_contig,
                                    ref_genome_start     => 1,
-                                   ref_genome_end       => $len * 3 };
+                                   ref_genome_end       => $len*3 + 3};
                                    # ref_genome_start     => $pos + 1,
                                    # ref_genome_end       => $pos + $len * 3 };
                     # $pos += $len * 3 + 100;
-                    push @user_ref_contigs, [ $unknown_contig, $id, $len * 3 ];
+                    push @user_ref_contigs, [ $unknown_contig, $id, $len*3+3 ];
                 } else {
                     my $id_num = patric_id_to_number($id);
                     $hits{$id} = { ref_genome_patric_id => $id,
@@ -367,8 +367,7 @@ sub get_genome_faa {
 sub get_patric_genome_name {
     my ($gid) = @_;
     my $url = "$data_api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
-    my @cmd = ("curl", curl_options(), $url);
-    my ($out) = run_cmd(\@cmd);
+    my $out = curl_text($url);
     my $name;
     if ($out) {
         my $ret = JSON::decode_json($out);
@@ -395,9 +394,7 @@ sub get_patric_genome_faa {
     my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.faa";
     # my $url = $ftp_url;
     my $url = $api_url;
-    my @cmd = ("curl", curl_options(), $url);
-    print STDERR join(" ", @cmd)."\n";
-    my ($out) = run_cmd(\@cmd);
+    my $out = curl_text($url);
     return $out;
 }
 
@@ -406,10 +403,7 @@ sub get_feature_hash {
     my %hash;
     for my $gid (@$gids) {
         my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
-        my @cmd = ("curl", curl_options(), $url);
-        print join(" ", @cmd)."\n";
-        my ($out) = run_cmd(\@cmd);
-        my $json = JSON::decode_json($out);
+        my $json = curl_json($url);
         for my $fea (@$json) {
             my $id = $fea->{patric_id};
             $hash{$id} = $fea;
@@ -422,15 +416,24 @@ sub get_genome_contigs {
     my ($gid) = @_;
     ($gid) = $gid =~ /(\d+\.\d+)/;
     my $url = "$data_api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
+    my $json = curl_json($url);
+    my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
+    return \@contigs;
+}
+
+sub curl_text {
+    my ($url) = @_;
     my @cmd = ("curl", curl_options(), $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
-    print STDERR '$gid = '. Dumper($gid);
-    print STDERR '$out = '. Dumper($out);
+    return $out;
+}
 
-    my $json = JSON::decode_json($out);
-    my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
-    return \@contigs;
+sub curl_json {
+    my ($url) = @_;
+    my $out = curl_text($url);
+    my $hash = JSON::decode_json($out);
+    return $hash;
 }
 
 sub curl_options {
