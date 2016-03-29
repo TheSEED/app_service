@@ -53,6 +53,7 @@ sub process_variation_data {
     my @basecmd = ($map);
     push @basecmd, ("-a", $mapper);
     push @basecmd, ("--vc", $caller);
+    push @basecmd, ("--threads", 2);
     push @basecmd, "$tmpdir/$ref_id/$ref_id.fna";
 
     my $lib_txt = "$tmpdir/libs.txt";
