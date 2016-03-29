@@ -40,11 +40,11 @@ get '/' => sub {
     # Here we enumerate all of the tasks, not just the user's.
     #
 
-    my $count = 100;
+    my $count = 200;
     my $offset = 0;
     my $awe = Bio::KBase::AppService::Awe->new($impl->{awe_server}, session('token'));
     print Dumper($impl, session('token'));
-    my $q = "/job?query&info.pipeline=AppService&limit=$count&offset=$offset";
+    my $q = "/job?query&info.pipeline=AppService&limit=$count&offset=$offset&state=suspend&info.name=GenomeAnnotation";
     print STDERR "Query tasks: $q\n";
     my ($res, $error) = $awe->GET($q);
     my @jobs;
