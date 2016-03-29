@@ -1,0 +1,12 @@
+{
+    "genome_ids": [
+        "83332.115",
+        "911237.3"
+    ],
+    "reference_genome_index": 1,
+    "min_seq_cov": 0.3,
+    "max_e_val": "1e-5",
+    "min_ident": 0.95,
+    "output_path": "/fangfang@patricbrc.org/home/test",
+    "output_file": "gencomp4"
+}

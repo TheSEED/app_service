@@ -1,0 +1,12 @@
+{
+    "genome_ids": [
+        "911237.3"
+    ],
+    "user_genomes": [ "/fangfang@patricbrc.org/home/test/83332.115.partial.faa" ],
+    "reference_genome_index": 2,
+    "min_seq_cov": 0.3,
+    "max_e_val": "1e-5",
+    "min_ident": 0.50,
+    "output_path": "/fangfang@patricbrc.org/home/test",
+    "output_file": "gencomp5"
+}

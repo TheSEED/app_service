@@ -32,6 +32,7 @@ sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
 
     print "Proc RNASeq ", Dumper($app_def, $raw_params, $params);
+    my $time1 = `date`;
 
     $global_token = $app->token();
     $global_ws = $app->workspace;
@@ -41,11 +42,10 @@ sub process_rnaseq {
 
     my $recipe = $params->{recipe};
 
-    my $tmpdir = File::Temp->newdir();
-    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
-    # my $tmpdir = "/tmp/nxmyAFcE2a";
-    # my $tmpdir = "/tmp/ZKLUBOtpuf";
-    # my $tmpdir = "/tmp/_jfhupHJs8";
+    # my $tmpdir = File::Temp->newdir();
+    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    # my $tmpdir = "/tmp/RNApubref";
+    # my $tmpdir = "/tmp/RNAuser";
     system("chmod 755 $tmpdir");
     print STDERR "$tmpdir\n";
     $params = localize_params($tmpdir, $params);
@@ -77,6 +77,8 @@ sub process_rnaseq {
 	}
     }
 
+    my $time2 = `date`;
+    write_output("Start: $time1"."End:   $time2", "$tmpdir/DONE");
 }
 
 sub run_rna_rocket {
@@ -345,12 +347,13 @@ sub prepare_ref_data {
         my $ent = $hash{$ctg};
         my $cds = $ent->{cds};
         my $rna = $ent->{rna};
+        my $desc = $ent->{description} || join(" ", $ent->{genome_name}, $ent->{accession});
 
         # Rockhopper only parses FASTA header of the form: >xxx|xxx|xxx|xxx|ID|
-        my $fna = join("\n", ">genome|$gid|accn|$ctg|   $ent->{description}   [$ent->{genome_name}]",
+        my $fna = join("\n", ">genome|$gid|accn|$ctg|   $desc   [$ent->{genome_name}]",
                        uc($ent->{sequence}) =~ m/.{1,60}/g)."\n";
 
-        my $ptt = join("\n", "$ent->{description} - 1..$ent->{length}",
+        my $ptt = join("\n", "$desc - 1..$ent->{length}",
                              scalar@{$ent->{cds}}.' proteins',
                              join("\t", qw(Location Strand Length PID Gene Synonym Code FIGfam Product)),
                              map { join("\t", $_->{start}."..".$_->{end},
@@ -365,9 +368,9 @@ sub prepare_ref_data {
                                               $_->{figfam_id},
                                               $_->{product})
                                             } @$cds
-                      ) if $cds && @$cds;
+                      )."\n" if $cds && @$cds;
 
-        my $rnt = join("\n", "$ent->{description} - 1..$ent->{length}",
+        my $rnt = join("\n", "$desc - 1..$ent->{length}",
                              scalar@{$ent->{rna}}.' RNAs',
                              join("\t", qw(Location Strand Length PID Gene Synonym Code FIGfam Product)),
                              map { join("\t", $_->{start}."..".$_->{end},
@@ -382,7 +385,7 @@ sub prepare_ref_data {
                                               $_->{figfam_id},
                                               $_->{product})
                                             } @$rna
-                      ) if $rna && @$rna;
+                      )."\n" if $rna && @$rna;
 
         write_output($fna, "$dir/$ctg.fna");
         write_output($ptt, "$dir/$ctg.ptt") if $ptt;

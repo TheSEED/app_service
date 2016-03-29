@@ -1,0 +1,18 @@
+{
+    "genome_ids": [
+        "911237.3",
+	"83332.12"
+    ],
+    "user_genomes": [
+        "/fangfang@patricbrc.org/home/test/83332.115.partial.faa"
+    ],
+    "user_feature_groups": [
+        "/fangfang@patricbrc.org/home/Feature Groups/comp test"
+    ],
+    "reference_genome_index": 3,
+    "min_seq_cov": 0.3,
+    "max_e_val": "1e-5",
+    "min_ident": 0.30,
+    "output_path": "/fangfang@patricbrc.org/home/test",
+    "output_file": "gencomp7"
+}

@@ -85,14 +85,44 @@
     },
     {
       "id": "recipe",
-      "label": "RNAseq recipe",
+      "label": "Variation recipe",
       "required": 0,
-      "default": "RNA-Rocket",
-      "desc": "Recipe used for RNAseq analysis",
+      "default": "BWA-mem",
+      "desc": "Recipe used for variation analysis",
       "type": "enum",
       "enum": [
-        "RNA-Rocket",
-        "Rockhopper"
+        "BWA-mem",
+        "BWA-mem-strict",
+        "Bowtie2",
+        "MOSAIK",
+        "LAST"
+      ]
+    },
+    {
+      "id": "mapper",
+      "label": "Short read mapper",
+      "required": 0,
+      "default": "BWA-mem",
+      "desc": "Tool used for mapping short reads against the reference genome",
+      "type": "enum",
+      "enum": [
+        "BWA-mem",
+        "BWA-mem-strict",
+        "Bowtie2",
+        "MOSAIK",
+        "LAST"
+      ]
+    },
+    {
+      "id": "caller",
+      "label": "SNP caller",
+      "required": 0,
+      "default": "FreeBayes",
+      "desc": "Tool used for calling variations based on short read mapping",
+      "type": "enum",
+      "enum": [
+        "FreeBayes",
+        "SAMtools"
       ]
     },
     {
