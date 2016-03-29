@@ -11,6 +11,7 @@ use File::Basename;
 use IPC::Run 'run';
 use JSON;
 use Storable;
+use URI::Escape;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -49,17 +50,16 @@ sub process_proteomes {
     my $output_base = $params->{output_file};
 
     # my $tmpdir = File::Temp->newdir();
-    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
-    my $tmpdir = "/tmp/9nGp1LR4k3";
+    # my $tmpdir = "/tmp/9nGp1LR4k3";
     print STDERR "tmpdir = $tmpdir\n";
 
-    my @genomes = get_genome_faa($tmpdir, $params);
-    print STDERR '\@genomes = ', Dumper(\@genomes);
+    my ($genomes, $tracks) = get_genome_faa($tmpdir, $params);
 
-    my $ref_type = get_ref_type($params);
+    my ($ref_type, $ref_name) = get_ref_type($params);
 
-    my @outputs = run_find_bdbh($tmpdir, \@genomes, $ref_type, $params);
+    my @outputs = run_find_bdbh($tmpdir, $genomes, $tracks, $ref_type, $ref_name, $params);
 
     for (@outputs) {
 	my ($ofile, $type) = @$_;
@@ -79,9 +79,9 @@ sub process_proteomes {
 }
 
 sub run_find_bdbh {
-    my ($tmpdir, $genomes, $ref_type, $params) = @_;
+    my ($tmpdir, $genomes, $tracks, $ref_type, $ref_name, $params) = @_;
 
-    my $feaH = get_feature_hash($params->{genome_ids});
+    my $feaH = get_feature_hash($params); # from genome_ids and user_feature_groups
 
     my $nproc = 1;
     # my $nproc = get_num_procs();
@@ -140,7 +140,7 @@ sub run_find_bdbh {
                                    # ref_genome_end       => $pos + $len * 3 };
                     # $pos += $len * 3 + 100;
                     push @user_ref_contigs, [ $unknown_contig, $id, $len*3+3 ];
-                } else {
+                } else {        # genome_id or user_feature_group
                     my $id_num = patric_id_to_number($id);
                     $hits{$id} = { ref_genome_patric_id => $id,
                                    ref_genome_gene      => $id_num,
@@ -207,8 +207,10 @@ sub run_find_bdbh {
         push @circos_comps, \@circos_org;
     }
 
+    print "REF_TYPE = $ref_type\n";
     my $contigs = $ref_type eq 'user_genome' ? \@user_ref_contigs :
-                                               get_genome_contigs($ref);
+                  $ref_type eq 'genome_id' ?    get_genome_contigs($ref) :
+                                                get_feature_group_contigs($ref_name);
 
     my @outputs;
 
@@ -275,7 +277,7 @@ sub run_find_bdbh {
     push @outputs, [ $ofile, 'txt' ];
 
     my $final = color_legend()."\n";
-    $final .= track_legend($genomes);
+    $final .= track_legend($tracks);
 
     my $conf = prepare_circos_configs($circos_dir, $circos_opts);
     my @cmd = ($circos, '-conf', $conf, '-outputdir', $circos_dir);
@@ -341,27 +343,44 @@ sub get_num_procs {
 sub get_ref_type {
     my ($params) = @_;
     my $index = $params->{reference_genome_index};
-    my $type = ($index <= @{$params->{genome_ids}}) ? 'genome_id' :
-               ($index <= @{$params->{genome_ids}} + @{$params->{user_genomes}}) ? 'user_genome' : 'user_feature_group';
-    return $type;
+    my $n1 = @{$params->{genome_ids}};
+    my $n2 = @{$params->{user_genomes}};
+    my $type = ($index <= $n1) ?       'genome_id'   :
+               ($index <= $n1 + $n2) ? 'user_genome' :
+                                       'user_feature_group';
+
+    my $name = $params->{user_feature_groups}->[$index - $n1 - $n2 - 1] if $type eq 'user_feature_group';
+    return ($type, $name);
 }
 
 sub get_genome_faa {
     my ($tmpdir, $params) = @_;
     my @genomes;
+    my @tracks;
     for (@{$params->{genome_ids}}) {
         push @genomes, get_patric_genome_faa_seed($tmpdir, $_);
+        push @tracks, get_patric_genome_name($_)." ($_)";
     }
     for (@{$params->{user_genomes}}) {
-        push @genomes, get_ws_file($tmpdir, $_);
+        my $fname = get_ws_file($tmpdir, $_);
+        my $basename = basename($fname);
+        push @genomes, $fname;
+        push @tracks, "$basename (user fasta)";
+    }
+    for (@{$params->{user_feature_groups}}) {
+        push @genomes, get_feature_group_faa($tmpdir, $_);
+        my $group = $_; $group =~ s/.*\///;
+        push @tracks, "$group (feature group)";
     }
     my $ref_i = $params->{reference_genome_index} - 1;
     if ($ref_i) {
-        my $tmp = $genomes[0];
-        $genomes[0] = $genomes[$ref_i];
-        $genomes[$ref_i] = $tmp;
+        my $tmp = $genomes[0]; $genomes[0] = $genomes[$ref_i]; $genomes[$ref_i] = $tmp;
+        my $tmp = $tracks[0]; $tracks[0] = $tracks[$ref_i]; $tracks[$ref_i] = $tmp;
     }
-    return @genomes;
+    # print STDERR '\@genomes = '. Dumper(\@genomes);
+    # print STDERR '\@tracks = '. Dumper(\@tracks);
+
+    return (\@genomes, \@tracks);
 }
 
 sub get_patric_genome_name {
@@ -398,18 +417,54 @@ sub get_patric_genome_faa {
     return $out;
 }
 
+sub get_feature_group_faa {
+    my ($outdir, $group) = @_;
+    my $escaped = uri_escape($group);
+    my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,product,aa_sequence,genome_name,genome_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+    my $data = curl_json($url);
+    # print STDERR Dumper($data);
+    my $fg_name = $group; $fg_name =~ s/.*\///; $fg_name =~ s/\W+/\_/g;
+    my $ofile = "$outdir/$fg_name.faa";
+    open(FAA, ">$ofile") or die "Could not open $ofile";
+    for (@$data) {
+        print FAA ">$_->{patric_id}   $_->{product}   [$_->{genome_name} | $_->{genome_id}]\n";
+        print FAA "$_->{aa_sequence}\n";
+    }
+    close(FAA);
+    return $ofile;
+}
+
 sub get_feature_hash {
-    my ($gids) = @_;
+    my ($params) = @_;
     my %hash;
+    add_feature_hash_with_genome_ids(\%hash, $params->{genome_ids});
+    add_feature_hash_with_user_feature_groups(\%hash, $params->{user_feature_groups});
+    return \%hash;
+}
+
+sub add_feature_hash_with_genome_ids {
+    my ($hash, $gids) = @_;
     for my $gid (@$gids) {
         my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
         my $json = curl_json($url);
         for my $fea (@$json) {
             my $id = $fea->{patric_id};
-            $hash{$id} = $fea;
+            $hash->{$id} = $fea;
         }
     }
-    return \%hash;
+}
+
+sub add_feature_hash_with_user_feature_groups {
+    my ($hash, $groups) = @_;
+    for my $group (@$groups) {
+        my $escaped = uri_escape($group);
+        my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+        my $json = curl_json($url);
+        for my $fea (@$json) {
+            my $id = $fea->{patric_id};
+            $hash->{$id} = $fea;
+        }
+    }
 }
 
 sub get_genome_contigs {
@@ -418,6 +473,25 @@ sub get_genome_contigs {
     my $url = "$data_api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
     my $json = curl_json($url);
     my @contigs = map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } @$json;
+    return \@contigs;
+}
+
+sub get_feature_group_contigs {
+    my ($group) = @_;
+    my $escaped = uri_escape($group);
+    my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(genome_id,accession)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+    my $data = curl_json($url);
+    my (%gids, %accs);
+    for (@$data) {
+        $gids{$_->{genome_id}}++;
+        $accs{$_->{accession}}++;
+    }
+    my @contigs;
+    for my $gid (keys %gids) {
+        my $url = "$data_api/genome_sequence/?eq(genome_id,$gid)&select(genome_name,accession,length)&sort(+accession)&http_accept=application/json&limit(25000)";
+        my $json = curl_json($url);
+        push @contigs, map { [ $_->{accession}, $_->{genome_name}, $_->{length} ] } grep { $accs{$_->{accession}} } @$json;
+    }
     return \@contigs;
 }
 
@@ -966,13 +1040,10 @@ sub color_legend {
 }
 
 sub track_legend {
-    my ($genomes) = @_;
+    my ($tracks) = @_;
 
     my @html = ("</br>List of tracks, from outside to inside:</br>", '<ol type="1">');
-    for (@$genomes) {
-        my $item = filename_to_genome_name_with_id($_);
-        push @html, "  <li>$item</li>";
-    }
+    push @html, "  <li>$_</li>" for @$tracks;
     push @html, "</ol>";
     return join("\n", @html)."\n";
 }

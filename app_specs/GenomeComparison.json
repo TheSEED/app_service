@@ -23,6 +23,16 @@
 	    "wstype": "feature_protein_fasta",
 	    "type":"wstype"
         },
+         {
+            "id": "user_feature_groups",
+            "allow_multiple": true,
+            "required": 0,
+            "default": null,
+            "label": "User feature groups",
+            "desc": "User feature groups",
+            "wstype": "feature_group",
+            "type":"wstype"
+        },
         {
             "id": "reference_genome_index",
 	    "required": 0,
