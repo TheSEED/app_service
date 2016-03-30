@@ -5,8 +5,9 @@
   "description": "Identify and annotate small nucleotide variations relative to a reference genome",
   "parameters": [
     {
-      "id": "reference_genome",
-      "label": "Reference genome",
+      "id": "reference_genome_id",
+      "label": "Reference genome ID",
+      "desc": "Reference genome ID",
       "allow_multiple": false,
       "required": 1,
       "default": null,
