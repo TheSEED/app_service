@@ -41,7 +41,7 @@ sub process_variation_data {
     # my $tmpdir = "/disks/tmp/var_debug";
     $params = localize_params($tmpdir, $params);
 
-    my $ref_id = $params->{reference_genome} or die "Reference genome is required for variation analysis\n";
+    my $ref_id = $params->{reference_genome_id} or die "Reference genome is required for variation analysis\n";
 
     prepare_ref_data($ref_id, $tmpdir);
 
