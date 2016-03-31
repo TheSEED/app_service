@@ -228,7 +228,7 @@ sub run_find_bdbh {
     my $name_hash = { ref_genome => filename_to_genome_name($genomes->[0]) };
     for (my $i = 1; $i <= @orgs; $i++) {
         $name_hash->{"comp_genome_$i"} = filename_to_genome_name($orgs[$i-1]);
-        $is_user_genome{$i} = is_faa_user_genome($orgs[$i-1]);
+        $is_user_genome{$i} = 1 if $tracks->[$i] =~ /user fasta/;
     }
     my @json_rows = map { $hits{$_} } @fids;
     my $dump = { genome_names => $name_hash, feature_matches => \@json_rows };
