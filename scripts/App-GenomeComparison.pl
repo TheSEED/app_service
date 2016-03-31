@@ -49,8 +49,8 @@ sub process_proteomes {
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
 
-    # my $tmpdir = File::Temp->newdir();
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
     # my $tmpdir = "/tmp/9nGp1LR4k3";
     print STDERR "tmpdir = $tmpdir\n";
@@ -83,7 +83,7 @@ sub run_find_bdbh {
 
     my $feaH = get_feature_hash($params); # from genome_ids and user_feature_groups
 
-    my $nproc = 1;
+    my $nproc = 2;
     # my $nproc = get_num_procs();
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
@@ -131,15 +131,22 @@ sub run_find_bdbh {
             for (@$log1) {
                 my ($id, $len) = @$_;
                 if ($ref_type eq 'user_genome') {
-                    my $unknown_contig = $user_ref_contig_name . ++$user_ref_contig_num;
+                    # option 1: user seqs on separate contigs
+                    # my $unknown_contig = $user_ref_contig_name . ++$user_ref_contig_num;
+                    # option 2: line up user seqs with 30bp gaps in a single artificial contig
+                    my $unknown_contig = $user_ref_contig_name;
                     $hits{$id} = { ref_genome_patric_id => $id,
                                    ref_genome_contig    => $unknown_contig,
-                                   ref_genome_start     => 1,
-                                   ref_genome_end       => $len*3 + 3};
-                                   # ref_genome_start     => $pos + 1,
-                                   # ref_genome_end       => $pos + $len * 3 };
-                    # $pos += $len * 3 + 100;
-                    push @user_ref_contigs, [ $unknown_contig, $id, $len*3+3 ];
+                                   # option 1:
+                                   # ref_genome_start     => 1,
+                                   # ref_genome_end       => $len*3 + 3 };
+                                   # option 2:
+                                   ref_genome_start     => $user_ref_contig_len + 1,
+                                   ref_genome_end       => $user_ref_contig_len + $len*3 + 3 };
+                    # option 1:
+                    # push @user_ref_contigs, [ $unknown_contig, $id, $len*3+3 ];
+                    # option 2:
+                    $user_ref_contig_len += $len*3 + 3 + 60;
                 } else {        # genome_id or user_feature_group
                     my $id_num = patric_id_to_number($id);
                     $hits{$id} = { ref_genome_patric_id => $id,
@@ -154,14 +161,13 @@ sub run_find_bdbh {
                                    ref_genome_strand    => $feaH->{$id}->{strand} };
                 }
 
-                # push @$circos_ref, [ $feaH->{$id}->{accession},
-                #                      $feaH->{$id}->{start},
-                #                      $feaH->{$id}->{end}, "id=$id" ];
                 push @$circos_ref, [ $hits{$id}->{ref_genome_contig},
                                      $hits{$id}->{ref_genome_start},
                                      $hits{$id}->{ref_genome_end},
                                      "id=$id" ];
             }
+            # option 2:
+            @user_ref_contigs = [ $user_ref_contig_name, 'USER_FASTA', $user_ref_contig_len ];
         }
 
         my @circos_org;
@@ -193,11 +199,7 @@ sub run_find_bdbh {
 
             my $score = sprintf("%.2f", $fract_id * 100);
             $score = -$score if $hit_type eq 'uni'; # use negative score to invoke color rules for unidirectional best hit
-            # push @circos_org, [ $feaH->{$id}->{accession},
-            #                     $feaH->{$id}->{start},
-            #                     $feaH->{$id}->{end},
-            #                     $score,
-            #                     "id=$s_id" ];
+
             push @circos_org, [ $hits{$id}->{ref_genome_contig},
                                 $hits{$id}->{ref_genome_start},
                                 $hits{$id}->{ref_genome_end},
