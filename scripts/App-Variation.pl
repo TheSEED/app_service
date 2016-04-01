@@ -35,13 +35,14 @@ sub process_variation_data {
 
     my $output_folder = $app->result_folder();
 
-    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/oIGe_LLBbt";
     # my $tmpdir = "/disks/tmp/oIGe_LLBbt";
     # my $tmpdir = "/disks/tmp/var_debug";
     $params = localize_params($tmpdir, $params);
 
-    my $ref_id = $params->{reference_genome} or die "Reference genome is required for variation analysis\n";
+    my $ref_id = $params->{reference_genome_id} or die "Reference genome is required for variation analysis\n";
 
     prepare_ref_data($ref_id, $tmpdir);
 
@@ -53,6 +54,7 @@ sub process_variation_data {
     my @basecmd = ($map);
     push @basecmd, ("-a", $mapper);
     push @basecmd, ("--vc", $caller);
+    push @basecmd, ("--threads", 2);
     push @basecmd, "$tmpdir/$ref_id/$ref_id.fna";
 
     my $lib_txt = "$tmpdir/libs.txt";
