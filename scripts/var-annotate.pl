@@ -120,15 +120,17 @@ sub vcf_to_snps {
             my $size = $end - $beg + 1;
             my $alt_dna = $alt; $alt_dna = rev_comp($alt_dna) if $strand eq '-';
 
-            my $beg_delta = $strand eq '+' ? ($p-$beg-1) : ($p-$beg-length($ref));
-            $nt1 = substr($dna, $beg, $size);
-            $nt2 = $nt1; substr($nt2, $beg_delta, length($ref)) = $alt_dna;
-            $aa1 = translate($nt1, undef, 0);
-            $aa2 = translate($nt2, undef, 0);
-            if (length($alt) == length($ref)) {
-                $type = $aa1 eq $aa2 ? 'Synon' : 'Nonsyn';
-            } else {
-                $frameshift = 'yes' if (length($alt) - length($ref)) % 3;
+            if ($gene->[0] =~ /peg/) {
+                my $beg_delta = $strand eq '+' ? ($p-$beg-1) : ($p-$beg-length($ref));
+                $nt1 = substr($dna, $beg, $size);
+                $nt2 = $nt1; substr($nt2, $beg_delta, length($ref)) = $alt_dna;
+                $aa1 = translate($nt1, undef, 0);
+                $aa2 = translate($nt2, undef, 0);
+                if (length($alt) == length($ref)) {
+                    $type = $aa1 eq $aa2 ? 'Synon' : 'Nonsyn';
+                } else {
+                    $frameshift = 'yes' if (length($alt) - length($ref)) % 3;
+                }
             }
             # print STDERR '$gene = '. Dumper($gene);
 
@@ -264,7 +266,7 @@ sub feature_info_for_position {
     $left = $features->{$ctg}->[$index] if defined($index) && $index >= 0;
 
     my @cover;
-    for (my $i = $index + 1; $i < @{$features->{$ctg}}; $i++) {
+    for (my $i = $index + 1; $features->{$ctg} && $i < @{$features->{$ctg}}; $i++) {
         my $fea = $features->{$ctg}->[$i];
         my ($lo, $hi) = @{$fea}[3, 4];
         my $overlap = $lo <= $pos && $pos <= $hi;
