@@ -387,7 +387,8 @@ sub get_genome_faa {
 
 sub get_patric_genome_name {
     my ($gid) = @_;
-    my $url = "$data_api/genome/?eq(genome_id,$gid)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
+    my $escaped = uri_escape($gid);
+    my $url = "$data_api/genome/?eq(genome_id,$escaped)&select(genome_id,genome_name)&http_accept=application/json&limit(25000)";
     my $out = curl_text($url);
     my $name;
     if ($out) {
