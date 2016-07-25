@@ -106,7 +106,7 @@ sub process_variation_data {
     push @outputs, map { [ $_, 'vcf' ] } glob("$tmpdir/*.vcf");
     push @outputs, map { [ $_, 'html'] } glob("$tmpdir/*.html");
     push @outputs, map { [ $_, 'bam' ] } glob("$tmpdir/*.bam");
-    # push @outputs, map { [ $_, 'undefined' ] } glob("$tmpdir/*.tbi");
+    push @outputs, map { [ $_, 'unspecified' ] } glob("$tmpdir/*.tbi");
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
     # return @outputs;
