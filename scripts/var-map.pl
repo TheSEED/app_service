@@ -126,72 +126,72 @@ sub compute_stats {
 
 sub map_with_bwa_mem {
     verify_cmd(qw(bwa samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read_1.fq"      or run("ln -s $read1 read_1.fq");
-    -s "read_2.fq"      or run("ln -s $read2 read_2.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read_1.fq"      or run("ln -s -f $read1 read_1.fq");
+    -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "ref.fa.bwt"     or run("bwa index ref.fa");
     -s "aln-pe.sam"     or run("bwa mem -t $nthread ref.fa read_1.fq read_2.fq > aln-pe.sam 2>mem.log");
-    -s "aln.raw.sam"    or run("ln -s aln-pe.sam aln.raw.sam");
+    -s "aln.raw.sam"    or run("ln -s -f aln-pe.sam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -f 0x2 -bS aln.raw.sam > aln.keep.bam"); # keep only properly paired reads
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
   # -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread aln.keep.bam aln.sorted"); # v1.1
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
-  # -s "aln.bam"        or run("ln -s aln.sorted.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
+  # -s "aln.bam"        or run("ln -s -f aln.sorted.bam aln.bam");
   # -s "aln.bam.bai"    or run("samtools index aln.bam"); # v1.1
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_bwa_mem_se {
     verify_cmd(qw(bwa samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read.fq"        or run("ln -s $read1 read.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read.fq"        or run("ln -s -f $read1 read.fq");
     -s "ref.fa.bwt"     or run("bwa index ref.fa");
     -s "aln-se.sam"     or run("bwa mem -t $nthread ref.fa read.fq > aln-se.sam 2>mem.log");
-    -s "aln.raw.sam"    or run("ln -s aln-se.sam aln.raw.sam");
+    -s "aln.raw.sam"    or run("ln -s -f aln-se.sam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -bS aln.raw.sam > aln.keep.bam");
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_bwa_mem_strict {
     verify_cmd(qw(bwa samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read_1.fq"      or run("ln -s $read1 read_1.fq");
-    -s "read_2.fq"      or run("ln -s $read2 read_2.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read_1.fq"      or run("ln -s -f $read1 read_1.fq");
+    -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "ref.fa.bwt"     or run("bwa index ref.fa");
     -s "aln-pe.sam"     or run("bwa mem -B9 -O16 -E1 -L5 -t $nthread ref.fa read_1.fq read_2.fq > aln-pe.sam 2>mem.log");
-    -s "aln.raw.sam"    or run("ln -s aln-pe.sam aln.raw.sam");
+    -s "aln.raw.sam"    or run("ln -s -f aln-pe.sam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -f 0x2 -q 10 -bS aln.raw.sam > aln.keep.bam"); # keep only properly paired reads
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_bwa_mem_strict_se {
     verify_cmd(qw(bwa samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read.fq"        or run("ln -s $read1 read.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read.fq"        or run("ln -s -f $read1 read.fq");
     -s "ref.fa.bwt"     or run("bwa index ref.fa");
     -s "aln-se.sam"     or run("bwa mem -B9 -O16 -E1 -L5 -t $nthread ref.fa read.fq > aln-se.sam 2>mem.log");
-    -s "aln.raw.sam"    or run("ln -s aln-se.sam aln.raw.sam");
+    -s "aln.raw.sam"    or run("ln -s -f aln-se.sam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -bS -q 10 aln.raw.sam > aln.keep.bam");
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_bowtie2 {
     verify_cmd(qw(bowtie2-build bowtie2 samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
     -s "read_1.fq"      or run("ln -s -f $read1 read_1.fq");
     -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "ref.1.bt2"      or run("bowtie2-build ref.fa ref");
@@ -200,21 +200,21 @@ sub map_with_bowtie2 {
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_bowtie2_se {
     verify_cmd(qw(bowtie2-build bowtie2 samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read.fq"        or run("ln -s $read1 read.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read.fq"        or run("ln -s -f $read1 read.fq");
     -s "ref.1.bt2"      or run("bowtie2-build ref.fa ref");
     -s "aln.raw.sam"    or run("bowtie2 -p $nthread -x ref -U $read1 -S aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -bS -q 10 aln.raw.sam > aln.keep.bam");
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
@@ -223,20 +223,20 @@ sub map_with_mosaik {
     verify_cmd(qw(MosaikBuild MosaikAligner samtools));
     my $bin_dir = dirname(which('MosaikAligner'));
     verify_file("$bin_dir/2.1.78.se.ann", "$bin_dir/2.1.78.pe.ann");
-    -s "se.ann"         or run("ln -s $bin_dir/2.1.78.se.ann se.ann");
-    -s "pe.ann"         or run("ln -s $bin_dir/2.1.78.pe.ann pe.ann");
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read_1.fq"      or run("ln -s $read1 read_1.fq");
-    -s "read_2.fq"      or run("ln -s $read2 read_2.fq");
+    -s "se.ann"         or run("ln -s -f $bin_dir/2.1.78.se.ann se.ann");
+    -s "pe.ann"         or run("ln -s -f $bin_dir/2.1.78.pe.ann pe.ann");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read_1.fq"      or run("ln -s -f $read1 read_1.fq");
+    -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "ref.dat"        or run("MosaikBuild -fr ref.fa -oa ref.dat");
     -s "reads.mkb"      or run("MosaikBuild -q read_1.fq -q2 read_2.fq -out reads.mkb -st illumina -mfl 500");
     -s "reads.mka.bam"  or run("MosaikAligner -in reads.mkb -out reads.mka -ia ref.dat -p $nthread -annpe pe.ann -annse se.ann");
-    -s "aln.raw.sam"    or run("ln -s reads.mka.bam aln.raw.sam");
+    -s "aln.raw.sam"    or run("ln -s -f reads.mka.bam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -f 0x2 -bS reads.mka.bam > aln.keep.bam"); # keep only properly paired reads
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS reads.mka.bam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
@@ -244,27 +244,27 @@ sub map_with_mosaik_se {
     verify_cmd(qw(MosaikBuild MosaikAligner samtools));
     my $bin_dir = dirname(which('MosaikAligner'));
     verify_file("$bin_dir/2.1.78.se.ann", "$bin_dir/2.1.78.pe.ann");
-    -s "se.ann"         or run("ln -s $bin_dir/2.1.78.se.ann se.ann");
-    -s "pe.ann"         or run("ln -s $bin_dir/2.1.78.pe.ann pe.ann");
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read.fq"        or run("ln -s $read1 read.fq");
+    -s "se.ann"         or run("ln -s -f $bin_dir/2.1.78.se.ann se.ann");
+    -s "pe.ann"         or run("ln -s -f $bin_dir/2.1.78.pe.ann pe.ann");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read.fq"        or run("ln -s -f $read1 read.fq");
     -s "ref.dat"        or run("MosaikBuild -fr ref.fa -oa ref.dat");
     -s "reads.mkb"      or run("MosaikBuild -q read.fq -out reads.mkb -st illumina");
     -s "reads.mka.bam"  or run("MosaikAligner -in reads.mkb -out reads.mka -ia ref.dat -p $nthread -annpe pe.ann -annse se.ann");
-    -s "aln.raw.sam"    or run("ln -s reads.mka.bam aln.raw.sam");
-    -s "aln.keep.bam"   or run("ln -s reads.mka.bam aln.keep.bam");
+    -s "aln.raw.sam"    or run("ln -s -f reads.mka.bam aln.raw.sam");
+    -s "aln.keep.bam"   or run("ln -s -f reads.mka.bam aln.keep.bam");
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS reads.mka.bam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_last {
     verify_cmd(qw(lastdb lastal parallel-fastq last-pair-probs maf-convert samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read_1.fq"      or run("ln -s $read1 read_1.fq");
-    -s "read_2.fq"      or run("ln -s $read2 read_2.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read_1.fq"      or run("ln -s -f $read1 read_1.fq");
+    -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "index.suf"      or run("lastdb -m1111110 index ref.fa");
     -s "out1.maf"       or run("parallel-fastq -j $nthread -k 'lastal -Q1 -d108 -e120 -i1 index' < read_1.fq > out1.maf");
     -s "out2.maf"       or run("parallel-fastq -j $nthread -k 'lastal -Q1 -d108 -e120 -i1 index' < read_2.fq > out2.maf");
@@ -278,18 +278,18 @@ sub map_with_last {
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
 sub map_with_last_se {
     verify_cmd(qw(lastdb parallel-fastq last-pair-probs samtools));
-    -s "ref.fa"         or run("ln -s $ref ref.fa");
-    -s "read_1.fq"      or run("ln -s $read1 read.fq");
+    -s "ref.fa"         or run("ln -s -f $ref ref.fa");
+    -s "read_1.fq"      or run("ln -s -f $read1 read.fq");
     -s "index.suf"      or run("lastdb -m1111110 index ref.fa");
     -s "out.maf"        or run("parallel-fastq -j $nthread -k 'lastal -Q1 -d108 -e120 -i1 index' < read.fq > out.maf");
   # -s "out.maf"        or run("lastal -Q1 -d108 -e120 -i1 index read.fq > out.maf"); # sequential
-    -s "aln-se.maf"     or run("ln -s out.maf aln-se.maf");
+    -s "aln-se.maf"     or run("ln -s -f out.maf aln-se.maf");
     -s "ref.fa.fai"     or run("samtools faidx ref.fa");
     -s "sam.header"     or run("awk '{ print \"\@SQ\\tSN:\"\$1\"\\tLN:\"\$2 }' ref.fa.fai > sam.header");
     -s "aln.raw.sam"    or run("bash -c 'cat sam.header <(maf-convert sam aln-se.maf) > aln.raw.sam'");
@@ -297,7 +297,7 @@ sub map_with_last_se {
     -s "unmapped.bam"   or run("samtools view -@ $nthread -f 4 -bS aln.raw.sam > unmapped.bam");
     -s "aln.sorted.bam" or run("samtools sort -m $memory -@ $nthread -o aln.sorted.bam aln.keep.bam");
     -s "aln.dedup.bam"  or run("samtools rmdup aln.sorted.bam aln.dedup.bam");  # rmdup broken in samtools v1.0 and v1.1
-    -s "aln.bam"        or run("ln -s aln.dedup.bam aln.bam");
+    -s "aln.bam"        or run("ln -s -f aln.dedup.bam aln.bam");
     -s "aln.bam.bai"    or run("samtools index aln.bam aln.bam.bai");
 }
 
