@@ -17,6 +17,7 @@ use Bio::KBase::AuthToken;
 
 my $script_dir = abs_path(dirname(__FILE__));
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
+# my $data_url = "https://www.patricbrc.org/api";
 my $script = Bio::KBase::AppService::AppScript->new(\&process_variation_data);
 my $rc = $script->run(\@ARGV);
 exit $rc;
@@ -44,7 +45,7 @@ sub process_variation_data {
 
     my $ref_id = $params->{reference_genome_id} or die "Reference genome is required for variation analysis\n";
 
-    prepare_ref_data($ref_id, $tmpdir);
+    my $has_gbk = prepare_ref_data($ref_id, $tmpdir);
 
     my $mapper = $params->{recipe} || $params->{mapper} || 'bwa_mem';
     my $caller = $params->{caller} || 'freebayes';
@@ -55,6 +56,7 @@ sub process_variation_data {
     push @basecmd, ("-a", $mapper);
     push @basecmd, ("--vc", $caller);
     push @basecmd, ("--threads", 2);
+    # push @basecmd, ("--threads", 16);
     push @basecmd, "$tmpdir/$ref_id/$ref_id.fna";
 
     my $lib_txt = "$tmpdir/libs.txt";
@@ -85,12 +87,14 @@ sub process_variation_data {
     close(LIBS);
 
     for (@libs) {
-        run_snpeff($tmpdir, $ref_id, $_);
+        run_snpeff($tmpdir, $ref_id, $_) if $has_gbk;
         run_var_annotate($tmpdir, $ref_id, $_);
-        link_snpeff_annotate($tmpdir, $ref_id, $_);
+        link_snpeff_annotate($tmpdir, $ref_id, $_) if $has_gbk;
         system("ln -s $tmpdir/$_/aln.bam $tmpdir/$_.aln.bam") if -s "$tmpdir/$_/aln.bam";
         system("cp $tmpdir/$_/var.vcf $tmpdir/$_.var.vcf") if -s "$tmpdir/$_/var.vcf";
+        system("cp $tmpdir/$_/var.vcf.gz.tbi $tmpdir/$_.var.vcf.gz.tbi") if -s "$tmpdir/$_/var.vcf.gz.tbi";
         system("cp $tmpdir/$_/var.annotated.tsv $tmpdir/$_.var.annotated.tsv") if -s "$tmpdir/$_/var.annotated.tsv";
+        system("cp $tmpdir/$_/var.annotated.raw.tsv $tmpdir/$_.var.annotated.tsv") if ! -s "$tmpdir/$_/var.annotated.tsv" && -s "$tmpdir/$_/var.annotated.raw.tsv";
         system("cp $tmpdir/$_/var.snpEff.vcf $tmpdir/$_.var.snpEff.vcf") if -s "$tmpdir/$_/var.snpEff.vcf";
     }
 
@@ -102,6 +106,7 @@ sub process_variation_data {
     push @outputs, map { [ $_, 'vcf' ] } glob("$tmpdir/*.vcf");
     push @outputs, map { [ $_, 'html'] } glob("$tmpdir/*.html");
     push @outputs, map { [ $_, 'bam' ] } glob("$tmpdir/*.bam");
+    # push @outputs, map { [ $_, 'undefined' ] } glob("$tmpdir/*.tbi");
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
     # return @outputs;
@@ -208,7 +213,14 @@ sub link_snpeff_annotate {
 sub run_var_combine {
     my ($tmpdir, $libs) = @_;
     my $combine = "$script_dir/var-combine.pl"; verify_cmd($combine);
-    my $cmd = join(" ", map { -s "$tmpdir/$_/var.annotated.tsv" ? "$tmpdir/$_/var.annotated.tsv" : undef } @$libs);
+    my @files = map { -s "$tmpdir/$_/var.annotated.tsv" ? "$tmpdir/$_/var.annotated.tsv" :
+                      -s "$tmpdir/$_/var.annotated.raw.tsv" ? "$tmpdir/$_/var.annotated.raw.tsv" :
+                      undef } @$libs;
+    if (@files == 0) {
+        print STDERR "No var.annotated.[raw.]tsv files to combine\n";
+        return;
+    }
+    my $cmd = join(" ", @files);
     sysrun("cat $cmd | $combine --header > $tmpdir/all.var.tsv");
     sysrun("cat $cmd | $combine --html > $tmpdir/all.var.html");
 }
@@ -302,10 +314,12 @@ sub prepare_ref_data {
     # snpEff data
     $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gbf";
     $url = $ftp_url;
-    my $out = curl_text($url);
-    write_output($out, "$dir/genes.gbk");
+    # my $out = curl_text($url);
+    my $out = `curl $url`;
+    write_output($out, "$dir/genes.gbk") if $out;
+    my $has_gbk = $out ? 1 : 0;
 
-    return $dir;
+    return $has_gbk;
 }
 
 sub curl_text {
