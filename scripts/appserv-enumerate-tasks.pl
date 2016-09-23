@@ -26,16 +26,14 @@ while (1)
     
     $offset += $limit;
 
-    push(@tasks, @$tasks);
-}
+    for my $task (@$tasks)
+    {
+	print join("\t", $task->{id}, $task->{app}, $task->{workspace}, $task->{status}, $task->{submit_time}, $task->{completed_time}), "\n";
+    }
 
-if ($opt->verbose)
-{
-    print Dumper(\@tasks);
-}
-
-for my $task (@tasks)
-{
-    print join("\t", $task->{id}, $task->{app}, $task->{workspace}, $task->{status}, $task->{submit_time}, $task->{completed_time}), "\n";
+    if ($opt->verbose)
+    {
+	print Dumper($tasks);
+    }
 }
 
