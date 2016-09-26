@@ -15,7 +15,7 @@
 			    "id": "read1",
 			    "required": 1,
 			    "label": "Read file 1",
-			    "desc": "FASTQ or FASTA file or reads",
+			    "desc": "FASTQ or FASTA file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
@@ -23,9 +23,18 @@
 			    "id": "read2",
 			    "required": 0,
 			    "label": "Read file 2",
-			    "desc": "FASTQ or FASTA file or reads",
+			    "desc": "FASTQ or FASTA file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
+			},
+			{
+			    "id":"platform",
+			    "label":"Sequencing Platform",
+			    "required": 0,
+			    "default": "infer",
+			    "desc":"Sequencing platform used to generate the read library",
+			    "type":"enum",
+			    "enum": ["infer", "illumina", "pacbio", "nanopore"]
 			},
 			{
 			    "id": "interleaved",
@@ -59,13 +68,29 @@
 		},
 		{
 		    "id": "single_end_libs",
+		    "type": "group",
 		    "allow_multiple": true,
-         	    "label": "Read file",
 		    "required": 0,
 		    "default" : null,
-		    "wstype": "ReadFile",
-		    "type": "wstype",
-		    "desc": "FASTQ or FASTA file or reads"
+		    "group":[
+			{
+			    "id": "read",
+			    "required": 1,
+			    "label": "Read file",
+			    "desc": "FASTQ, FASTA or H5 file of reads",
+			    "wstype": "ReadFile",
+			    "type": "wstype"
+			},
+			{
+			    "id":"platform",
+			    "label":"Sequencing Platform",
+			    "required": 0,
+			    "default": "infer",
+			    "desc":"Sequencing platform used to generate the read library",
+			    "type":"enum",
+			    "enum": ["infer", "illumina", "pacbio", "nanopore"]
+			}
+		    ]
 		},
 		{
 			"id": "reference_assembly",
