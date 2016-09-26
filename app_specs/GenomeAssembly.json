@@ -119,6 +119,22 @@
 			"type":"string"
 		},
 		{
+			"id":"min_contig_len",
+			"label":"Minimal output contig length",
+			"required": 0,
+			"default": 300,
+			"desc": "Filter out short contigs in final assembly",
+			"type": "int"
+		},
+		{
+			"id":"min_contig_cov",
+			"label":"Minimal output contig coverage",
+			"required": 0,
+			"default": 5,
+			"desc": "Filter out contigs with low read depth in final assembly",
+			"type": "float"
+		},
+		{
 			"id":"output_path",
 			"label":"Output Folder",
 			"required": 1,
