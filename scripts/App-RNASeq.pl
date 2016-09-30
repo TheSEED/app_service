@@ -303,7 +303,7 @@ sub prepare_ref_data_rocket {
 
     if ($host){
         my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar";
-        my $out = curl_file($url,"$dir/$gid.RefSeq.ht2.tar");
+        my $out = curl_file($ftp_url,"$dir/$gid.RefSeq.ht2.tar");
     }
 
     my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
