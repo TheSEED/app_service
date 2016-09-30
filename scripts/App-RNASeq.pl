@@ -58,7 +58,7 @@ sub process_rnaseq {
     } elsif ($recipe eq 'Tuxedo' || $recipe eq 'RNA-Rocket') {
         @outputs = run_rna_rocket($params, $tmpdir, $host);
         $prefix = 'Tuxedo';
-    } elsif ($recipe eq 'Host' || $recipe eq 'RNA-Rocket') {
+    } elsif ($recipe eq 'Host') {
         $host = 1;
         @outputs = run_rna_rocket($params, $tmpdir, $host);
         $prefix = 'Host';
@@ -302,8 +302,8 @@ sub prepare_ref_data_rocket {
     system("mkdir -p $dir");
 
     if ($host){
-        my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar"
-        my $out = curl_file($url,"$dir/$gid.RefSeq.ht2.tar");
+        my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar";
+        my $out = curl_file($ftp_url,"$dir/$gid.RefSeq.ht2.tar");
     }
 
     my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
