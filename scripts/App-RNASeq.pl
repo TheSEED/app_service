@@ -302,27 +302,33 @@ sub prepare_ref_data_rocket {
     system("mkdir -p $dir");
 
     if ($host){
-        my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar";
-        my $out = curl_file($ftp_url,"$dir/$gid.RefSeq.ht2.tar");
+        my $tar_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar";
+        my $out = curl_file($tar_url,"$dir/$gid.RefSeq.ht2.tar");
+        my $fna_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.fna";
+        $out = curl_file($fna_url,"$dir/$gid.RefSeq.fna");
+        my $gff_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.gff";
+        $out = curl_file($gff_url,"$dir/$gid.RefSeq.gff");
     }
 
-    my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
-    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
+    else{
+        my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
+        my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
 
-    my $url = $api_url;
-    # my $url = $ftp_url;
-    my $out = curl_text($url);
-    write_output($out, "$dir/$gid.gff");
+        my $url = $api_url;
+        # my $url = $ftp_url;
+        my $out = curl_text($url);
+        write_output($out, "$dir/$gid.gff");
 
-    $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
-    $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
+        $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
+        $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
 
-    $url = $api_url;
-    # $url = $ftp_url;
-    my $out = curl_text($url);
-    # $out = break_fasta_lines($out."\n");
-    $out =~ s/\n+/\n/g;
-    write_output($out, "$dir/$gid.fna");
+        $url = $api_url;
+        # $url = $ftp_url;
+        my $out = curl_text($url);
+        # $out = break_fasta_lines($out."\n");
+        $out =~ s/\n+/\n/g;
+        write_output($out, "$dir/$gid.fna");
+    }
 
     return $dir;
 }

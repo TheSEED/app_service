@@ -111,7 +111,7 @@
             "default": "RNA-Rocket",
             "desc": "Recipe used for RNAseq analysis",
             "type": "enum",
-            "enum": ["RNA-Rocket", "Rockhopper"]
+            "enum": ["RNA-Rocket", "Rockhopper", "Host"]
         },
         {
             "id": "output_path",
