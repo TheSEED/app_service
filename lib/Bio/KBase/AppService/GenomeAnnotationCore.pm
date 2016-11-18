@@ -102,7 +102,7 @@ sub run_pipeline
 		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
 	      { name => 'call_features_crispr', failure_is_not_fatal => 1 },
 	      { name => 'call_features_CDS_prodigal' },
-	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {} },
+	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {}, failure_is_not_fatal => 1 },
 	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
 	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_hypothetical_only => 1 } },
 	      { name => 'annotate_proteins_similarity', similarity_parameters => { annotate_hypothetical_only => 1 } },
@@ -133,8 +133,11 @@ sub run_pipeline
 sub write_output
 {
     my($self, $genome, $result, $meta, $genbank_file, $public_flag, $queue_nowait, $no_index) = @_;
+
+    my $tmpdir = File::Temp->newdir(CLEANUP => 1);
+    print STDERR "Created tmpdir $tmpdir\n";
     
-    my $tmp_genome = File::Temp->new;
+    my $tmp_genome = File::Temp->new(DIR => $tmpdir->dirname);
     print $tmp_genome $self->json->encode($result);
     close($tmp_genome);
 
