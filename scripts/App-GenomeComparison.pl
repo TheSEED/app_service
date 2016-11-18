@@ -559,12 +559,16 @@ sub get_ws_file {
     my $token = get_token();
 
     my $base = basename($id);
+    #
+    # Blast tools do not like spaces in filenames.
+    #
+    $base =~ s/\s/_/g;
     my $file = "$tmpdir/$base";
     my $fh;
     open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
     print STDERR "GET WS => $tmpdir $base $id\n";
-    system("ls -la $tmpdir");
+    # system("ls", "-la", $tmpdir);
 
     eval {
 	$ws->copy_files_to_handles(1, $token, [[$id, $fh]]);

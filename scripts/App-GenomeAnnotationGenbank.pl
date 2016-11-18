@@ -152,6 +152,17 @@ sub process_genome
 	$genome->{genetic_code} = $gc;
     }
 
+    #
+    # If our domain is unknown but we have a valid bacterial genetic code, set that.
+    #
+    if (!$genome->{domain} || $genome->{domain} eq 'Unknown')
+    {
+	if ($genome->{genetic_code} == 4 || $genome->{genetic_code} == 11)
+	{
+	    $genome->{domain} = 'Bacteria';
+	}
+    }
+
     my $result = $core->run_pipeline($genome);
 
     #
