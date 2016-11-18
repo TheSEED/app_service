@@ -210,6 +210,10 @@ sub get_ws_file {
 	die "ERROR getting file $id\n$@\n";
     }
     close($fh);
+    if (-s $file == 0)
+    {
+	die "Zero length download for file $file from $id\n";
+    }
     print "$id $file:\n";
     system("ls -la $tmpdir");
 
