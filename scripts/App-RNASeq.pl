@@ -52,11 +52,16 @@ sub process_rnaseq {
 
     my @outputs;
     my $prefix = $recipe;
+    my $host = 0;
     if ($recipe eq 'Rockhopper') {
         @outputs = run_rockhopper($params, $tmpdir);
     } elsif ($recipe eq 'Tuxedo' || $recipe eq 'RNA-Rocket') {
-        @outputs = run_rna_rocket($params, $tmpdir);
+        @outputs = run_rna_rocket($params, $tmpdir, $host);
         $prefix = 'Tuxedo';
+    } elsif ($recipe eq 'Host') {
+        $host = 1;
+        @outputs = run_rna_rocket($params, $tmpdir, $host);
+        $prefix = 'Host';
     } else {
         die "Unrecognized recipe: $recipe \n";
     }
@@ -82,12 +87,12 @@ sub process_rnaseq {
 }
 
 sub run_rna_rocket {
-    my ($params, $tmpdir) = @_;
+    my ($params, $tmpdir, $host) = @_;
 
     my $exps     = params_to_exps($params);
     my $labels   = $params->{experimental_conditions};
     my $ref_id   = $params->{reference_genome_id} or die "Reference genome is required for RNA-Rocket\n";
-    my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir);
+    my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir, $host);
 
     print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
 
@@ -98,6 +103,9 @@ sub run_rna_rocket {
     my $outdir = "$tmpdir/Rocket";
 
     my @cmd = ($rocket);
+    if ($host) {
+        push @cmd, ("--index");
+    }
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir);
     push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
@@ -287,29 +295,40 @@ sub merge_rockhoppper_results {
 }
 
 sub prepare_ref_data_rocket {
-    my ($gid, $basedir) = @_;
+    my ($gid, $basedir, $host) = @_;
     $gid or die "Missing reference genome id\n";
 
     my $dir = "$basedir/$gid";
     system("mkdir -p $dir");
 
-    my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
-    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
+    if ($host){
+        my $tar_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.ht2.tar";
+        my $out = curl_file($tar_url,"$dir/$gid.RefSeq.ht2.tar");
+        my $fna_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.fna";
+        $out = curl_file($fna_url,"$dir/$gid.RefSeq.fna");
+        my $gff_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.RefSeq.gff";
+        $out = curl_file($gff_url,"$dir/$gid.RefSeq.gff");
+    }
 
-    my $url = $api_url;
-    # my $url = $ftp_url;
-    my $out = curl_text($url);
-    write_output($out, "$dir/$gid.gff");
+    else{
+        my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
+        my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.gff";
 
-    $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
-    $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
+        my $url = $api_url;
+        # my $url = $ftp_url;
+        my $out = curl_text($url);
+        write_output($out, "$dir/$gid.gff");
 
-    $url = $api_url;
-    # $url = $ftp_url;
-    my $out = curl_text($url);
-    # $out = break_fasta_lines($out."\n");
-    $out =~ s/\n+/\n/g;
-    write_output($out, "$dir/$gid.fna");
+        $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
+        $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.fna";
+
+        $url = $api_url;
+        # $url = $ftp_url;
+        my $out = curl_text($url);
+        # $out = break_fasta_lines($out."\n");
+        $out =~ s/\n+/\n/g;
+        write_output($out, "$dir/$gid.fna");
+    }
 
     return $dir;
 }
@@ -400,6 +419,14 @@ sub prepare_ref_data {
 sub curl_text {
     my ($url) = @_;
     my @cmd = ("curl", curl_options(), $url);
+    print STDERR join(" ", @cmd)."\n";
+    my ($out) = run_cmd(\@cmd);
+    return $out;
+}
+
+sub curl_file {
+    my ($url, $outfile) = @_;
+    my @cmd = ("curl", curl_options(), "-o", $outfile, $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
     return $out;

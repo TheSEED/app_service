@@ -66,9 +66,11 @@ sub process_reads {
     my @submit_cmd = ($ar_run, @method, @ai_params);
     print STDERR '\@submit_cmd = '. Dumper(\@submit_cmd);
 
+    my $filter_len = $params->{min_contig_len} || 300;
+    my $filter_cov = $params->{min_contig_cov} || 5;
 
     my @get_cmd = ($ar_get, '-w', '-p');
-    my @filter_cmd = ($ar_filter, '-l', 300, '-c', '5'); # > $out_tmp";
+    my @filter_cmd = ($ar_filter, '-l', $filter_len, '-c', $filter_cov); # > $out_tmp";
 
     my $submit_out;
     my $submit_err;
@@ -234,7 +236,7 @@ sub parse_pe_lib {
     push @params, "--pair";
     push @params, get_ws_file($tmpdir, $lib->{read1});
     push @params, get_ws_file($tmpdir, $lib->{read2}) if $lib->{read2};
-    my @ks = qw(insert_size_mean insert_size_std_dev read_orientation_outward interleaved);
+    my @ks = qw(platform insert_size_mean insert_size_std_dev read_orientation_outward interleaved);
     for my $k (@ks) {
         push @params, $k."=".$lib->{$k} if $lib->{$k};
     }
@@ -245,7 +247,11 @@ sub parse_se_lib {
     my ($tmpdir, $lib) = @_;
     my @params;
     push @params, "--single";
-    push @params, get_ws_file($tmpdir, $lib);
+    push @params, get_ws_file($tmpdir, $lib->{read});
+    my @ks = qw(platform);
+    for my $k (@ks) {
+        push @params, $k."=".$lib->{$k} if $lib->{$k};
+    }
     return @params;
 }
 
