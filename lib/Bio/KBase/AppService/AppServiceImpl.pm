@@ -25,7 +25,7 @@ use Bio::KBase::AppService::Shock;
 use Bio::KBase::AppService::Util;
 use Bio::KBase::DeploymentConfig;
 use File::Slurp;
-use UUID;
+use Data::UUID;
 use Plack::Request;
 use IO::File;
 
@@ -472,10 +472,11 @@ sub start_app
     # Create an identifier we can use to match the Shock nodes we create for this
     # job with the job itself.
     #
-    my($task_file_uuid, $task_file_id);
-    UUID::generate($task_file_uuid);
-    UUID::unparse($task_file_uuid, $task_file_id);
-    
+
+    my $gen = Data::UUID->new;
+    my $task_file_uuid = $ug->create();
+    my $task_file_id = lc($ug->to_string($task_file_uuid));
+
     my $userattr = {
 	app_id => $app_id,
 	parameters => $param_str,
