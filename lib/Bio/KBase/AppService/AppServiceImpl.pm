@@ -474,8 +474,8 @@ sub start_app
     #
 
     my $gen = Data::UUID->new;
-    my $task_file_uuid = $ug->create();
-    my $task_file_id = lc($ug->to_string($task_file_uuid));
+    my $task_file_uuid = $gen->create();
+    my $task_file_id = lc($gen->to_string($task_file_uuid));
 
     my $userattr = {
 	app_id => $app_id,
