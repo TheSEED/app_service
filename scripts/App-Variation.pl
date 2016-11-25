@@ -91,7 +91,9 @@ sub process_variation_data {
         run_var_annotate($tmpdir, $ref_id, $_);
         link_snpeff_annotate($tmpdir, $ref_id, $_) if $has_gbk;
         system("ln -s $tmpdir/$_/aln.bam $tmpdir/$_.aln.bam") if -s "$tmpdir/$_/aln.bam";
+        system("ln -s $tmpdir/$_/aln.bam.bai $tmpdir/$_.aln.bam.bai") if -s "$tmpdir/$_/aln.bam.bai";
         system("cp $tmpdir/$_/var.vcf $tmpdir/$_.var.vcf") if -s "$tmpdir/$_/var.vcf";
+        system("cp $tmpdir/$_/var.vcf.gz $tmpdir/$_.var.vcf.gz") if -s "$tmpdir/$_/var.vcf.gz";
         system("cp $tmpdir/$_/var.vcf.gz.tbi $tmpdir/$_.var.vcf.gz.tbi") if -s "$tmpdir/$_/var.vcf.gz.tbi";
         system("cp $tmpdir/$_/var.annotated.tsv $tmpdir/$_.var.annotated.tsv") if -s "$tmpdir/$_/var.annotated.tsv";
         system("cp $tmpdir/$_/var.annotated.raw.tsv $tmpdir/$_.var.annotated.tsv") if ! -s "$tmpdir/$_/var.annotated.tsv" && -s "$tmpdir/$_/var.annotated.raw.tsv";
@@ -106,7 +108,7 @@ sub process_variation_data {
     push @outputs, map { [ $_, 'vcf' ] } glob("$tmpdir/*.vcf");
     push @outputs, map { [ $_, 'html'] } glob("$tmpdir/*.html");
     push @outputs, map { [ $_, 'bam' ] } glob("$tmpdir/*.bam");
-    push @outputs, map { [ $_, 'unspecified' ] } glob("$tmpdir/*.tbi");
+    push @outputs, map { [ $_, 'unspecified' ] } glob("$tmpdir/*.tbi $tmpdir/*.vcf.gz $tmpdir/*.bam.bai");
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
     # return @outputs;
