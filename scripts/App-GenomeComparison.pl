@@ -297,6 +297,7 @@ sub run_find_bdbh {
     run_cmd(\@cmd);
     my $svg_map = `cat $circos_dir/circos.html`;
     $svg_map =~ s/ (alt|title)='\S*cId=/ $1='/g;
+    $svg_map =~ s/feature&cId=fig\|/feature&cId=fig%7C/g;
     $svg_map =~ s/(<area.*href.*)>/$1 target="_blank">/g;
     $final .= $svg_map;
     $final .= '<img usemap="#circosmap" src="data:image/svg+xml;base64,'.
