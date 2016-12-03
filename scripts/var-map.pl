@@ -91,8 +91,9 @@ sub call_variant_with_samtools {
     verify_cmd(qw(samtools bcftools));
     -s "mpileup"        or run("samtools mpileup -6 -uf ref.fa aln.bam > mpileup");
     -s "var.sam.vcf"    or run("bcftools call -vc mpileup > var.sam.vcf");
+    -s "var.sam.q.vcf"  or run("vcffilter -f 'QUAL > 10 & DP > 5' var.sam.vcf > var.sam.q.vcf");
     -s "var.sam.count"  or run("grep -v '^#' var.sam.vcf |cut -f4 |grep -v 'N' |wc -l > var.sam.count");
-    -s "var.vcf"        or run("ln -s -f var.sam.vcf var.vcf");
+    -s "var.vcf"        or run("ln -s -f var.sam.q.vcf var.vcf");
 }
 
 sub call_variant_with_freebayes {
@@ -392,4 +393,3 @@ sub write_output {
 }
 
 sub run { system($_[0]) == 0 or confess("FAILED: $_[0]"); }
-

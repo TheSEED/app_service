@@ -53,6 +53,7 @@ sub process_proteomes {
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/uzC2oDT0Xu";
     # my $tmpdir = "/tmp/9nGp1LR4k3";
+    # my $tmpdir = "/disks/tmp/comp_debug";
     print STDERR "tmpdir = $tmpdir\n";
 
     my ($genomes, $tracks) = get_genome_faa($tmpdir, $params);
@@ -118,6 +119,9 @@ sub run_find_bdbh {
         $gi++;
         print STDERR "Run bidir_best_hits::bbh: ", join(" <=> ", $ref, $g)."\n";
         my ($bbh, $log1, $log2) = bidir_best_hits::bbh($ref, $g, $opts);
+        # print Dumper($bbh);
+        # print Dumper($log1);
+        # print Dumper($log2);
         # store($log1, "$tmpdir/STORE.$gi");
         # my $log1 = retrieve("$tmpdir/STORE.$gi");
         next unless $log1 && @$log1;
@@ -176,8 +180,8 @@ sub run_find_bdbh {
             next if $fract_id < $params->{min_ident};
             next if $q_coverage < $params->{min_seq_cov} || $s_coverage < $params->{min_seq_cov},;
 
-            my $hit_type = $arrow eq '<->' ? 'bi' :
-                           $arrow eq ' ->' ? 'uni' : undef;
+            my $hit_type = $arrow eq '<->' ? 'bi (<->)' :
+                           $arrow eq ' ->' ? 'uni (->)' : undef;
             next unless $s_id;
 
             my $s_id_num = patric_id_to_number($s_id);
@@ -293,6 +297,8 @@ sub run_find_bdbh {
     run_cmd(\@cmd);
     my $svg_map = `cat $circos_dir/circos.html`;
     $svg_map =~ s/ (alt|title)='\S*cId=/ $1='/g;
+    $svg_map =~ s/feature&cId=fig\|/feature&cId=fig%7C/g;
+    $svg_map =~ s/(<area.*href.*)>/$1 target="_blank">/g;
     $final .= $svg_map;
     $final .= '<img usemap="#circosmap" src="data:image/svg+xml;base64,'.
               `cat $svg64`; chomp($final);
@@ -1054,4 +1060,3 @@ sub track_legend {
     push @html, "</ol>";
     return join("\n", @html)."\n";
 }
-
