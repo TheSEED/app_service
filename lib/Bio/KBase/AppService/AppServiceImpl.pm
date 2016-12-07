@@ -255,6 +255,8 @@ sub new
     $self->{service_url} = $cfg->setting("service-url");
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
+
+    $self->{status_file} = $cfg->setting("status-file");
 	
     #END_CONSTRUCTOR
 
@@ -266,6 +268,83 @@ sub new
 }
 
 =head1 METHODS
+
+
+
+=head2 service_status
+
+  $return = $obj->service_status()
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$return is a reference to a list containing 2 items:
+	0: (submission_enabled) an int
+	1: (status_message) a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$return is a reference to a list containing 2 items:
+	0: (submission_enabled) an int
+	1: (status_message) a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub service_status
+{
+    my $self = shift;
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($return);
+    #BEGIN service_status
+
+    #
+    # Status file if it exists is to have the first line containing a numeric status (0 for down
+    # 1 for up). Any further lines contain a status message.
+    #
+    if ($self->{status_file} && open(my $fh, "<", $self->{status_file}))
+    {
+	my $statline = <$fh>;
+	my($status) = $statline =~ /(\d+)/;
+	$status //= 0;
+	my $txt = join("", <$fh>);
+	$return = [$status, $txt];
+    }
+    else
+    {
+	$return = [1, ""];
+    }
+    
+    #END service_status
+    my @_bad_returns;
+    (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to service_status:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'service_status');
+    }
+    return($return);
+}
+
 
 
 
