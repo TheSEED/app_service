@@ -22,6 +22,8 @@ my $ar_stat = "ar-stat";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
+my @large_files;
+
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
@@ -55,6 +57,13 @@ sub process_reads {
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
 
     my @ai_params = parse_input($tmpdir, $params);
+
+    if (@large_files)
+    {
+	print STDERR "Enabling curl due to large files:\n";
+	print "\t$_->[0] $_->[1]\n" foreach @large_files;
+	push(@ai_params, "--curl");
+    }
 
     my $out_tmp = "$tmpdir/$output_name";
 
@@ -213,6 +222,13 @@ sub get_ws_file {
     if (-s $file == 0)
     {
 	die "Zero length download for file $file from $id\n";
+    }
+    #
+    # Hack hack. Set a flag if any input file is >= 3GB.
+    #
+    if (-s $file > 3_000_000_000)
+    {
+	push(@large_files, [$file, -s $file]);
     }
     print "$id $file:\n";
     system("ls -la $tmpdir");
