@@ -128,7 +128,7 @@ sub process_reads {
 	    $last_status = $status
 	}
 
-	if ($status =~ /complete/i)
+	if ($status =~ /complete|fail/i)
 	{
 	    print STDERR strftime("%Y-%m-%d %H:%M:%S", localtime $now) . ": job $arast_job has complete status: $status\n";
 	    $finish_status = $status;
@@ -137,7 +137,7 @@ sub process_reads {
 	sleep 60;
     }
     
-    if ($finish_status =~ /error/i)
+    if ($finish_status =~ /error|fail/i)
     {
 	print STDERR "Job $arast_job finished with error status: $finish_status\n";
 	my $report;
@@ -259,6 +259,7 @@ sub get_ws_file {
 
     my $base = basename($id);
     my $file = "$tmpdir/$base";
+    $file =~ s/\s/_/g;
     my $fh;
     open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
