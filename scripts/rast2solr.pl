@@ -665,7 +665,7 @@ sub getMetadataFromBioProject {
 
 	return unless -f "$outfile.bioproject.xml";
 	
-	my ($projID, $projDescription, $subgroup, $organism, description, $var, $serovar, $biovar, $pathovar, $strain, $cultureCollection, $typeStrain);
+	my ($projID, $projDescription, $subgroup, $organism, $description, $var, $serovar, $biovar, $pathovar, $strain, $cultureCollection, $typeStrain);
 	my ($isolateComment, $source, $month, $year, $country, $method, $person, $epidemic, $location, $altitude, $depth);
 	my ($hostName, $hostGender, $hostAge, $hostHealth);
 	my ($publication, $taxonID, $epidemiology);
