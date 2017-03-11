@@ -262,7 +262,8 @@ sub getGenomeInfo {
 		$amr->{taxon_id} = $genome->{taxon_id};
 
 		$amr->{antibiotic} = $amr1->{name}; 	
-		$amr->{resistant_phenotype} = ucfirst $amr1->{sensitivity};	
+		$amr->{resistant_phenotype} = ucfirst $amr1->{sensitivity};
+		$amr->{resistant_phenotype} = "Susceptible" if $amr->{resistant_phenotype}=~/sensitive/i;	
 		$amr->{laboratory_typing_method} = "Computational Prediction"; 	
 		$amr->{laboratory_typing_platform} = "AdaBoost Classifier"; 	
 		$amr->{vendor} = "PATRIC"; 	
