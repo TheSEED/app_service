@@ -385,6 +385,7 @@ sub get_ws_file {
     my $token = get_token();
 
     my $base = basename($id);
+    $base =~ s/\s/_/g;
     my $file = "$tmpdir/$base";
     # return $file; # DEBUG
 
