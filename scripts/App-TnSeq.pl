@@ -96,11 +96,11 @@ sub process_tnseq
 
     warn Dumper(\@cmd, $params_to_app);
     
-#    my $ok = run(\@cmd);
-#    if (!$ok)
-#    {
-#	die "Command failed: @cmd\n";
-#    }
+    my $ok = run(\@cmd);
+    if (!$ok)
+    {
+	die "Command failed: @cmd\n";
+    }
 
 
     my @output_suffixes = ([qr/\.bam$/, "bam"],
