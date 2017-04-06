@@ -65,6 +65,14 @@ sub process_tnseq
 	my $replist = $params_to_app->{read_files}->{$repname};
 	for my $repinst (@{$replist->{replicates}})
 	{
+	    #
+	    # Hack to patch mismatch between UI and tool
+	    #
+	    if (exists($repinst->{read}))
+	    {
+		$repinst->{read1} = delete $repinst->{read};
+	    }
+	    
 	    for my $rd (qw(read1 read2))
 	    {
 		if (exists($repinst->{$rd}))
@@ -96,11 +104,11 @@ sub process_tnseq
 
     warn Dumper(\@cmd, $params_to_app);
     
-#    my $ok = run(\@cmd);
-#    if (!$ok)
-#    {
-#	die "Command failed: @cmd\n";
-#    }
+    my $ok = run(\@cmd);
+    if (!$ok)
+    {
+	die "Command failed: @cmd\n";
+    }
 
 
     my @output_suffixes = ([qr/\.bam$/, "bam"],
