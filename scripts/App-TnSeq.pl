@@ -65,6 +65,14 @@ sub process_tnseq
 	my $replist = $params_to_app->{read_files}->{$repname};
 	for my $repinst (@{$replist->{replicates}})
 	{
+	    #
+	    # Hack to patch mismatch between UI and tool
+	    #
+	    if (exists($repinst->{read}))
+	    {
+		$repinst->{read1} = delete $repinst->{read};
+	    }
+	    
 	    for my $rd (qw(read1 read2))
 	    {
 		if (exists($repinst->{$rd}))
