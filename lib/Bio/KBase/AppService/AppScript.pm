@@ -2,9 +2,11 @@
 
 package Bio::KBase::AppService::AppScript;
 
+use FileHandle;
 use strict;
 use JSON::XS;
 use File::Slurp;
+use File::Basename;
 use IO::File;
 use IO::Pipe;
 use IO::Select;
@@ -242,41 +244,41 @@ sub subproc_run
 	$job_output = $self->callback->($self, $app_def, $params, \%proc_param);
     }
 
-	if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0)
-	{
-    my $end_time = gettimeofday;
-    my $elap = $end_time - $start_time;
+    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0)
+    {
+	my $end_time = gettimeofday;
+	my $elap = $end_time - $start_time;
 	
 	my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
-
-    #
-    # Hack to finding task id.
-    #
-    my $task_id = 'TBD';
-    if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
-    {
-	$task_id = $1;
-    }
-    else
-    {
-	$task_id = "Not found in '$ENV{PWD}'";
-    }
-
-    my $job_obj = {
-	id => $task_id,
-	app => $app_def,
-	parameters => \%proc_param,
-	start_time => $start_time,
-	end_time => $end_time,
-	elapsed_time => $elap,
-	hostname => $host,
-	output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
-	job_output => $job_output,
-    };
-
-    my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    $ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+	
+	#
+	# Hack to finding task id.
+	#
+	my $task_id = 'TBD';
+	if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
+	{
+	    $task_id = $1;
 	}
+	else
+	{
+	    $task_id = "Not found in '$ENV{PWD}'";
+	}
+	
+	my $job_obj = {
+	    id => $task_id,
+	    app => $app_def,
+	    parameters => \%proc_param,
+	    start_time => $start_time,
+	    end_time => $end_time,
+	    elapsed_time => $elap,
+	    hostname => $host,
+	    output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
+	    job_output => $job_output,
+	};
+	
+	my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
+	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
+    }
     delete $self->{workspace};
 }
 
@@ -297,6 +299,33 @@ sub token
     my($self) = @_;
     my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
     return $token;
+}
+
+sub stage_in
+{
+    my($self, $files, $dest_path, $replace_spaces) = @_;
+
+    $files = [$files] if !ref($files);
+
+    my @pairs;
+    my $ret = {};
+    for my $f (@$files)
+    {
+	my $base = basename($f);
+	if ($replace_spaces)
+	{
+	    $base =~ s/\s/_/g;
+	}
+	my $out = "$dest_path/$base";
+	my $fh = FileHandle->new($out, "w");
+	$fh or die "Cannot write $out: $!";
+	push(@pairs, [$f,  $fh]);
+	$ret->{$f} = $out;
+    }
+
+    print STDERR Dumper($files, \@pairs);
+    $self->workspace()->copy_files_to_handles(1, $self->token(), \@pairs);
+    return $ret;
 }
 
 1;
