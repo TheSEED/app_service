@@ -32,6 +32,11 @@ ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
 endif
 
+ifdef DEPLOYMENT_VAR_DIR
+SERVICE_LOGDIR = $(DEPLOYMENT_VAR_DIR)/services/$(SERVICE)
+TPAGE_SERVICE_LOGDIR = --define kb_service_log_dir=$(SERVICE_LOGDIR)
+endif
+
 TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define kb_runtime=$(DEPLOY_RUNTIME) \
 	--define kb_service_name=$(SERVICE) \
@@ -42,6 +47,7 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
+	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)
@@ -95,13 +101,14 @@ deploy-all: deploy-client deploy-service
 deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts 
 
 deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
-	$(TPAGE) $(TPAGE_ARGS) service/start_service.tt > $(TARGET)/services/$(SERVICE)/start_service
-	chmod +x $(TARGET)/services/$(SERVICE)/start_service
-	$(TPAGE) $(TPAGE_ARGS) service/stop_service.tt > $(TARGET)/services/$(SERVICE)/stop_service
-	chmod +x $(TARGET)/services/$(SERVICE)/stop_service
+	for script in start_service stop_service postinstall; do \
+		$(TPAGE) $(TPAGE_ARGS) service/$$script.tt > $(TARGET)/services/$(SERVICE)/$$script ; \
+		chmod +x $(TARGET)/services/$(SERVICE)/$$script ; \
+	done
+	mkdir -p $(TARGET)/postinstall
+	rm -f $(TARGET)/postinstall/$(SERVICE)
+	ln -s ../services/$(SERVICE)/postinstall $(TARGET)/postinstall/$(SERVICE)
 	rsync -arv app_specs $(TARGET)/services/$(SERVICE)/.
-
-
 
 deploy-service-scripts:
 	export KB_TOP=$(TARGET); \
