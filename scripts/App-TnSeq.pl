@@ -86,10 +86,10 @@ sub process_tnseq
     }
     warn Dumper(\%in_files, \@to_stage);
     my $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
-    while (my($orig, $staged) = each %$staged)
+    while (my($orig, $staged_file) = each %$staged)
     {
 	my $path_ref = $in_files{$orig};
-	$$path_ref = $staged;
+	$$path_ref = $staged_file;
     }
 
     #
@@ -143,6 +143,14 @@ sub process_tnseq
 					       $token);
 	    }
 	}
+    }
+
+    #
+    # Clean up staged input files.
+    #
+    while (my($orig, $staged_file) = each %$staged)
+    {
+	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
 
     return $output;
