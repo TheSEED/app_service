@@ -261,7 +261,7 @@ sub getGenomeInfo {
 		$amr->{genome_name} = $genome->{genome_name};
 		$amr->{taxon_id} = $genome->{taxon_id};
 
-		$amr->{antibiotic} = $amr1->{name}; 	
+		$amr->{antibiotic} = lc $amr1->{name}; 	
 		$amr->{resistant_phenotype} = ucfirst $amr1->{sensitivity};
 		$amr->{resistant_phenotype} = "Susceptible" if $amr->{resistant_phenotype}=~/sensitive/i;	
 		$amr->{laboratory_typing_method} = "Computational Prediction"; 	
@@ -611,7 +611,7 @@ sub getMetadataFromGenBankFile {
 
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
 	$genome->{geographic_location} =~s/\n */ /g;
-	$genome->{isolation_coutry} =~s/:.*//;
+	$genome->{isolation_country} = $1 if $genome->{geographic_location}=~/^([^:]*):.*/;
 	
 	$genome->{host_name} = $1 if $gb=~/\/host="([^"]*)"/;
 	$genome->{host_name} =~s/\n */ /g;
@@ -994,7 +994,7 @@ sub getMetadataFromBioSample {
 		$amr->{genome_name} = $genome->{genome_name};
 		$amr->{taxon_id} = $genome->{taxon_id};
 
-		$amr->{antibiotic} = $amr1[0]; 	
+		$amr->{antibiotic} = lc $amr1[0]; 	
 		$amr->{resistant_phenotype} = ucfirst $amr1[1];	
 		$amr->{measurement_sign} = $amr1[2] unless ref $amr1[2] eq ref {};	
 		$amr->{measurement_value} = $amr1[3] unless ref $amr1[3] eq ref {};

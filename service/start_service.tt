@@ -4,7 +4,11 @@ export KB_RUNTIME=[% kb_runtime %]
 export PATH=$KB_TOP/bin:$KB_RUNTIME/bin:$KB_TOP/services/[% kb_service_name %]/bin:$KB_TOP/services/cdmi_api/bin:$PATH
 export PERL5LIB=$KB_TOP/lib
 export KB_SERVICE_NAME="[% kb_service_name %]"
-export KB_SERVICE_DIR="$KB_TOP/services/[% kb_service_name %]"
+[% IF kb_service_log_dir -%]
+export KB_SERVICE_LOG_DIR="[% kb_service_log_dir %]"
+[% ELSE -%]
+export KB_SERVICE_LOG_DIR="$KB_TOP/services/[% kb_service_name %]"
+[% END -%]
 export KB_DEPLOYMENT_CONFIG="$KB_TOP/deployment.cfg"
 #
 # For phispy
@@ -14,7 +18,7 @@ export R_LIBS="$KB_TOP/lib"
 export TMPDIR=[% kb_tempdir %]
 export TEMPDIR=[% kb_tempdir %]
 [% END %]
-pid_file=$KB_SERVICE_DIR/service.pid
+pid_file=$KB_SERVICE_LOG_DIR/service.pid
 
 
 [% IF kb_starman_workers -%]
@@ -26,8 +30,8 @@ max_requests="--max-requests [% kb_starman_max_requests %]"
 
 starman_params="--listen :[% kb_service_port %] --pid $pid_file $workers $max_requests"
 
-starman_params="$starman_params --error-log $KB_SERVICE_DIR/error.log"
-starman_params="$starman_params --access-log $KB_SERVICE_DIR/access.log"
+starman_params="$starman_params --error-log $KB_SERVICE_LOG_DIR/error.log"
+starman_params="$starman_params --access-log $KB_SERVICE_LOG_DIR/access.log"
 
 starman_params="$starman_params --daemonize"
 
