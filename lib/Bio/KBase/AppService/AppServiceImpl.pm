@@ -317,23 +317,9 @@ sub service_status
     my($return);
     #BEGIN service_status
 
-    #
-    # Status file if it exists is to have the first line containing a numeric status (0 for down
-    # 1 for up). Any further lines contain a status message.
-    #
-    if ($self->{status_file} && open(my $fh, "<", $self->{status_file}))
-    {
-	my $statline = <$fh>;
-	my($status) = $statline =~ /(\d+)/;
-	$status //= 0;
-	my $txt = join("", <$fh>);
-	$return = [$status, $txt];
-    }
-    else
-    {
-	$return = [1, ""];
-    }
-    
+    my($stat, $txt) = $self->{util}->service_status();
+    $return = [$stat, $txt];
+
     #END service_status
     my @_bad_returns;
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
@@ -529,6 +515,11 @@ sub start_app
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($task);
     #BEGIN start_app
+
+    if (!$self->{util}->submissions_enabled())
+    {
+	die "App service submissions are disabled\n";
+    }
 
     my $json = JSON::XS->new->ascii->pretty(1);
 
