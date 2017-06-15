@@ -215,8 +215,22 @@ sub _lookup_output
 {
     my($self, $atask, $filename) = @_;
     my $outputs = $atask->{outputs};
-    my $file = $outputs->{$filename};
+
+
+    my $file;
+    #
+    # Support new job object.
+    # 
+    if (ref($outputs) eq 'ARRAY')
+    {
+       ($file) = grep { $_->{filename} eq $filename } @$outputs;
+    }
+    else
+    {
+       $file = $outputs->{$filename};
+    }
     # print STDERR Dumper($atask);
+
     if ($file)
     {
 	my $h = $file->{host};
