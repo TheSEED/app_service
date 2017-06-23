@@ -1,0 +1,64 @@
+{
+    "id": "TnSeq",
+    "script": "App-TnSeq",
+    "label": "Analyze TnSeq data",
+    "description": "Use TRANSIT to analyze TnSeq data",
+    "parameters": [
+        {
+            "id": "experimental_conditions",
+            "label": "Experimental conditions",
+            "allow_multiple": true,
+            "required": 0,
+            "default": [],
+            "type": "list"
+        },
+        {
+            "id": "contrasts",
+            "label": "Contrasts",
+            "allow_multiple": true,
+            "required": 0,
+            "default": [],
+            "type": "list"
+        },
+        {
+            "id": "read_files",
+            "type": "group",
+            "allow_multiple": true,
+            "required": 0,
+            "default" : null
+        },
+        {
+            "id": "reference_genome_id",
+            "required": 0,
+            "default": null,
+            "label": "Reference genome ID",
+            "desc": "Reference genome ID",
+            "type": "string"
+        },
+        {
+            "id": "recipe",
+            "label": "TnSeq recipe",
+            "required": 0,
+            "default": "gumbel",
+            "desc": "Recipe used for TnSeq analysis",
+            "type": "enum",
+            "enum": ["griffin", "tn5gaps", "rankproduct", "hmm", "binomial", "resampling"]
+        },
+        {
+            "id": "output_path",
+            "label": "Output Folder",
+            "required": 1,
+            "default": null,
+            "desc": "Path to which the output will be written. Defaults to the directory containing the input data.",
+            "type": "folder"
+        },
+        {
+            "id":"output_file",
+            "label":"File Basename",
+            "required": 1,
+            "default":null,
+            "desc":"Basename for the generated output files. Defaults to the basename of the input data.",
+            "type":"wsid"
+        }
+    ]
+}

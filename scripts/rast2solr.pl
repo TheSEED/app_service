@@ -241,13 +241,40 @@ sub getGenomeInfo {
 	}
 	$genome->{genbank_accessions}=~s/,*$//g;
 	
-  $genome->{chromosomes} = $chromosomes if $chromosomes;
-  $genome->{plasmids} = $plasmids if $plasmids;
-  $genome->{contigs} = $contigs if $contigs ;		
+	$genome->{chromosomes} = $chromosomes if $chromosomes;
+	$genome->{plasmids} = $plasmids if $plasmids;
+	$genome->{contigs} = $contigs if $contigs ;		
 	$genome->{sequences} = $sequences;
 	$genome->{genome_length} = $genome_length;
 	$genome->{gc_content} = sprintf("%.2f", ($gc_count*100/$genome_length));
-	$genome->{genome_status} = ($contigs > 1)? "WGS": "Complete";
+	$genome->{genome_status} = ($contigs > 0)? "WGS": "Complete";
+
+
+	foreach my $amr1 (@{$genomeObj->{classifications}}){
+	
+		my $amr;
+		next if $amr1->{name}=~/combined/;
+
+		$amr->{owner} = $genome->{owner};
+		$amr->{public} = $public;
+		$amr->{genome_id} = $genome->{genome_id};
+		$amr->{genome_name} = $genome->{genome_name};
+		$amr->{taxon_id} = $genome->{taxon_id};
+
+		$amr->{antibiotic} = lc $amr1->{name}; 	
+		$amr->{resistant_phenotype} = ucfirst $amr1->{sensitivity};
+		$amr->{resistant_phenotype} = "Susceptible" if $amr->{resistant_phenotype}=~/sensitive/i;	
+		$amr->{laboratory_typing_method} = "Computational Prediction"; 	
+		$amr->{laboratory_typing_platform} = "AdaBoost Classifier"; 	
+		$amr->{vendor} = "PATRIC"; 	
+		$amr->{laboratory_typing_method_version} = "Accuracy:$amr1->{accuracy}, F1 score:$amr1->{f1_score}, AUC:$amr1->{area_under_roc_curve}";
+
+		push @{$genome->{antimicrobial_resistance}}, ucfirst $amr->{resistant_phenotype} unless (grep {$_ eq ucfirst $amr->{resistant_phenotype}} @{$genome->{antimicrobial_resistance}});
+		$genome->{antimicrobial_resistance_evidence} = "Computational Prediction";
+
+		push @genome_amr, $amr;
+
+		}
 
 }
 
@@ -269,8 +296,6 @@ sub getGenomeSequences {
 		$sequence->{genome_id} = $genome->{genome_id};
 		$sequence->{genome_name} = $genome->{genome_name};
 		$sequence->{taxon_id} = $genome->{taxon_id};
-
-
 		$sequence->{sequence_id} = $sequence->{genome_id}.".con.".sprintf("%04d", $count);
 
 		my $seq_id = $seqObj->{id};	
@@ -289,6 +314,7 @@ sub getGenomeSequences {
 
 		$sequence->{topology} =	$seqObj->{genbank_locus}->{geometry};
 		$sequence->{description} = $seqObj->{genbank_locus}->{definition};
+		$sequence->{description} = $seqObj->{id}; # Copy original contig id as description
 
 		if ($sequence->{description}=~/chromosome|complete genome/i){
 			$sequence->{sequence_type} = "chromosome";
@@ -580,11 +606,12 @@ sub getMetadataFromGenBankFile {
 	my $strain = $2 if $gb=~/\/(strain|isolate)="([^"]*)"/;
 	$strain =~s/\n */ /g;
 	$genome->{strain} = $strain unless $strain=~/^ *(-|missing|na|n\/a|not available|not provided|not determined|nd|unknown) *$/i;
-	
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+
+	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/ (strain|st|str) / && not $genome->{genome_name}=~/$genome->{strain}/i);
 
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
 	$genome->{geographic_location} =~s/\n */ /g;
+	$genome->{isolation_country} = $1 if $genome->{geographic_location}=~/^([^:]*):.*/;
 	
 	$genome->{host_name} = $1 if $gb=~/\/host="([^"]*)"/;
 	$genome->{host_name} =~s/\n */ /g;
@@ -594,6 +621,7 @@ sub getMetadataFromGenBankFile {
 	
 	$genome->{collection_date} = $1 if $gb=~/\/collection_date="([^"]*)"/;
 	$genome->{collection_date} =~s/\n */ /g;
+	$genome->{collection_year} = $1 if $genome->{collection_date}=~/(\d\d\d\d)/;
 
 	$genome->{culture_collection} = $1 if $gb=~/\/culture_collection="([^"]*)"/;
 	$genome->{culture_collection} =~s/\n */ /g;
@@ -748,7 +776,7 @@ sub getMetadataFromBioProject {
 	$hostHealth =~s/\s+(and is|and will be|and has|and was|by|in|and contains)\s+.*//;
 
 	$hostName = $1 if $isolateComment=~/ (pig|sheep|goat|dog|cat |cattle|chicken|cow|mouse|rat|buffalo|tick|mosquito)/i;
-	$hostName ="Homo sapiens" if ($isolateComment=~/ (human|man|woman|infant|child|patient|homo sapiens)/i);
+	$hostName ="Human, Homo sapiens" if ($isolateComment=~/ (human|man|woman|infant|child|patient|homo sapiens)/i);
 
 
 	# Organism Info
@@ -966,7 +994,7 @@ sub getMetadataFromBioSample {
 		$amr->{genome_name} = $genome->{genome_name};
 		$amr->{taxon_id} = $genome->{taxon_id};
 
-		$amr->{antibiotic} = $amr1[0]; 	
+		$amr->{antibiotic} = lc $amr1[0]; 	
 		$amr->{resistant_phenotype} = ucfirst $amr1[1];	
 		$amr->{measurement_sign} = $amr1[2] unless ref $amr1[2] eq ref {};	
 		$amr->{measurement_value} = $amr1[3] unless ref $amr1[3] eq ref {};

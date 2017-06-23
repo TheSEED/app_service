@@ -8,6 +8,7 @@ use Data::Dumper;
 use File::Temp;
 use File::Basename;
 use IPC::Run 'run';
+use POSIX;
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
@@ -21,6 +22,8 @@ my $ar_filter = "ar-filter";
 my $ar_stat = "ar-stat";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
+
+my @large_files;
 
 my $rc = $script->run(\@ARGV);
 
@@ -56,6 +59,13 @@ sub process_reads {
 
     my @ai_params = parse_input($tmpdir, $params);
 
+    if (@large_files)
+    {
+	print STDERR "Enabling curl due to large files:\n";
+	print "\t$_->[0] $_->[1]\n" foreach @large_files;
+	push(@ai_params, "--curl");
+    }
+
     my $out_tmp = "$tmpdir/$output_name";
 
     my $token = get_token();
@@ -83,6 +93,59 @@ sub process_reads {
 
     print STDERR "Submitted job $arast_job, waiting for results\n";
     print STDERR `$ar_stat`;
+
+    #
+    # Poll job status once per minute. Every 10 minutes or when the job status changes,
+    # emit the status.
+    #
+
+    my $start = time;
+    my $last_report;
+    my $last_status;
+    my $finish_status;
+    print STDERR strftime("%Y-%m-%d %H:%M:%S", localtime $start) . ": job $arast_job starting\n";
+    while (1)
+    {
+	my $now = time;
+	my $status;
+	my @stat = ($ar_stat, "-j", $arast_job);
+	my $stat_ok = run(\@stat, ">", \$status);
+
+	if (!$stat_ok)
+	{
+	    die "Error running status command @stat: $!";
+	}
+	if ($status eq '')
+	{
+	    die "Status command @stat did not return output";
+	}
+	
+	chomp $status;
+	if ($status ne $last_status || ($now - $last_report > 600))
+	{
+	    print STDERR strftime("%Y-%m-%d %H:%M:%S", localtime $now) . ": job $arast_job status: $status\n";
+	    $last_report = $now;
+	    $last_status = $status
+	}
+
+	if ($status =~ /complete|fail/i)
+	{
+	    print STDERR strftime("%Y-%m-%d %H:%M:%S", localtime $now) . ": job $arast_job has complete status: $status\n";
+	    $finish_status = $status;
+	    last;
+	}
+	sleep 60;
+    }
+    
+    if ($finish_status =~ /error|fail/i)
+    {
+	print STDERR "Job $arast_job finished with error status: $finish_status\n";
+	my $report;
+	my $ok = run([$ar_get, "-l", "-j", $arast_job], ">", \$report);
+	$ok or warn "Error retrieving assembly job log: $!";
+	print STDERR "\nAssembly job log for failed job $arast_job:\n$report\n";
+	die "Assembly failed";
+    }
 
     print STDERR "Running pull: @get_cmd -j $arast_job | @filter_cmd\n";
     my $pull_ok = run([@get_cmd, "-j", $arast_job], "|",
@@ -196,6 +259,7 @@ sub get_ws_file {
 
     my $base = basename($id);
     my $file = "$tmpdir/$base";
+    $file =~ s/\s/_/g;
     my $fh;
     open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
@@ -213,6 +277,13 @@ sub get_ws_file {
     if (-s $file == 0)
     {
 	die "Zero length download for file $file from $id\n";
+    }
+    #
+    # Hack hack. Set a flag if any input file is >= 3GB.
+    #
+    if (-s $file > 3_000_000_000)
+    {
+	push(@large_files, [$file, -s $file]);
     }
     print "$id $file:\n";
     system("ls -la $tmpdir");

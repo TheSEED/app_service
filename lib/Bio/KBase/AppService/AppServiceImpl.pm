@@ -215,8 +215,22 @@ sub _lookup_output
 {
     my($self, $atask, $filename) = @_;
     my $outputs = $atask->{outputs};
-    my $file = $outputs->{$filename};
+
+
+    my $file;
+    #
+    # Support new job object.
+    # 
+    if (ref($outputs) eq 'ARRAY')
+    {
+       ($file) = grep { $_->{filename} eq $filename } @$outputs;
+    }
+    else
+    {
+       $file = $outputs->{$filename};
+    }
     # print STDERR Dumper($atask);
+
     if ($file)
     {
 	my $h = $file->{host};
@@ -255,6 +269,8 @@ sub new
     $self->{service_url} = $cfg->setting("service-url");
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
+
+    $self->{status_file} = $cfg->setting("status-file");
 	
     #END_CONSTRUCTOR
 
@@ -266,6 +282,69 @@ sub new
 }
 
 =head1 METHODS
+
+
+
+=head2 service_status
+
+  $return = $obj->service_status()
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$return is a reference to a list containing 2 items:
+	0: (submission_enabled) an int
+	1: (status_message) a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$return is a reference to a list containing 2 items:
+	0: (submission_enabled) an int
+	1: (status_message) a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub service_status
+{
+    my $self = shift;
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($return);
+    #BEGIN service_status
+
+    my($stat, $txt) = $self->{util}->service_status();
+    $return = [$stat, $txt];
+
+    #END service_status
+    my @_bad_returns;
+    (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to service_status:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'service_status');
+    }
+    return($return);
+}
+
 
 
 
@@ -450,6 +529,11 @@ sub start_app
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($task);
     #BEGIN start_app
+
+    if (!$self->{util}->submissions_enabled())
+    {
+	die "App service submissions are disabled\n";
+    }
 
     my $json = JSON::XS->new->ascii->pretty(1);
 

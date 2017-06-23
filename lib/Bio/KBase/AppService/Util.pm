@@ -84,4 +84,38 @@ sub find_app
     return undef;
 }
 
+sub service_status
+{
+    my($self) = @_;
+    #
+    # Status file if it exists is to have the first line containing a numeric status (0 for down
+    # 1 for up). Any further lines contain a status message.
+    #
+    my $sf = $self->impl->{status_file};
+    if ($sf && open(my $fh, "<", $sf))
+    {
+	my $statline = <$fh>;
+	my($status) = $statline =~ /(\d+)/;
+	$status //= 0;
+	my $txt = join("", <$fh>);
+	close($fh);
+	return($status, $txt);
+    }
+    else
+    {
+	return(1, "");
+    }
+}
+
+#
+# A service status of 0 means submissions are disabled.
+#
+sub submissions_enabled
+{
+    my($self) = @_;
+    my($stat, $txt) = $self->service_status();
+
+    return $stat;
+}
+
 1;
