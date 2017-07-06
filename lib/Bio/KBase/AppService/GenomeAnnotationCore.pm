@@ -67,7 +67,7 @@ sub init_service
     {
 	warn "Token did not validate\n" . Dumper($token);
     }
-    
+
     my $stderr = Bio::KBase::GenomeAnnotation::ServiceStderrWrapper->new($ctx, $get_time);
     $ctx->stderr($stderr);
 
@@ -88,7 +88,7 @@ sub user_id
 sub run_pipeline
 {
     my($self, $genome) = @_;
-    
+
     my @stages = (
 	      { name => 'call_features_rRNA_SEED' },
 	      { name => 'call_features_tRNA_trnascan' },
@@ -120,7 +120,7 @@ sub run_pipeline
 		  # { name => 'call_features_prophage_phispy' },
 		 );
     my $workflow = { stages => \@stages };
-    
+
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
 
     print STDERR "Running pipeline on host " . `hostname`. "\n";
@@ -136,7 +136,7 @@ sub write_output
 
     my $tmpdir = File::Temp->newdir(CLEANUP => 1);
     print STDERR "Created tmpdir $tmpdir\n";
-    
+
     my $tmp_genome = File::Temp->new(DIR => $tmpdir->dirname);
     print $tmp_genome $self->json->encode($result);
     close($tmp_genome);
@@ -144,17 +144,17 @@ sub write_output
     my $output_base = $self->params->{output_file};
     my $output_folder = $self->app->result_folder();
     my $ws = $self->app->workspace();
-    
-    $ws->save_file_to_file("$tmp_genome", $meta, "$output_folder/$output_base.genome", 'genome', 
+
+    $ws->save_file_to_file("$tmp_genome", $meta, "$output_folder/$output_base.genome", 'genome',
 			   1, 1, $self->token);
 
     #
     # Map export format to the file type.
     my %formats = (genbank => ['genbank_file', "$output_base.gb" ],
 		   genbank_merged => ['genbank_file', "$output_base.merged.gb"],
-		   spreadsheet_xls => ['string', "$output_base.xls"],
-		   spreadsheet_txt => ['string', "$output_base.txt"],
-		   seed_dir => ['string',"$output_base.tar.gz"],
+		   spreadsheet_xls => ['xls', "$output_base.xls"],
+		   spreadsheet_txt => ['txt', "$output_base.txt"],
+		   seed_dir => ['tar_gz',"$output_base.tar.gz"],
 		   feature_data => ['feature_table', "$output_base.features.txt"],
 		   protein_fasta => ['feature_protein_fasta', "$output_base.feature_protein.fasta"],
 		   contig_fasta => ['contigs', "$output_base.contigs.fasta"],
@@ -205,7 +205,7 @@ sub write_output
 	if (write_load_files($ws, $tmp_genome, $genbank_file, $public_flag))
 	{
 	    my $load_folder = "$output_folder/load_files";
-	    
+
 	    $ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
 	    $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
 	}
@@ -259,7 +259,7 @@ sub submit_load_files
 		 [pathway => "pathway.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
-    
+
     for my $tup (@files)
     {
 	my($key, $file) = @$tup;
@@ -273,10 +273,10 @@ sub submit_load_files
 
     push(@opts, $genome_url);
     print "@opts\n";
-#curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
+#curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"
 
     my($stdout, $stderr);
-    
+
     my $ok = run(["curl", @opts], '>', \$stdout);
     if (!$ok)
     {
