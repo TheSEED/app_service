@@ -95,11 +95,12 @@
 		{
 			"id": "srr_ids",
 			"required": 0,
+		        "allow_multiple": true,
 			"default": null,
-			"label": "SRR",
-			"desc": "Sequence Read Archive (SRA) Run IDs",
+			"label": "SRR ID",
+			"desc": "Sequence Read Archive (SRA) Run ID",
 			"type": "string"
-		},		
+		},
 		{
 			"id": "reference_assembly",
 			"required": 0,
