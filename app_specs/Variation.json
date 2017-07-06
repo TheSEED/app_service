@@ -85,21 +85,6 @@
       "type": "string"
     },
     {
-      "id": "recipe",
-      "label": "Variation recipe",
-      "required": 0,
-      "default": "BWA-mem",
-      "desc": "Recipe used for variation analysis",
-      "type": "enum",
-      "enum": [
-        "BWA-mem",
-        "BWA-mem-strict",
-        "Bowtie2",
-        "MOSAIK",
-        "LAST"
-      ]
-    },
-    {
       "id": "mapper",
       "label": "Short read mapper",
       "required": 0,
