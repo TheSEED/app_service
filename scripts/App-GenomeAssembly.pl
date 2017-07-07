@@ -13,13 +13,12 @@ use POSIX;
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AuthToken;
 
-#my $ar_run = "/vol/kbase/deployment/bin/ar-run";
-#my $ar_get = "/vol/kbase/deployment/bin/ar-get";
-
 my $ar_run = "ar-run";
 my $ar_get = "ar-get";
 my $ar_filter = "ar-filter";
 my $ar_stat = "ar-stat";
+# my $fastq_dump = "fastq-dump";
+my $fastq_dump = "/home/fangfang/programs/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump";
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
 
@@ -119,7 +118,7 @@ sub process_reads {
 	{
 	    die "Status command @stat did not return output";
 	}
-	
+
 	chomp $status;
 	if ($status ne $last_status || ($now - $last_report > 600))
 	{
@@ -136,7 +135,7 @@ sub process_reads {
 	}
 	sleep 60;
     }
-    
+
     if ($finish_status =~ /error|fail/i)
     {
 	print STDERR "Job $arast_job finished with error status: $finish_status\n";
@@ -242,6 +241,31 @@ sub clean_arg {
     $arg;
 }
 
+sub get_srr_lib {
+    my ($tmpdir, $id) = @_;
+    verify_cmd($fastq_dump);
+    print "$tmpdir $id\n";
+
+    # see https://edwards.sdsu.edu/research/fastq-dump/
+    # we do not use '--readids' because error correction in SPAdes requires paired end reads to have the same ID
+    my @cmd = ($fastq_dump, '--outdir', $tmpdir, '--split-3', '--dumpbase', # '--gzip',
+               '--clip', '--skip-technical', '--read-filter', 'pass', $id);
+
+    my ($run_out, $run_err, $run_ok);
+    print STDERR "Running @cmd\n";
+    my $run_ok = run(\@cmd, '>', \$run_out, '2>', \$run_err);
+    $run_ok or die "Error downloading SRR data. Command=@cmd, stdout:\n$run_out\nstderr:\n$run_err\n";
+
+    my $lib;
+    my ($read1, $read2, $read) = map { "$tmpdir/$id\_pass$_.fastq" } ("_1", "_2", "");
+
+    $lib->{read1} = $read1 if -s $read1;
+    $lib->{read2} = $read2 if -s $read2;
+    $lib->{read}  = $read  if -s $read;  # unpaired reads
+
+    return $lib;
+}
+
 sub get_ws {
     return $global_ws;
 }
@@ -296,10 +320,14 @@ sub parse_input {
 
     my @params;
 
-    my ($pes, $ses, $ref) = ($input->{paired_end_libs}, $input->{single_end_libs}, $input->{reference_assembly});
+    my ($pes, $ses, $srr, $ref) = ($input->{paired_end_libs},
+                                   $input->{single_end_libs},
+                                   $input->{srr_ids},
+                                   $input->{reference_assembly});
 
     for (@$pes) { push @params, parse_pe_lib($tmpdir, $_) }
     for (@$ses) { push @params, parse_se_lib($tmpdir, $_) }
+    for (@$srr) { push @params, parse_srr_id($tmpdir, $_) }
     push @params, parse_ref($tmpdir, $ref) if $ref;
 
     return @params;
@@ -338,6 +366,22 @@ sub parse_ref {
     return @params;
 }
 
+sub parse_srr_id {
+    my ($tmpdir, $id) = @_;
+    my @params;
+    my $lib = get_srr_lib($tmpdir, $id);
+    my @params;
+    if ($lib->{read1} && $lib->{read2}) {
+        push @params, "--pair";
+        push @params, $lib->{read1};
+        push @params, $lib->{read2};
+    }   # unpaired reads are a result of read filtering; ignore them when paired reads are found
+    elsif ($lib->{read}) {
+        push @params, "--single";
+        push @params, $lib->{read};
+    }
+    return @params;
+}
 
 sub verify_cmd {
     my ($cmd) = @_;
