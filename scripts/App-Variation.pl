@@ -47,7 +47,7 @@ sub process_variation_data {
 
     my $has_gbk = prepare_ref_data($ref_id, $tmpdir);
 
-    my $mapper = $params->{recipe} || $params->{mapper} || 'bwa_mem';
+    my $mapper = $params->{mapper} || 'bwa_mem';
     my $caller = $params->{caller} || 'freebayes';
 
     my $map = "$script_dir/var-map.pl"; verify_cmd($map);
