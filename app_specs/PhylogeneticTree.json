@@ -1,0 +1,56 @@
+{
+  "script": "App-PhylogeneticTree",
+  "label": "Compute phylogenetic tree",
+  "id": "PhylogeneticTree",
+  "description": "Computes a phylogenetic tree given a set of in-group and out-group genomes",
+  "parameters": [
+    {
+      "required": 1,
+      "desc": "Path to which the output will be written. ",
+      "type": "folder",
+      "default": null,
+      "label": "Output Folder",
+      "id": "output_path"
+    },
+    {
+      "required": 1,
+      "desc": "Basename for the generated output files.",
+      "type": "wsid",
+      "default": null,
+      "label": "File Basename",
+      "id": "output_file"
+    },
+    {
+      "id": "in_genome_ids",
+      "label": "In-group genomes",
+      "allow_multiple": true,
+      "required": 1,
+      "type": "list",
+      "default": []
+    },
+    {
+      "id": "out_genome_ids",
+      "label": "Out-group genomes",
+      "allow_multiple": true,
+      "required": 1,
+      "type": "list",
+      "default": []
+    },
+    {
+      "id": "full_tree_method",
+      "required": 0,
+      "default": "ml",
+      "label": "Full tree method",
+      "desc": "Full tree method",
+      "type": "string"
+    },
+    {
+      "id": "refinement",
+      "required": 0,
+      "default": "yes",
+      "label": "Automated progressive refinement",
+      "desc": "Automated progressive refinement",
+      "type": "string"
+    }
+  ]
+}
