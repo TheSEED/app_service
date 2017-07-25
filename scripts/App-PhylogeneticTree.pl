@@ -55,6 +55,19 @@ sub process_tree
 
     my @in_genomes;
     my @out_genomes;
+
+    #
+    # Determine species for genomes to enable/disable unique species filter
+    #
+    
+    my %species;
+    my $q = join(",", @{$params->{in_genome_ids}});
+    
+    my @res = $data_api->query("genome",
+			       ["in", "genome_id", "($q)"],
+			       ["select", "genome_id", "species"]);
+    push(@{$species{$_->{species}}}, $_->{genome_id}) foreach @res;
+    print STDERR Dumper(\%species);
     for my $in_genome (@{$params->{in_genome_ids}})
     {
 	my $path = "$tmpdir/$in_genome.faa";
@@ -77,10 +90,15 @@ sub process_tree
 	       "-run_name", $run_name,
 	       "-genome_file", @in_genomes,
 	       "-outgroup", @out_genomes,
-	       "-outgroup_count", 2,
+	       "-outgroup_count", scalar @out_genomes,
 	       "-max_concurrent_processes", $max_processes,
 	       "-patric"
 	      );
+
+    if (keys(%species) == 1)
+    {
+	push(@cmd, "-unique_species", "false");
+    }
 
     my %valid_method = (ml => 1, parsimony_bl => 1, FastTree => 1);
     if ($params->{full_tree_method})
