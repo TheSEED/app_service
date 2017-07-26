@@ -100,12 +100,16 @@ sub process_tree
 	push(@cmd, "-unique_species", "false");
     }
 
-    my %valid_method = (ml => 1, parsimony_bl => 1, FastTree => 1);
+    my %valid_method = (ml => 'ml',
+			parsimony_bl => 'parsimony_bl',
+			ft => 'FastTree',
+			FastTree => 'FastTree');
+    
     if ($params->{full_tree_method})
     {
-	if ($valid_method{$params->{full_tree_method}})
+	if (my $meth = $valid_method{$params->{full_tree_method}})
 	{
-	    push(@cmd, "-full_tree_method", $params->{full_tree_method});
+	    push(@cmd, "-full_tree_method", $meth);
 	}
 	else
 	{
