@@ -124,7 +124,12 @@ sub job
 	my $awe_res = $self->json->decode($res->content);
 	if ($awe_res->{status} eq 200)
 	{
-	    return $awe_res->{data};
+	    my $data = $awe_res->{data};
+	    #
+	    # If we are doing the query workaround, result data is a list.
+	    #
+	    $data = $data->[0] if ref($data) eq 'ARRAY';
+	    return $data;
 	}
 	else
 	{
