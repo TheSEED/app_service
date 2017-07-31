@@ -112,7 +112,12 @@ sub job
 {
     my($self, $job_id) = @_;
 
-    my $url = $self->server . "/job/$job_id";
+    #
+    # AWE 0.9.43 returns buggy results when querying with /job/id but correct
+    # results when querying with /job?query&id=.
+    #
+    # my $url = $self->server . "/job/$job_id";
+    my $url = $self->server . "/job/?query&id=$job_id";
     my $res = $self->ua->get($url, $self->auth_header());
     if ($res->is_success)
     {
@@ -200,25 +205,27 @@ sub add_task
     
     my $taskid = scalar(@{$self->{job}->{tasks}});
 
-    my $input_set = {};
+    my $input_list = [];
     for my $inp (@$inputs)
     {
-	$input_set->{$inp->name} = {
+	push(@$input_list, {
+	    filename => $inp->name,
 	    name => $inp->name,
 	    host => $inp->host,
 	    node => $inp->node,
 	    defined($inp->origin) ? (origin => "" . $inp->origin) : (),
-	};
+	});
     }
 
-    my $output_set = {};
+    my $output_list = [];
     for my $outp (@$outputs)
     {
-	$output_set->{$outp->name} = {
+	push(@$output_list, {
+	    filename => $outp->name,
 	    name => $outp->name,
 	    host => $outp->host,
 	    node => $outp->node,
-	};
+	});
 	my $origin = $outp->origin;
 	if (defined($origin))
 	{
@@ -244,8 +251,8 @@ sub add_task
 	    @environ,
 	},
 	dependsOn => $deps,
-	inputs => $input_set,
-	outputs => $output_set,
+	inputs => $input_list,
+	outputs => $output_list,
 	partinfo => { %$partinfo },
 	taskid => "" . $taskid,
 	skip => 0,
