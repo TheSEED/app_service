@@ -39,6 +39,15 @@
 			"type": "string"
 		},
 		{
+			"id":"contigs",
+			"required":0,
+			"default":null,
+			"label":"Contig file",
+			"desc":"Input set of DNA contigs for annotation",
+			"wstype":"Contigs",
+			"type":"wstype"
+		},
+		{
 			"id":"genome_group",
 			"label":"Output Genome Group",
 			"required": 0,
