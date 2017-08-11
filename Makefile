@@ -44,6 +44,10 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define data_api_url=$(DATA_API_URL) \
+	--define db_host=$(DB_HOST) \
+	--define db_user=$(DB_USER) \
+	--define db_pass=$(DB_PASS) \
+	--define db_name=$(DB_NAME) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
