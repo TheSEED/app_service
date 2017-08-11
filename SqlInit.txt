@@ -14,5 +14,6 @@ CREATE TABLE JobGroup
 	children_created INTEGER,
 	children_completed INTEGER DEFAULT 0,
 	parent_app VARCHAR(255),
-	params LONGTEXT
+	app_spec LONGTEXT,
+	app_params LONGTEXT
 ) ENGINE InnoDB;

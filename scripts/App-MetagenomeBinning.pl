@@ -31,3 +31,25 @@
 #
 # 11. Compute overall quality assessment.
 #
+
+use Bio::KBase::AppService::AppScript;
+use Bio::KBase::AppService::MetagenomeBinning;
+use strict;
+use Data::Dumper;
+
+#
+# For now we are hardcoding the spades assembler location; its installation
+# creates executables that are in conflict with standard bioinformatics
+# programs so it is isolated into its own directory.
+#
+
+my $spades = "$ENV{KB_RUNTIME}/spades-3.9.0/bin/spades.py";
+
+my $binner = Bio::KBase::AppService::MetagenomeBinning->new();
+$binner->spades($spades);
+
+my $script = Bio::KBase::AppService::AppScript->new(sub { $binner->process(@_); });
+
+my $rc = $script->run(\@ARGV);
+
+exit $rc;

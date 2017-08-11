@@ -10,7 +10,8 @@ use constant	    github_issue_repo_name => '[% github_issue_repo_name %]';
 use constant	    github_issue_token => '[% github_issue_token %]';
 
 use base 'Exporter';
-our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name github_issue_token);
+our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name github_issue_token
+		    db_host db_user db_pass db_name);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 1;
 

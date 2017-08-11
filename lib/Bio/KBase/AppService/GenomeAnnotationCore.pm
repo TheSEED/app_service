@@ -320,5 +320,40 @@ sub submit_load_files
     }
 }
 
+#
+# If this is the last job out of a group run by another application,
+# perform the post-job processing. We defer it to a script that is defined
+# by that application. If it is lengthy, that script may decide to
+# 
+
+sub run_last_job_processing
+{
+    my($self, $parent_job, $parent_app, $parent_app_spec, $parent_params) = @_;
+    
+    my $tmp_spec = File::Temp->new;
+    print $tmp_spec $parent_app_spec;
+    close($tmp_spec);
+
+    my $tmp_params = File::Temp->new;
+    print $tmp_params $parent_params;
+    close($tmp_params);
+
+    my $cmd = "AppEpilog-$parent_app";
+    my @cmd = ($cmd, $self->app->app_service_url, "$tmp_spec", "$tmp_params");
+    my $rc = system(@cmd);
+    my $err = $!;
+    if ($rc != 0)
+    {
+	if ($err =~ /No such file or directory/i)
+	{
+	    warn "No epilog $cmd found\n";
+	}
+	else
+	{
+	    die "Error $rc ($!) running epilog @cmd";
+	}
+    }
+}
+
 
 1;

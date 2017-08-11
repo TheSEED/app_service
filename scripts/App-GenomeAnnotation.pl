@@ -4,7 +4,7 @@
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::GenomeAnnotationCore;
-use Bio::KBase::AppService::AppConfig 'data_api_url';
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name);
 use Bio::KBase::AuthToken;
 use SolrAPI;
 use DBI;
@@ -127,11 +127,62 @@ sub process_genome
     #
     # Determine if we are one of a peer group of jobs that was started
     # on behalf of a parent job. If we are, and if we are the last job running,
+    # invoke post-parent-job processing.
     #
 
-    if ($params->{_parent_job})
+    if (my $parent = $params->{_parent_job})
     {
-	my $dbh = DBI->connect(
+	my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
+	my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
+	
+	my $sth = $dbh->prepare(qq(SELECT children_created, children_completed, parent_app, app_spec, app_params
+				   FROM JobGroup
+				   WHERE parent_job = ?
+				   FOR UPDATE));
+	my $res = $sth->execute($parent);
+	my $last_job = 0;
+	my($created, $completed, $app, $spec, $params);
+	if ($res != 1)
+	{
+	    warn "Missing parent job $parent in database\n";
+	}
+	else
+	{
+	    ($created, $completed, $app, $spec, $params) = $sth->fetchrow_array();
+	    print "Created=$created completed=$completed\n";
+	    
+	    if ($completed == $created - 1)
+	    {
+		print "We are the last one out!\n";
+		$last_job = 1;
+	    }
+	    elsif ($completed < $created - 1)
+	    {
+		print "Not so many gone\n";
+	    }
+	    else
+	    {
+		warn "completed=$completed created=$created - should not happen here\n";
+	    }
+	    my $n = $dbh->do(qq(UPDATE JobGroup
+				SET children_completed = children_completed + 1
+				WHERE parent_job = ? AND children_completed = ?), undef,
+			     $parent, $completed);
+	    if ($n == 0)
+	    {
+		print "Failed on update - not us!\n";
+	    }
+	    else
+	    {
+		print "Completed with n=$n\n";
+	    }
+	}
+
+	$dbh->commit();
+	if ($last_job)
+	{
+	    $core->run_last_job_processing($parent, $app, $spec, $params);
+	}
     }
 
     $core->ctx->stderr(undef);
