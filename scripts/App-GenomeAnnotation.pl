@@ -7,6 +7,7 @@ use Bio::KBase::AppService::GenomeAnnotationCore;
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 use Bio::KBase::AuthToken;
 use SolrAPI;
+use DBI;
 
 use strict;
 use Data::Dumper;
@@ -122,6 +123,16 @@ sub process_genome
     my $result = $core->run_pipeline($genome);
 
     $core->write_output($genome, $result, {}, undef, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
+
+    #
+    # Determine if we are one of a peer group of jobs that was started
+    # on behalf of a parent job. If we are, and if we are the last job running,
+    #
+
+    if ($params->{_parent_job})
+    {
+	my $dbh = DBI->connect(
+    }
 
     $core->ctx->stderr(undef);
 }
