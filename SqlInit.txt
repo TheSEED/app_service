@@ -1,0 +1,19 @@
+/*
+ * SQL table definitions for the AppService database.
+ */
+
+/*
+ * A JobGroup manages the set of jobs that were created
+ * on behalf of a parent. It allows via careful locked
+ * access the last job out to run code to complete 
+ * the run of the application defined by the parent job.
+ */
+CREATE TABLE JobGroup
+(
+	parent_job VARCHAR(255) PRIMARY KEY,
+	children_created INTEGER,
+	children_completed INTEGER DEFAULT 0,
+	parent_app VARCHAR(255),
+	app_spec LONGTEXT,
+	app_params LONGTEXT
+) ENGINE InnoDB;

@@ -22,7 +22,8 @@ use base 'Class::Accessor';
 
 use Data::Dumper;
 
-__PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder workspace_url workspace params app_definition result_folder));
+__PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder
+			     workspace_url workspace params app_definition result_folder app_service_url));
 
 sub new
 {
@@ -62,6 +63,7 @@ sub run
     @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
     
     my $appserv_url = shift @$args;
+    $self->app_service_url($appserv_url);
 
     #
     # If we are running at the terminal, do not set up this infrastructure.
@@ -290,7 +292,6 @@ sub create_result_folder
     my $base_folder = $self->params->{output_path};
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
-
     $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
 }
 
