@@ -122,7 +122,7 @@ sub process_genome
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
     my $result = $core->run_pipeline($genome);
 
-    $core->write_output($genome, $result, {}, undef, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
+    my $gto_path = $core->write_output($genome, $result, {}, undef, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
 
     #
     # Determine if we are one of a peer group of jobs that was started
@@ -135,6 +135,14 @@ sub process_genome
 	my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
 	my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
 	
+	#
+	# Save information about this genome.
+	#
+	$dbh->do(qq(INSERT INTO GenomeAnnotation_JobDetails (job_id, parent_job, genome_id, genome_name, gto_path)
+		    VALUES (?, ?, ?, ?, ?)), undef,
+		 $app->task_id, $parent, $genome->{id}, $genome->{scientific_name}, $gto_path);
+	$dbh->commit();
+
 	my $sth = $dbh->prepare(qq(SELECT children_created, children_completed, parent_app, app_spec, app_params
 				   FROM JobGroup
 				   WHERE parent_job = ?

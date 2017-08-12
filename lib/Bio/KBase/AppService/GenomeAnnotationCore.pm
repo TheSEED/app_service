@@ -130,6 +130,10 @@ sub run_pipeline
     return $result;
 }
 
+#
+# Export and save the genome object in a number of formats.
+# Return the workspace path of the genome object for later use.
+#
 sub write_output
 {
     my($self, $genome, $result, $meta, $genbank_file, $public_flag, $queue_nowait, $no_index) = @_;
@@ -144,8 +148,9 @@ sub write_output
     my $output_base = $self->params->{output_file};
     my $output_folder = $self->app->result_folder();
     my $ws = $self->app->workspace();
-    
-    $ws->save_file_to_file("$tmp_genome", $meta, "$output_folder/$output_base.genome", 'genome', 
+
+    my $gto_path = "$output_folder/$output_base.genome";
+    $ws->save_file_to_file("$tmp_genome", $meta, $gto_path, 'genome', 
 			   1, 1, $self->token);
 
     #
@@ -210,6 +215,7 @@ sub write_output
 	    $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
 	}
     }
+    return $gto_path;
 }
 
 

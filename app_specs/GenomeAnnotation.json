@@ -94,6 +94,14 @@
       "type": "string"
     },
     {
+      "id": "_parent_job",
+      "label": "(Internal) Parent job for this annotation",
+      "desc": "(Internal) Parent job for this annotation",
+      "required": 0,
+      "default": null,
+      "type": "string"
+    },
+    {
       "id": "fix_errors",
       "label": "Automatically fix errors?",
       "required": 0,

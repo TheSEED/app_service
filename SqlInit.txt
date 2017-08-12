@@ -17,3 +17,12 @@ CREATE TABLE JobGroup
 	app_spec LONGTEXT,
 	app_params LONGTEXT
 ) ENGINE InnoDB;
+
+CREATE TABLE GenomeAnnotation_JobDetails
+(
+	job_id VARCHAR(255) PRIMARY KEY,
+	parent_job VARCHAR(255),
+	genome_id VARCHAR(255),
+	genome_name TEXT,
+	gto_path TEXT
+) ENGINE InnoDB;
