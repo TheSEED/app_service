@@ -2,6 +2,8 @@
 #
 # Module to encapsulate metagenome binning code.
 #
+# Name badness. app_params used in two different ways down there. Fix that.
+#
 
 package Bio::KBase::AppService::MetagenomeBinning;
 
@@ -13,6 +15,8 @@ use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name);
+use DBI;
 
 __PACKAGE__->mk_accessors(qw(app app_def params token
 			     work_dir assembly_dir stage_dir output_base output_folder 
@@ -88,8 +92,8 @@ sub process
 	$self->stage_contigs($params->{contigs});
     }
 
-#    $self->compute_coverage();
-#    $self->compute_bins();
+    $self->compute_coverage();
+    $self->compute_bins();
     $self->extract_fasta();
     $self->submit_annotations();
 }
@@ -118,6 +122,18 @@ sub stage_paired_end_libs
     push(@{$self->assembly_params},
 	 "-1", $staged->{$reads[0]},
 	 "-2", $staged->{$reads[1]});
+}
+
+#
+# Stage the assembled contigs.
+#
+sub stage_contigs
+{
+    my($self, $contigs) = @_;
+
+    my $staged = $self->app->stage_in([$contigs], $self->stage_dir, 1);
+
+    $self->contigs($staged->{$contigs});
 }
 
 #
@@ -266,6 +282,7 @@ sub extract_fasta
 	    taxonomy_id => $taxon_id,
 	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
+	    _parent_job => $self->app->task_id,
 	};
 	push(@$app_list, $descr);
     }
@@ -274,15 +291,34 @@ sub extract_fasta
     print Dumper($self->app_params);
 }
     
+sub write_db_record
+{
+    my($self, $n_children) = @_;
+    
+    my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
+    my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
+
+    my $json = JSON::XS->new->pretty(1);
+
+    $dbh->do(qq(INSERT INTO JobGroup (parent_job, children_created, parent_app, app_spec, app_params)
+		VALUES (?, ?, ?, ?, ?)), undef,
+	     $self->app->task_id, $n_children, "MetagenomeBinning",
+	     $json->encode($self->app_def), $json->encode($self->params));
+    $dbh->commit();
+}
+
 sub submit_annotations
 {
     my($self) = @_;
 
+    $self->write_db_record(scalar @{$self->app_params});
+    
     my $client = Bio::KBase::AppService::Client->new();
     for my $task (@{$self->app_params})
     {
-	my $task = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
 	print Dumper($task);
+	# my $submitted = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
+	# print Dumper($task, $submitted);
     }
 }
     
