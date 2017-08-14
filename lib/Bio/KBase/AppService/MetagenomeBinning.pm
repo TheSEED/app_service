@@ -304,7 +304,8 @@ sub extract_fasta
 	    domain => $domain,
 	    scientific_name=> $bin->{name},
 	    taxonomy_id => $taxon_id,
-	    output_path => $self->params->{output_path},
+	    output_path => $self->output_folder,
+#	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 	    _parent_job => $self->app->task_id,
 	};
