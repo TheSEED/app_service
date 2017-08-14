@@ -55,7 +55,7 @@ module AppService
 	string hostname;
 	list <tuple<string output_path, string output_id>> output_files;
     } TaskResult;
-    
+
     funcdef service_status() returns (tuple<int submission_enabled, string status_message>);
 
     funcdef enumerate_apps()

@@ -26,6 +26,7 @@ my @staff_users = ('mshukla@patricbrc.org',
 		   'jimdavis@patricbrc.org',
 		   'fangfang@patricbrc.org' ,
 		   'PATRIC@patricbrc.org',
+		   'rastuser25@patricbrc.org',
 		   # 'KPNs_4_Houston@patricbrc.org',
 		   );
 my %staff_users = map { $_ => 1 } @staff_users;
@@ -36,8 +37,8 @@ my @q = (state => 'completed');
 #@q = ();
 
 #my $begin = DateTime->new(year => 2015, month => 10, day => 1)->set_time_zone( 'America/Chicago' );
-my $end = DateTime->new(year => 2016, month => 9, day => 15)->set_time_zone( 'America/Chicago' );
-my $begin = DateTime->new(year => 2016, month => 3, day => 15)->set_time_zone( 'America/Chicago' );
+my $end = DateTime->new(year => 2017, month => 5, day => 1)->set_time_zone( 'America/Chicago' );
+my $begin = DateTime->new(year => 2013, month => 10, day => 1)->set_time_zone( 'America/Chicago' );
 my @end;
 @end = ('$lt' => $end );
 
@@ -82,7 +83,7 @@ while (my $job = $jobs->next)
     $total_by_app{$app}++;
 }
 
-# die Dumper(\%allusers);
+#die Dumper(\%allusers);
 
 my @applist = qw(GenomeAssembly GenomeAnnotation GenomeAnnotationGenbank GenomeComparison RunProbModelSEEDJob ModelReconstruction GapfillModel RNASeq DifferentialExpression Variation);
 for my $app (@applist)

@@ -23,7 +23,8 @@ use base 'Class::Accessor';
 use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder
-			     workspace_url workspace params app_definition result_folder app_service_url));
+			     workspace_url workspace params app_definition result_folder
+			     task_id app_service_url));
 
 sub new
 {
@@ -50,6 +51,10 @@ sub run
     #
     # Hack to finding task id.
     #
+    my $host = `hostname -f`;
+    $host = `hostname` if !$host;
+    chomp $host;
+
     my $task_id = 'TBD';
     if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
     {
@@ -57,8 +62,9 @@ sub run
     }
     else
     {
-	$task_id = "UNK-$$";
+	$task_id = "UNK-$host-$$";
     }
+    $self->task_id($task_id);
 
     @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
     
@@ -98,10 +104,6 @@ sub run
 	$self->subproc_run($args);
 	exit(0);
     }
-
-    my $host = `hostname -f`;
-    $host = `hostname` if !$host;
-    chomp $host;
 
     $self->write_block("pid", $pid);
     $self->write_block("hostname", $host);
