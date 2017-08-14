@@ -151,7 +151,6 @@ sub process
 	    warn "Cannot find home path token='" . $app->token->token . "'\n";
 	}
     }
-	
 }
 
 sub run_seedtk_cmd
