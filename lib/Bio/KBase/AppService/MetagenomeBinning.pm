@@ -15,7 +15,7 @@ use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
-use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name);
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
 use DBI;
 
 __PACKAGE__->mk_accessors(qw(app app_def params token
@@ -174,6 +174,8 @@ sub compute_coverage
 {
     my($self) = @_;
 
+    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
+
     my @cmd = ("bins_coverage", $self->contigs, $self->work_dir);
     my $rc = system(@cmd);
 
@@ -184,6 +186,8 @@ sub compute_coverage
 sub compute_bins
 {
     my($self) = @_;
+
+    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_generate", $self->work_dir);
     my $rc = system(@cmd);
