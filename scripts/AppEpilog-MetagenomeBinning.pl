@@ -45,7 +45,6 @@ sub process
     my($app, $app_def, $raw_params, $params) = @_;
 
     my $task = $app->task_id;
-    $task = "UNK-redwood.mcs.anl.gov-8653";
 
     #
     # Connect to database to determine parent's task id, then enumerate
