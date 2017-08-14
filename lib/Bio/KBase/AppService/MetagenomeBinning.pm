@@ -320,9 +320,8 @@ sub submit_annotations
     my $client = Bio::KBase::AppService::Client->new();
     for my $task (@{$self->app_params})
     {
-	print Dumper($task);
-	# my $submitted = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
-	# print Dumper($task, $submitted);
+	my $submitted = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
+	print Dumper($task, $submitted);
     }
 }
     
