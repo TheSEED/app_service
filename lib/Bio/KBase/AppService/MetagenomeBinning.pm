@@ -79,8 +79,8 @@ sub process
 
     if (my $val = $params->{paired_end_libs})
     {
-#	$self->stage_paired_end_libs($val);
-#	$self->assemble();
+	$self->stage_paired_end_libs($val);
+	$self->assemble();
     }
     elsif (my $val = $params->{srr_ids})
     {
@@ -103,20 +103,40 @@ sub process
 # have a single pair of contigs (spades metagenome assembler only
 # handles one pair of paired-end read sets).
 #
+# 'paired_end_libs' => [
+#		                                        '/olson@patricbrc.org/Binning/Data/SRR2188006_1.fastq.gz',
+#		                                        '/olson@patricbrc.org/Binning/Data/SRR2188006_2.fastq.gz'
+#		                                      ],
+    
+
 sub stage_paired_end_libs
 {
     my($self, $libs) = @_;
 
-    if (@$libs == 0)
+    my @reads;
+
+    #
+    # Check for new form
+    #
+
+    if (@$libs == 2 && !ref($libs->[0]) && !ref($libs->[1]))
     {
-	die "MetagenomeBinning:: stage_paired_end_libs - no libs provided";
+	@reads = @$libs;
     }
-    elsif (@$libs > 1)
+    else
     {
-	die "MetagenomeBinning:: stage_paired_end_libs - only one lib may be provided";
+	if (@$libs == 0)
+	{
+	    die "MetagenomeBinning:: stage_paired_end_libs - no libs provided";
+	}
+	elsif (@$libs > 1)
+	{
+	    die "MetagenomeBinning:: stage_paired_end_libs - only one lib may be provided";
+	}
+
+	my $lib = $libs->[0];
+	@reads = @$lib{qw(read1 read2)};
     }
-    my $lib = $libs->[0];
-    my @reads = @$lib{qw(read1 read2)};
     my $staged = $self->app->stage_in(\@reads, $self->stage_dir, 1);
 
     push(@{$self->assembly_params},
