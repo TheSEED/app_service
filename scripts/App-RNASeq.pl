@@ -131,7 +131,7 @@ sub run_rna_rocket {
             push @new_files, $_;
         }
     }
-    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : [ $_, 'txt' ] } @new_files;
+    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : [ $_, 'txt' ] } @new_files;
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
 
