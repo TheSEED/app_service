@@ -119,7 +119,7 @@ sub run_rna_rocket {
 
     run("echo $outdir && ls -ltr $outdir");
 
-    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam");
+    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam $outdir/$ref_id/*/replicate*/*.bai");
     print STDERR '\@files = '. Dumper(\@files);
     my @new_files;
     for (@files) {
@@ -131,7 +131,7 @@ sub run_rna_rocket {
             push @new_files, $_;
         }
     }
-    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : [ $_, 'txt' ] } @new_files;
+    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : [ $_, 'txt' ] } @new_files;
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
 
