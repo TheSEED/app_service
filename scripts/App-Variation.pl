@@ -39,9 +39,15 @@ sub process_variation_data {
     my $tmpdir = File::Temp->newdir();
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/oIGe_LLBbt";
-    # my $tmpdir = "/disks/tmp/oIGe_LLBbt";
+    # my $tmpdir = "/disks/tmp/var_bam";
+    # my $tmpdir = "/disks/tmp/var_bam1";
     # my $tmpdir = "/disks/tmp/var_debug";
+
+    print STDERR '$params = '. Dumper($params);
     $params = localize_params($tmpdir, $params);
+    $params = parse_bam_files($tmpdir, $params);
+    print STDERR '$params = '. Dumper($params);
+    # exit;
 
     my $ref_id = $params->{reference_genome_id} or die "Reference genome is required for variation analysis\n";
 
@@ -98,6 +104,7 @@ sub process_variation_data {
         system("cp $tmpdir/$_/var.annotated.tsv $tmpdir/$_.var.annotated.tsv") if -s "$tmpdir/$_/var.annotated.tsv";
         system("cp $tmpdir/$_/var.annotated.raw.tsv $tmpdir/$_.var.annotated.tsv") if ! -s "$tmpdir/$_/var.annotated.tsv" && -s "$tmpdir/$_/var.annotated.raw.tsv";
         system("cp $tmpdir/$_/var.snpEff.vcf $tmpdir/$_.var.snpEff.vcf") if -s "$tmpdir/$_/var.snpEff.vcf";
+        system("cat $tmpdir/$_/consensus | sed 's/^>/>$_./g' > $tmpdir/$_.consensus.fa") if -s "$tmpdir/$_/consensus";
     }
 
     run_var_combine($tmpdir, \@libs);
@@ -108,6 +115,7 @@ sub process_variation_data {
     push @outputs, map { [ $_, 'vcf' ] } glob("$tmpdir/*.vcf");
     push @outputs, map { [ $_, 'html'] } glob("$tmpdir/*.html");
     push @outputs, map { [ $_, 'bam' ] } glob("$tmpdir/*.bam");
+    push @outputs, map { [ $_, 'contigs' ] } glob("$tmpdir/*.consensus.fa");
     push @outputs, map { [ $_, 'unspecified' ] } glob("$tmpdir/*.tbi $tmpdir/*.vcf.gz $tmpdir/*.bam.bai");
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
@@ -356,6 +364,24 @@ sub run_cmd {
     print STDERR "STDOUT:\n$out\n" if $verbose;
     print STDERR "STDERR:\n$err\n" if $verbose;
     return ($out, $err);
+}
+
+sub parse_bam_files {
+    my ($tmpdir, $params) = @_;
+    for my $lib (@{$params->{single_end_libs}}) {
+        if ($lib->{read} =~ /(.*)\.bam$/) {
+            my $input = $lib->{read};
+            my $pe1 = "$1_R1.fq";
+            my $pe2 = "$1_R2.fq";
+            sysrun("samtools sort -n $input | samtools fastq -1 $pe1 -2 $pe2 -");
+            if (-s $pe1 && -s $pe2) {
+                push @{$params->{paired_end_libs}}, { read1 => $pe1, read2 => $pe2 };
+            }
+            $lib->{read} = undef;
+        }
+    }
+    $params->{single_end_libs} = [ grep { defined($_->{read}) } @{$params->{single_end_libs}} ];
+    return $params;
 }
 
 sub localize_params {
