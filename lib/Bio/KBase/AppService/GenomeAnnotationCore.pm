@@ -87,26 +87,70 @@ sub user_id
 
 sub run_pipeline
 {
-    my($self, $genome) = @_;
+    my($self, $genome, $workflow_txt) = @_;
+
+    my $workflow;
+    if ($workflow_txt)
+    {
+	#
+	# Workflow is to be a json document that we parse here and format-check.
+	#
+
+	
+	eval {
+	    $workflow = $self->json->decode($workflow_txt);
+	};
+	if (!$workflow)
+	{
+	    die "Error parsing workflow document: $@";
+	}
+	
+	if (ref($workflow) ne 'HASH' ||
+	    !exists($workflow->{stages}) ||
+	    ref($workflow->{stages}) ne 'ARRAY')
+	{
+	    die "Invalid workflow document (must be a object containing a stage list)";
+	}
+    }
+
     
+
+    if (!$workflow)
+    {
+	$workflow = $self->default_workflow();
+    }
+	
+    local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
+    
+    print STDERR "Running pipeline on host " . `hostname`. "\n";
+    
+    my $result = $self->impl->run_pipeline($genome, $workflow);
+    
+    return $result;
+}
+
+sub default_workflow
+{
+    my($self) = @_;
+
     my @stages = (
 	      { name => 'call_features_rRNA_SEED' },
 	      { name => 'call_features_tRNA_trnascan' },
 	      { name => 'call_features_repeat_region_SEED',
-		                        repeat_region_SEED_parameters => { } },
+		    repeat_region_SEED_parameters => { } },
 	      { name => 'call_selenoproteins' },
 	      { name => 'call_pyrrolysoproteins' },
 	      { name => 'call_features_strep_suis_repeat',
-		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+		    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
 	      { name => 'call_features_strep_pneumo_repeat',
-		                    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
+		    condition => '$genome->{scientific_name} =~ /^Streptococcus\s/' },
 	      { name => 'call_features_crispr', failure_is_not_fatal => 1 },
 	      { name => 'call_features_CDS_prodigal' },
 	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {}, failure_is_not_fatal => 1 },
 	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
 	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_hypothetical_only => 1 } },
 	      { name => 'annotate_proteins_similarity', similarity_parameters => { annotate_hypothetical_only => 1 } },
-              { name => 'propagate_genbank_feature_metadata',
+	      { name => 'propagate_genbank_feature_metadata',
 		    propagate_genbank_feature_metadata_parameters => {} },
 	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
 	      { name => 'classify_amr', failure_is_not_fatal => 1 },
@@ -118,17 +162,33 @@ sub run_pipeline
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		  # { name => 'call_features_prophage_phispy' },
+		     );
+    my $workflow = { stages => \@stages };
+
+    return $workflow;
+}
+
+sub import_workflow
+{
+    my($self) = @_;
+
+    my @stages = (
+	      { name => 'propagate_genbank_feature_metadata',
+		    propagate_genbank_feature_metadata_parameters => {} },
+	      { name => 'classify_amr', failure_is_not_fatal => 1 },
+	      { name => 'renumber_features' },
+	      { name => 'annotate_special_proteins' },
+	      { name => 'annotate_families_figfam_v1' },
+	      { name => 'annotate_families_patric' },
+	      { name => 'annotate_null_to_hypothetical' },
+	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
+	      { name => 'annotate_strain_type_MLST' },
 		 );
     my $workflow = { stages => \@stages };
-    
-    local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
 
-    print STDERR "Running pipeline on host " . `hostname`. "\n";
-
-    my $result = $self->impl->run_pipeline($genome, $workflow);
-
-    return $result;
+    return $workflow;
 }
+
 
 #
 # Export and save the genome object in a number of formats.

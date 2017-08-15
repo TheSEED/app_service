@@ -120,7 +120,7 @@ sub process_genome
     }
 
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
-    my $result = $core->run_pipeline($genome);
+    my $result = $core->run_pipeline($genome, $params->{workflow});
 
     my $gto_path = $core->write_output($genome, $result, {}, undef, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
 

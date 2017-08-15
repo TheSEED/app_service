@@ -1,593 +1,612 @@
 {
-	"id":"GenomeAnnotationGenbank",
-	"script":"App-GenomeAnnotationGenbank",
-	"label":"Annotate genome",
-	"description":"Calls genes and functionally annotate input contig set.",
-	"parameters":[
-		{
-			"id":"genbank_file",
-			"required":1,
-			"default":null,
-			"label":"Genbank file",
-			"desc":"Genome to process",
-			"wstype":"genbank_file",
-			"type":"wstype"
-		},
-		{
-			"id":"public",
-			"required": 0,
-			"default": false,
-			"label":"Public",
-			"desc":"Make this genome public",
-			"type":"bool"
-		},
-		{
-			"id":"queue_nowait",
-			"required": 0,
-			"default": false,
-			"label":"Don't wait on indexing queue",
-			"desc":"If set, don't wait for the indexing to finish before marking the job complete.",
-			"type":"bool"
-		},
-		{
-			"id":"output_path",
-			"label":"Output Folder",
-			"required":0,
-			"default":null,
-			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
-			"type":"folder"
-		},
-		{
-			"id":"output_file",
-			"label":"File Basename",
-			"required":0,
-			"default":null,
-			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
-			"type":"wsid"
-		},
+  "id": "GenomeAnnotationGenbank",
+  "script": "App-GenomeAnnotationGenbank",
+  "label": "Annotate genome",
+  "description": "Calls genes and functionally annotate input contig set.",
+  "parameters": [
+    {
+      "id": "genbank_file",
+      "required": 1,
+      "default": null,
+      "label": "Genbank file",
+      "desc": "Genome to process",
+      "wstype": "genbank_file",
+      "type": "wstype"
+    },
+    {
+      "id": "public",
+      "required": 0,
+      "default": false,
+      "label": "Public",
+      "desc": "Make this genome public",
+      "type": "bool"
+    },
+    {
+      "id": "queue_nowait",
+      "required": 0,
+      "default": false,
+      "label": "Don't wait on indexing queue",
+      "desc": "If set, don't wait for the indexing to finish before marking the job complete.",
+      "type": "bool"
+    },
+    {
+      "id": "output_path",
+      "label": "Output Folder",
+      "required": 0,
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
+      "type": "folder"
+    },
+    {
+      "id": "output_file",
+      "label": "File Basename",
+      "required": 0,
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
+      "type": "wsid"
+    },
+    {
+      "id": "workflow",
+      "label": "Custom workflow",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a custom workflow document (expert).",
+      "type": "string"
+    },
+    {
+      "id": "import_only",
+      "label": "Import only",
+      "required": 0,
+      "default": null,
+      "desc": "Import this genome (do not reannotate gene calls or protein functions)",
+      "type": "bool"
+    },
+    {
+      "id": "fix_errors",
+      "label": "Automatically fix errors?",
+      "required": 0,
+      "default": null,
+      "desc": "The automatic annotation process may run into problems, such as gene candidates overlapping RNAs, or genes embedded inside other genes. To automatically resolve these problems (even if that requires deleting some gene candidates), enable this option.",
+      "type": "bool"
+    },
+    {
+      "id": "fix_frameshifts",
+      "label": "Fix frameshifts?",
+      "required": 0,
+      "default": null,
+      "desc": "If you wish for the pipeline to fix frameshifts, enable this option. Otherwise frameshifts will not be corrected.",
+      "type": "bool"
+    },
+    {
+      "id": "enable_debug",
+      "label": "Enable debug?",
+      "required": 0,
+      "default": null,
+      "desc": "If you wish debug statements to be printed for this job, enable this option.",
+      "type": "bool"
+    },
+    {
+      "id": "verbose_level",
+      "label": "Set verbose level",
+      "required": 0,
+      "default": null,
+      "desc": "Set this to the verbosity level of choice for error messages.",
+      "type": "int"
+    },
+    {
+      "id": "disable_replication",
+      "label": "Disable replication?",
+      "required": 0,
+      "default": null,
+      "desc": "Even if this job is identical to a previous job, run it from scratch.",
+      "type": "bool"
+    },
+    {
+      "id": "custom_pipeline",
+      "label": "Customize the RASTtk pipeline",
+      "required": 0,
+      "default": null,
+      "desc": "Customize the RASTtk pipeline",
+      "type": "group",
+      "group": [
         {
-            "id":"fix_errors",
-            "label":"Automatically fix errors?",
-            "required":0,
-            "default":null,
-            "desc":"The automatic annotation process may run into problems, such as gene candidates overlapping RNAs, or genes embedded inside other genes. To automatically resolve these problems (even if that requires deleting some gene candidates), enable this option.",
-            "type":"bool"
+          "id": "call-features-rRNA-SEED",
+          "label": "call-features-rRNA-SEED",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-rRNA-SEED",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
         },
         {
-            "id":"fix_frameshifts",
-            "label":"Fix frameshifts?",
-            "required":0,
-            "default":null,
-            "desc":"If you wish for the pipeline to fix frameshifts, enable this option. Otherwise frameshifts will not be corrected.",
-            "type":"bool"
+          "id": "call-features-tRNA-trnascan",
+          "label": "call-features-tRNA-trnascan",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-tRNA-trnascan",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
         },
         {
-            "id":"enable_debug",
-            "label":"Enable debug?",
-            "required":0,
-            "default":null,
-            "desc":"If you wish debug statements to be printed for this job, enable this option.",
-            "type":"bool"
-        },
-        {
-            "id":"verbose_level",
-            "label":"Set verbose level",
-            "required":0,
-            "default":null,
-            "desc":"Set this to the verbosity level of choice for error messages.",
-            "type":"int"
-        },
-        {
-            "id":"disable_replication",
-            "label":"Disable replication?",
-            "required":0,
-            "default":null,
-            "desc":"Even if this job is identical to a previous job, run it from scratch.",
-            "type":"bool"
-        },
-        {
-            "id":"custom_pipeline",
-            "label":"Customize the RASTtk pipeline",
-            "required":0,
-            "default":null,
-            "desc":"Customize the RASTtk pipeline",
-            "type":"group",
-            "group":[
+          "id": "call-features-repeat-region-SEED",
+          "label": "call-features-repeat-region-SEED",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-repeat-region-SEED",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
                 {
-                    "id":"call-features-rRNA-SEED",
-                    "label":"call-features-rRNA-SEED",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-rRNA-SEED",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
+                  "id": "minimum_identity",
+                  "required": 0,
+                  "type": "int",
+                  "default": "95",
+                  "label": "Minimum identity"
                 },
                 {
-                    "id":"call-features-tRNA-trnascan",
-                    "label":"call-features-tRNA-trnascan",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-tRNA-trnascan",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-repeat-region-SEED",
-                    "label":"call-features-repeat-region-SEED",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-repeat-region-SEED",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"minimum_identity",
-                                    "required":0,
-                                    "type":"int",
-                                    "default":"95",
-                                    "label":"Minimum identity"
-                                },
-                                {
-                                    "id":"minimum_length",
-                                    "required":0,
-                                    "type":"int",
-                                    "default":"100",
-                                    "label":"Minimum length"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"call-selenoproteins",
-                    "label":"call-selenoproteins",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-selenoproteins",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-pyrrolysoproteins",
-                    "label":"call-pyrrolysoproteins",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-pyrrolysoproteins",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":"",
-                            "default":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-insertion-sequences",
-                    "label":"call-features-insertion-sequences",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-insertion-sequences",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":"",
-                            "default":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-strep-suis-repeat",
-                    "label":"call-features-strep-suis-repeat",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-strep-suis-repeat",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "desc":"",
-                            "default":"$genome->"
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-strep-pneumo-repeat",
-                    "label":"call-features-strep-pneumo-repeat",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-strep-pneumo-repeat",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "desc":"",
-                            "default":"$genome->"
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-crispr",
-                    "label":"call-features-crispr",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-crispr",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-CDS-glimmer3",
-                    "label":"call-features-CDS-glimmer3",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-CDS-glimmer3",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"minimum_training_length",
-                                    "required":0,
-                                    "type":"int",
-                                    "default":"2000",
-                                    "label":"Minimum training length"
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-CDS-prodigal",
-                    "label":"call-features-CDS-prodigal",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-CDS-prodigal",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-CDS-genemark",
-                    "label":"call-features-CDS-genemark",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-CDS-genemark",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":"",
-                            "default":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-ProtoCDS-kmer-v1",
-                    "label":"call-features-ProtoCDS-kmer-v1",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-ProtoCDS-kmer-v1",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"kmer_dataset",
-                                    "required":0,
-                                    "type":"enum",
-                                    "label":"Kmer dataset to use",
-                                    "default":"release70",
-                                    "enum": ["release70","release59"]
-                                },
-                                {
-                                    "id":"only_hypothetical",
-                                    "required":0,
-                                    "type":"bool",
-                                    "label":"Only annotate hypothetical proteins",
-                                    "default":1
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-ProtoCDS-kmer-v2",
-                    "label":"call-features-ProtoCDS-kmer-v2",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-ProtoCDS-kmer-v2",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"kmer_hits_required",
-                                    "required":0,
-                                    "type":"int",
-                                    "label":"Minimum kmer hits required",
-                                    "desc":"Minimum kmer hits required",
-                                    "default":"5"
-                                },
-                                {
-                                    "id":"only_hypothetical",
-                                    "required":0,
-                                    "type":"bool",
-                                    "label":"Only annotate hypothetical proteins",
-                                    "default":0
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"annotate-proteins-kmer-v2",
-                    "label":"annotate-proteins-kmer-v2",
-                    "required":0,
-                    "default":null,
-                    "desc":"annotate-proteins-kmer-v2",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"kmer_hits_required",
-                                    "required":0,
-                                    "type":"int",
-                                    "label":"Minimum kmer hits required",
-                                    "desc":"Minimum kmer hits required",
-                                    "default":"5"
-                                },
-                                {
-                                    "id":"only_hypothetical",
-                                    "required":0,
-                                    "type":"bool",
-                                    "label":"Only annotate hypothetical proteins",
-                                    "default":0
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"annotate-proteins-kmer-v1",
-                    "label":"annotate-proteins-kmer-v1",
-                    "required":0,
-                    "default":null,
-                    "desc":"annotate-proteins-kmer-v1",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"kmer_dataset",
-                                    "required":0,
-                                    "type":"enum",
-                                    "label":"Kmer dataset to use",
-                                    "default":"release70",
-                                    "enum": ["release70","release59"]
-                                },
-                                {
-                                    "id":"only_hypothetical",
-                                    "required":0,
-                                    "type":"bool",
-                                    "label":"Only annotate hypothetical proteins",
-                                    "default":1
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"annotate-proteins-similarity",
-                    "label":"annotate-proteins-similarity",
-                    "required":0,
-                    "default":null,
-                    "desc":"annotate-proteins-similarity",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        },
-                        {
-                            "id":"parameters",
-                            "required":0,
-                            "type":"group",
-                            "default":null,
-                            "desc":"",
-                            "group":[
-                                {
-                                    "id":"only_hypothetical",
-                                    "required":0,
-                                    "type":"bool",
-                                    "label":"Only annotate hypothetical proteins",
-                                    "default":1
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "id":"resolve-overlapping-features",
-                    "label":"resolve-overlapping-features",
-                    "required":0,
-                    "default":null,
-                    "desc":"resolve-overlapping-features",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"find-close-neighbors",
-                    "label":"find-close-neighbors",
-                    "required":0,
-                    "default":null,
-                    "desc":"find-close-neighbors",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
-                },
-                {
-                    "id":"call-features-prophage-phispy",
-                    "label":"call-features-prophage-phispy",
-                    "required":0,
-                    "default":null,
-                    "desc":"call-features-prophage-phispy",
-                    "type":"group",
-                    "group":[
-                        {
-                            "id":"condition",
-                            "required":0,
-                            "type":"string",
-                            "default":null,
-                            "desc":""
-                        }
-                    ]
+                  "id": "minimum_length",
+                  "required": 0,
+                  "type": "int",
+                  "default": "100",
+                  "label": "Minimum length"
                 }
-            ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "call-selenoproteins",
+          "label": "call-selenoproteins",
+          "required": 0,
+          "default": null,
+          "desc": "call-selenoproteins",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-pyrrolysoproteins",
+          "label": "call-pyrrolysoproteins",
+          "required": 0,
+          "default": null,
+          "desc": "call-pyrrolysoproteins",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": "",
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-insertion-sequences",
+          "label": "call-features-insertion-sequences",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-insertion-sequences",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": "",
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-strep-suis-repeat",
+          "label": "call-features-strep-suis-repeat",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-strep-suis-repeat",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "desc": "",
+              "default": "$genome->"
+            }
+          ]
+        },
+        {
+          "id": "call-features-strep-pneumo-repeat",
+          "label": "call-features-strep-pneumo-repeat",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-strep-pneumo-repeat",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "desc": "",
+              "default": "$genome->"
+            }
+          ]
+        },
+        {
+          "id": "call-features-crispr",
+          "label": "call-features-crispr",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-crispr",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-CDS-glimmer3",
+          "label": "call-features-CDS-glimmer3",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-CDS-glimmer3",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "minimum_training_length",
+                  "required": 0,
+                  "type": "int",
+                  "default": "2000",
+                  "label": "Minimum training length"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "call-features-CDS-prodigal",
+          "label": "call-features-CDS-prodigal",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-CDS-prodigal",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-CDS-genemark",
+          "label": "call-features-CDS-genemark",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-CDS-genemark",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": "",
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-ProtoCDS-kmer-v1",
+          "label": "call-features-ProtoCDS-kmer-v1",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-ProtoCDS-kmer-v1",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "kmer_dataset",
+                  "required": 0,
+                  "type": "enum",
+                  "label": "Kmer dataset to use",
+                  "default": "release70",
+                  "enum": [
+                    "release70",
+                    "release59"
+                  ]
+                },
+                {
+                  "id": "only_hypothetical",
+                  "required": 0,
+                  "type": "bool",
+                  "label": "Only annotate hypothetical proteins",
+                  "default": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "call-features-ProtoCDS-kmer-v2",
+          "label": "call-features-ProtoCDS-kmer-v2",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-ProtoCDS-kmer-v2",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "kmer_hits_required",
+                  "required": 0,
+                  "type": "int",
+                  "label": "Minimum kmer hits required",
+                  "desc": "Minimum kmer hits required",
+                  "default": "5"
+                },
+                {
+                  "id": "only_hypothetical",
+                  "required": 0,
+                  "type": "bool",
+                  "label": "Only annotate hypothetical proteins",
+                  "default": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "annotate-proteins-kmer-v2",
+          "label": "annotate-proteins-kmer-v2",
+          "required": 0,
+          "default": null,
+          "desc": "annotate-proteins-kmer-v2",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "kmer_hits_required",
+                  "required": 0,
+                  "type": "int",
+                  "label": "Minimum kmer hits required",
+                  "desc": "Minimum kmer hits required",
+                  "default": "5"
+                },
+                {
+                  "id": "only_hypothetical",
+                  "required": 0,
+                  "type": "bool",
+                  "label": "Only annotate hypothetical proteins",
+                  "default": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "annotate-proteins-kmer-v1",
+          "label": "annotate-proteins-kmer-v1",
+          "required": 0,
+          "default": null,
+          "desc": "annotate-proteins-kmer-v1",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "kmer_dataset",
+                  "required": 0,
+                  "type": "enum",
+                  "label": "Kmer dataset to use",
+                  "default": "release70",
+                  "enum": [
+                    "release70",
+                    "release59"
+                  ]
+                },
+                {
+                  "id": "only_hypothetical",
+                  "required": 0,
+                  "type": "bool",
+                  "label": "Only annotate hypothetical proteins",
+                  "default": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "annotate-proteins-similarity",
+          "label": "annotate-proteins-similarity",
+          "required": 0,
+          "default": null,
+          "desc": "annotate-proteins-similarity",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            },
+            {
+              "id": "parameters",
+              "required": 0,
+              "type": "group",
+              "default": null,
+              "desc": "",
+              "group": [
+                {
+                  "id": "only_hypothetical",
+                  "required": 0,
+                  "type": "bool",
+                  "label": "Only annotate hypothetical proteins",
+                  "default": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "resolve-overlapping-features",
+          "label": "resolve-overlapping-features",
+          "required": 0,
+          "default": null,
+          "desc": "resolve-overlapping-features",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "find-close-neighbors",
+          "label": "find-close-neighbors",
+          "required": 0,
+          "default": null,
+          "desc": "find-close-neighbors",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
+        },
+        {
+          "id": "call-features-prophage-phispy",
+          "label": "call-features-prophage-phispy",
+          "required": 0,
+          "default": null,
+          "desc": "call-features-prophage-phispy",
+          "type": "group",
+          "group": [
+            {
+              "id": "condition",
+              "required": 0,
+              "type": "string",
+              "default": null,
+              "desc": ""
+            }
+          ]
         }
-	]
+      ]
+    }
+  ]
 }
