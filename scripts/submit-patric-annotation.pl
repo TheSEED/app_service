@@ -20,6 +20,7 @@ my($opt, $usage) = describe_options("%c %o workspace-dir input-file [input file 
 				    ["public", "Mark the genomes public"],
 				    ["index-nowait", "Don't wait for indexing to complete before marking job done"],
 				    ["log=s", "Logfile"],
+				    ["workflow-file=s", "Use a custom workflow as defined in this file."],
 				    ["workspace-url=s", "Use this workspace URL"],
 				    ["app-service-url=s", "Use this app service URL"],
 				    ["test", "Submit to test service"],
@@ -80,6 +81,31 @@ if ($opt->domain)
     print "Domain=$domain\n";
 }
 
+my $workflow;
+my $workflow_txt;
+if ($opt->workflow_file)
+{
+    open(F, "<", $opt->workflow_file) or die "Cannot open workflow file " . $opt->workflow_file . ": $!\n";
+    local $/;
+    undef $/;
+    $workflow_txt = <F>;
+    close(F);
+    eval {
+	$workflow = decode_json($workflow_txt);
+    };
+    if (!$workflow)
+    {
+	die "Error parsing workflow file " . $opt->workflow_file . "\n";
+    }
+
+    if (ref($workflow) ne 'HASH' ||
+	!exists($workflow->{stages}) ||
+	ref($workflow->{stages}) ne 'ARRAY')
+    {
+	die "Invalid workflow document (must be a object containing a list of stage definitions)\n";
+    }
+}
+
 #
 # Ensure the workspace path is there, if possible.
 #
@@ -129,6 +155,7 @@ for my $ent (@to_process)
 	public => ($opt->public ? 1 : 0),
 	queue_nowait => ($opt->index_nowait ? 1 : 0),
 	($opt->clientgroup ? (_clientgroup => $opt->clientgroup) : ()),
+	(defined($workflow_txt) ? (workflow => $workflow_txt) : ()),
     };
 
     try {

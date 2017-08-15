@@ -163,7 +163,16 @@ sub process_genome
 	}
     }
 
-    my $result = $core->run_pipeline($genome);
+    my $workflow = $params->{workflow};
+    if ($params->{import_only})
+    {
+	if ($workflow)
+	{
+	    die "Invalid input: workflow and import_only may not both be specified";
+	}
+	$workflow = JSON::XS->new->pretty(1)->encode($core->import_workflow());
+    }
+    my $result = $core->run_pipeline($genome, $workflow);
 
     #
     # TODO fill in metadata?

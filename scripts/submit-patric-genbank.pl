@@ -11,16 +11,19 @@ use Try::Tiny;
 use IO::Handle;
 use Data::Dumper;
 use File::Basename;
+use JSON::XS;
 
 my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...]",
 				    ["Process the given set of genbank files for annotation. Use ws-dir as the base directory to store the input and output data in the PATRIC workspace"],
-				    ["public", "Mark the genomes public"],
+				    ["workflow-file=s", "Use a custom workflow as defined in this file."],
+				    ["import-only", "Import this genome as is - do not reannotate gene calls or gene function."],
+				    ["public", "Mark the genomes public", { hidden => 1 }],
 				    ["index-nowait", "Don't wait for indexing to complete before marking job done"],
 				    ["log=s", "Logfile"],
 				    ["workspace-url=s", "Use this workspace URL"],
 				    ["app-service-url=s", "Use this app service URL"],
-				    ["test", "Submit to test service"],
-				    ["clientgroup=s", "Use this AWE clientgroup instead of the default"],
+				    ["test", "Submit to test service", { hidden => 1 }],
+				    ["clientgroup=s", "Use this AWE clientgroup instead of the default", { hidden => 1 }],
 				    ["help|h", "Show this help message"],
 				    );
 
@@ -40,6 +43,36 @@ else
 
 my $interactive = $ENV{KB_INTERACTIVE} || (-t STDIN);
 my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
+
+if ($opt->workflow_file && $opt->import_only)
+{
+    die "A custom workflow may not be supplied when using --import-only\n";
+}
+
+my $workflow;
+my $workflow_txt;
+if ($opt->workflow_file)
+{
+    open(F, "<", $opt->workflow_file) or die "Cannot open workflow file " . $opt->workflow_file . ": $!\n";
+    local $/;
+    undef $/;
+    $workflow_txt = <F>;
+    close(F);
+    eval {
+	$workflow = decode_json($workflow_txt);
+    };
+    if (!$workflow)
+    {
+	die "Error parsing workflow file " . $opt->workflow_file . "\n";
+    }
+
+    if (ref($workflow) ne 'HASH' ||
+	!exists($workflow->{stages}) ||
+	ref($workflow->{stages}) ne 'ARRAY')
+    {
+	die "Invalid workflow document (must be a object containing a list of stage definitions)\n";
+    }
+}
 
 my $ws = Bio::P3::Workspace::WorkspaceClientExt->new($opt->workspace_url);
 my $app_service = Bio::KBase::AppService::Client->new($opt->app_service_url);
@@ -88,6 +121,8 @@ for my $ent (@to_process)
 	public => ($opt->public ? 1 : 0),
 	queue_nowait => ($opt->index_nowait ? 1 : 0),
 	($opt->clientgroup ? (_clientgroup => $opt->clientgroup) : ()),
+	(defined($workflow_txt) ? (workflow => $workflow_txt) : ()),
+	import_only => ($opt->import_only ? 1 : 0),
     };
 
     try {

@@ -46,6 +46,22 @@
       "type": "wsid"
     },
     {
+      "id": "workflow",
+      "label": "Custom workflow",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a custom workflow document (expert).",
+      "type": "string"
+    },
+    {
+      "id": "import_only",
+      "label": "Import only",
+      "required": 0,
+      "default": null,
+      "desc": "Import this genome (do not reannotate gene calls or protein functions)",
+      "type": "bool"
+    },
+    {
       "id": "fix_errors",
       "label": "Automatically fix errors?",
       "required": 0,

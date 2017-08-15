@@ -134,6 +134,14 @@
       "type": "int"
     },
     {
+      "id": "workflow",
+      "label": "Custom workflow",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a custom workflow document (expert).",
+      "type": "string"
+    },
+    {
       "id": "disable_replication",
       "label": "Disable replication?",
       "required": 0,
