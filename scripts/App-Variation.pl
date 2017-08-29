@@ -4,7 +4,7 @@
 
 use strict;
 use Carp;
-use Cwd 'abs_path';
+use Cwd qw(abs_path getcwd);
 use Data::Dumper;
 use File::Temp;
 use File::Basename;
@@ -35,6 +35,8 @@ sub process_variation_data {
     $global_ws = $app->workspace;
 
     my $output_folder = $app->result_folder();
+
+    my $run_dir = getcwd();
 
     my $tmpdir = File::Temp->newdir();
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
@@ -138,6 +140,8 @@ sub process_variation_data {
 
     my $time2 = `date`;
     write_output("Start: $time1"."End:   $time2", "$tmpdir/DONE");
+
+    chdir($run_dir);
 }
 
 sub run_var_annotate {
@@ -163,12 +167,14 @@ sub run_snpeff {
     print F "$ref_id.genome : $genome_name\n";
     print F "  $ref_id.chromosomes : ". join(",", @accessions)."\n";
     close(F);
+    my $here = getcwd();
     chdir($dir);
     my @cmd = split(' ', "snpEff.sh build -c $config -genbank -v $ref_id");
     run_cmd(\@cmd, 1);
     @cmd = split(' ', "snpEff.sh eff -no-downstream -no-upstream -no-utr -o vcf -c $config $ref_id var.vcf");
     my ($out) = run_cmd(\@cmd, 0);
     write_output($out, "var.snpEff.raw.vcf");
+    chdir($here);
 }
 
 sub link_snpeff_annotate {
