@@ -285,7 +285,7 @@ sub merge_rockhoppper_results {
         $bam =~ s/_R[12]\.sam$/.sam/;
         $bam =~ s/\.sam$/.bam/;
         $bam = "$dir/$bam";
-        //my @cmd = ("samtools", "view", "-bS", $f, "-o", $bam);
+        # my @cmd = ("samtools", "view", "-bS", $f, "-o", $bam);
         my @cmd = ("samtools", "sort", "-T", "$f.temp", "-O", "bam","-o", $bam, $f);
         run_cmd(\@cmd);
         push @outputs, [ $bam, 'bam' ];
