@@ -3,6 +3,8 @@ use P3DataAPI;
 
 use Data::Dumper;
 use IPC::Run 'run';
+use File::Slurp;
+use JSON::XS;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -150,24 +152,58 @@ sub process_tree
     my $failed;
 
     #
-    # Failed run still creates a 1-byte newick fiel.
+    # Output is written to the json file. Extract the tree from it
+    # and write to the newick file.
     #
-    if (-s "$tmpdir/$run_name.nwk" > 1)
+    
+    my $tree_json = read_file("$tmpdir/$run_name.json", err_mode => 'carp');
+    if (!defined($tree_json))
     {
-	$ok = run(["svr_tree_to_html"], 
-		  "<", "$tmpdir/$run_name.nwk",
-		  ">", "$tmpdir/$run_name.html");
-	$ok or warn "Error running svr_tree_to_html";
+	warn "Error reading $tmpdir/$run_name.json: $!";
+	$failed = "Error reading $tmpdir/$run_name.json: $!";
+    }
+    my $tree_data = eval { decode_json($tree_json); };
+    if ($@)
+    {
+	warn "Error decoding tree json data: $@";
+	$failed = "Error decoding tree json data: $@";
+    }
+
+    if (exists $tree_data->{tree})
+    {
+	my $tree_nwk = $tree_data->{tree};
+	if ($tree_nwk eq '')
+	{
+	    warn "Invalid tree in json data";
+	    $failed = "Invalid tree in json data";;
+	}
+	else
+	{
+	    if (open(FT, ">", "$tmpdir/$run_name.final.nwk"))
+	    {
+		print FT $tree_nwk;
+		close(FT);
+		
+		my $ok = run(['svr_tree_to_html'],
+			     "<", \$tree_nwk,
+			     ">", "$tmpdir/$run_name.html");
+		$ok or warn "Error code=$? running svr_tree_to_html";
+	    }
+	    else
+	    {
+		warn "Cannot write $tmpdir/$run_name.final.nwk: $!";
+	    }
+	}
     }
     else
     {
-	open(OUT, "<", $out_file);
-	print STDERR $_ while (<OUT>);
-	close(OUT);
-	$failed = "Tree builder did not produce a tree";
+	warn "Missing tree in json data";
+	$failed = "Missing tree in json data";;
     }
-
-    my @output = (["$tmpdir/$run_name.nwk", "$output_folder/$output_base.nwk", 'nwk'],
+	 
+	
+    my @output = (["$tmpdir/$run_name.final.nwk", "$output_folder/$output_base.final.nwk", 'nwk'],
+		  ["$tmpdir/$run_name.nwk", "$output_folder/$output_base.nwk", 'nwk'],
 		  ["$tmpdir/pepr.log", "$output_folder/$output_base.log", "txt"],
 		  ["$tmpdir/$run_name.json", "$output_folder/$output_base.json", "json"],
 		  ["$tmpdir/$run_name.sup", "$output_folder/$output_base.sup", "nwk"],

@@ -107,12 +107,13 @@ sub process_reads {
     {
 	my $now = time;
 	my $status;
+	my $err;
 	my @stat = ($ar_stat, "-j", $arast_job);
-	my $stat_ok = run(\@stat, ">", \$status);
+	my $stat_ok = run(\@stat, ">", \$status, "2>", \$err);
 
 	if (!$stat_ok)
 	{
-	    die "Error running status command @stat: $!";
+	    die "Error code $? running status command @stat. Error output:\n$err";
 	}
 	if ($status eq '')
 	{
@@ -140,8 +141,9 @@ sub process_reads {
     {
 	print STDERR "Job $arast_job finished with error status: $finish_status\n";
 	my $report;
-	my $ok = run([$ar_get, "-l", "-j", $arast_job], ">", \$report);
-	$ok or warn "Error retrieving assembly job log: $!";
+	my $err;
+	my $ok = run([$ar_get, "-l", "-j", $arast_job], ">", \$report, "2>", \$err);
+	$ok or warn "Error code $? retrieving assembly job log. Stderr:\n$err";
 	print STDERR "\nAssembly job log for failed job $arast_job:\n$report\n";
 	die "Assembly failed";
     }
