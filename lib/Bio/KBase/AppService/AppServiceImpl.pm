@@ -263,6 +263,8 @@ sub new
     $self->{awe_mongo_db} = $cfg->setting("awe-mongo-db") || "AWEDB";
     $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
     $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
+    $self->{awe_mongo_user} = $cfg->setting("awe-mongo-user");
+    $self->{awe_mongo_pass} = $cfg->setting("awe-mongo-pass");
     $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
 
     $self->{task_status_dir} = $cfg->setting("task-status-dir");
