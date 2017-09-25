@@ -43,10 +43,14 @@ eval
 use lib "$Bin";
 use SolrAPI;
 
-my $data_api_url;
+my ($data_api_url, $reference_data_dir);
 if ($have_config)
 {
     $data_api_url = Bio::KBase::AppService::AppConfig->data_api_url;
+    $reference_data_dir = Bio::KBase::AppService::AppConfig->reference_data_dir;
+}else{
+		$data_api_url = $ENV{PATRIC_DATA_API};
+		$reference_data_dir = $ENV{PATRIC_REFERENCE_DATA};	
 }
 
 my $json = JSON->new->allow_nonref;
@@ -57,13 +61,14 @@ my ($opt, $usage) = describe_options("%c %o",
 				["genbank-file=s", "Original GenBank file that was used as input to RASTtk"],
 				["public", "public, default is private"],
 				["data-api-url=s", "Data API URL", { default => $data_api_url }],
+				["reference-data-dir=s", "Data API URL", { default => $reference_data_dir }],
 				[],
 				["help|h", "Print usage message and exit"] );
 
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) unless $opt->genomeobj_file;
 
-my $solrh = SolrAPI->new($opt->data_api_url);
+my $solrh = SolrAPI->new($opt->data_api_url, $opt->reference_data_dir);
 
 my $genomeobj_file = $opt->genomeobj_file;
 my $genbank_file = $opt->genbank_file;
@@ -110,6 +115,11 @@ getGenomeInfo();
 getMetadataFromGenBankFile($genbank_file) if -f $genbank_file;
 getMetadataFromBioProject($genome->{bioproject_accession}) if $genome->{bioproject_accession};
 getMetadataFromBioSample($genome->{biosample_accession}) if $genome->{biosample_accession};
+
+$genome->{genome_name} = $genome->{genome_name}. "- test";
+
+# Get predicted AMR phenotypes 
+getAMRPhenotypes();
 
 # Get genome sequences
 getGenomeSequences();
@@ -249,6 +259,10 @@ sub getGenomeInfo {
 	$genome->{gc_content} = sprintf("%.2f", ($gc_count*100/$genome_length));
 	$genome->{genome_status} = ($contigs > 0)? "WGS": "Complete";
 
+}
+
+
+sub getAMRPhenotypes {
 
 	foreach my $amr1 (@{$genomeObj->{classifications}}){
 	
@@ -469,6 +483,9 @@ sub getGenomeFeatures{
 		@spgenes = @{$featObj->{similarity_associations}} if $featObj->{similarity_associations};			
 		push @spgenemap, prepareSpGene($feature, $_) foreach(@spgenes);
 
+		# Prepare PATRIC AMR genes for matching functions 
+		push @spgenemap, prepareSpGene($feature, ()) if $spgeneRef->{$feature->{product}};
+
 		push @features, $feature  unless $feature->{feature_type} eq 'gene'; 
 
 		$genome->{lc($annotation).'_cds'}++ if $feature->{feature_type} eq 'CDS';
@@ -483,12 +500,19 @@ sub prepareSpGene {
 		my ($feature, $spgene_match) = @_;
 
 		my $spgene;
-		my ($source, $source_id, $qcov, $scov, $identity, $evalue) = @$spgene_match;
+		my ($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion); 
+		my ($source, $source_id, $qcov, $scov, $identity, $evalue);
 
-		$source_id=~s/^\S*\|//;
-
-		my ($property, $locus_tag, $organism, $function, $classification, $pmid, $assertion) 
+		if($spgene_match){ # All specialty genes from external sources
+			($source, $source_id, $qcov, $scov, $identity, $evalue) = @$spgene_match;
+			$source_id=~s/^\S*\|//;
+			($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
 			= split /\t/, $spgeneRef->{$source.'_'.$source_id} if ($source && $source_id);
+		}elsif($spgeneRef->{$feature->{product}}){ # PATRIC AMR genes, match by functional role
+			($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
+			= split /\t/, $spgeneRef->{$feature->{product}};
+			$source = "PATRIC";	
+		}
 
 		my ($qgenus) = $feature->{genome_name}=~/^(\S+)/;
 		my ($qspecies) = $feature->{genome_name}=~/^(\S+ +\S+)/;
@@ -501,7 +525,7 @@ sub prepareSpGene {
 		$same_species = 1 if ($qspecies eq $sspecies && $sspecies ne ""); 
 		$same_genome = 1 if ($feature->{genome} eq $organism && $organism ne "") ;
 
-		$evidence = ($feature->{refseq_locus_tag} && $locus_tag && $feature->{refseq_locus_tag} eq $locus_tag)? 'Literature':'BLASTP';
+		$evidence = ($source && $source_id)? 'BLAT' : "K-mer Search";
 
 		$spgene->{owner} = $feature->{owner};
 		$spgene->{public} = $public;
