@@ -532,7 +532,7 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    if (!$self->{util}->submissions_enabled())
+    if (!$self->{util}->submissions_enabled($app_id))
     {
 	die "App service submissions are disabled\n";
     }
