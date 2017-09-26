@@ -3,14 +3,13 @@ use strict;
 use JSON;
 use Data::Dumper;
 
-# my $solr = "https://www.beta.patricbrc.org/api/";
-
 sub new
 {
-  my ($class, $data_api_url) = @_;
+  my ($class, $data_api_url, $reference_data_dir) = @_;
 
   my $self = {
       data_api_url => $data_api_url,
+      reference_data_dir => $reference_data_dir,
       json => JSON->new->allow_nonref,
       format => "&http_content-type=application/solrquery+x-www-form-urlencoded&http_accept=application/json&rows=25000",
   };
@@ -106,13 +105,25 @@ sub getECGO {
 sub getECRef {
 
 	my ($self) = @_;
-	my $ec;
+	my ($ec, $ref_file, $resultObj);
 
-	my $core = "enzyme_class_ref";
-	my $query = "/?q=ec_number:*";
-	my $fields = "&fl=ec_number,ec_description,go";
+	$ref_file = $self->{reference_data_dir}."/enzyme_class_ref.json";
 
-        my $resultObj = $self->query_solr($core, $query, $fields);
+	if (-f $ref_file){
+		#print STDERR "Reading from $ref_file\n";
+		open FH, "$ref_file" or "Can't open $ref_file\n";
+		$resultObj = decode_json(join "", <FH>);
+		close FH;
+	}else{
+		my $core = "enzyme_class_ref";
+		my $query = "/?q=ec_number:*";
+		my $fields = "&fl=ec_number,ec_description,go";
+		$resultObj = $self->query_solr($core, $query, $fields);
+		
+		open FH, ">$ref_file";
+		print FH encode_json($resultObj); 	
+		close FH;
+	}
 
 	foreach my $record (@{$resultObj}){
 		$ec->{$record->{ec_number}}->{ec_description} = $record->{ec_description};
@@ -152,12 +163,25 @@ sub getPathwayRef {
 
 	my ($self) = @_;
 	my $pathways = ();
+	my ($ref_file, $resultObj);
 
-	my $core = "pathway_ref";
-	my $query = "/?q=ec_number:*";
-	my $fields = "&fl=ec_number,ec_description,pathway_id,pathway_name,pathway_class";
+	$ref_file = $self->{reference_data_dir}."/pathway_ref.json";
 
-        my $resultObj = $self->query_solr($core, $query, $fields);
+  if (-f $ref_file){
+		#print STDERR "Reading from $ref_file\n";
+		open FH, "$ref_file" or "Can't open $ref_file\n";
+		$resultObj = decode_json(join "", <FH>);
+		close FH;
+  }else{
+		my $core = "pathway_ref";
+		my $query = "/?q=ec_number:*";
+		my $fields = "&fl=ec_number,ec_description,pathway_id,pathway_name,pathway_class";
+		$resultObj = $self->query_solr($core, $query, $fields);
+	
+		open FH, ">$ref_file";
+		print FH encode_json($resultObj);
+		close FH;
+	}
 
 	foreach my $record (@{$resultObj}){
 		my $ec_no = $record->{ec_number};
@@ -196,24 +220,45 @@ sub getSpGeneInfo {
 sub getSpGeneRef {
 
 	my ($self) = @_;
-	my $spgenes;
+	my ($spgenes, $ref_file, $resultObj);
 
-	my $core = "sp_gene_ref";
-	my $query = "/?q=source:*";
-	my $fields = "&fl=source,source_id,property,locus_tag,organism,function,classification,pmid,assertion";
-	
-	my $start = 0; 
-	while ($start < 200000){
-		my $resultObj = $self->query_solr($core, $query, $fields, $start);
+	$ref_file = $self->{reference_data_dir}."/sp_gene_ref.json";
 
-		foreach my $record (@{$resultObj}){
-			my $key = $record->{source}.'_'.$record->{source_id}; 
-			$spgenes->{$key} = "$record->{property}\t$record->{locus_tag}\t$record->{organism}"
-									."\t$record->{function}\t";
-			$spgenes->{$key} .= join(',', @{$record->{classification}}) if $record->{classification};
-			$spgenes->{$key} .= "\t$record->{pmid}\t$record->{assertion}";
+  if (-f $ref_file){
+		#print STDERR "Reading from $ref_file\n";
+		open FH, "$ref_file" or "Can't open $ref_file\n";
+		$resultObj = decode_json(join "", <FH>);
+		close FH;
+	}else{
+		my $core = "sp_gene_ref";
+		my $query = "/?q=source:*";
+		my $fields = "&fl=source,source_id,property,locus_tag,organism,function,classification,antibiotics_class,antibiotics,pmid,assertion";
+
+		my $start = 0;
+  	while ($start < 200000){
+  	  push @{$resultObj}, @{$self->query_solr($core, $query, $fields, $start)};
+			$start = $start + 25000;
 		}
-		$start = $start + 25000;
+
+		open FH, ">$ref_file";
+		print FH encode_json($resultObj);
+		close FH;
+  }
+	
+	foreach my $record (@{$resultObj}){
+		my $key = "";
+		if ($record->{source} && $record->{source_id}){
+			$key = $record->{source}.'_'.$record->{source_id};
+		}elsif($record->{function}){
+			$key = $record->{function};
+		}else{
+			next;
+		} 
+		$spgenes->{$key} = "$record->{property}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
+		$spgenes->{$key} .= join(',', @{$record->{classification}}) if $record->{classification};
+		$spgenes->{$key} .= "\t$record->{antibiotics_class}\t";
+		$spgenes->{$key} .= join(',', @{$record->{antibiotics}}) if $record->{antibiotics};
+		$spgenes->{$key} .= "\t$record->{pmid}\t$record->{assertion}";
 	}
 
 	return $spgenes;
@@ -268,7 +313,7 @@ sub query_rest
     my $url = $self->{data_api_url};
     
     my $solrQ = $url . $path;
-    print STDERR "$solrQ\n";
+    #print STDERR "$solrQ\n";
 
     my($fh, $result);
     if (!open($fh, "-|", "curl", "-s", "-k", $solrQ))
@@ -316,7 +361,7 @@ sub query_solr
 		     $self->{format},
 		     (defined($start) ? "&start=$start" : ()));
 
-    print STDERR "$solrQ\n";
+    #print STDERR "$solrQ\n";
 
     if (!open($fh, "-|", "curl", "-s", "-k", $solrQ))
     {

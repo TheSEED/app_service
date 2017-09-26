@@ -2,6 +2,7 @@ package Bio::KBase::AppService::Util;
 use strict;
 use File::Slurp;
 use JSON::XS;
+use File::Basename;
 
 use base 'Class::Accessor';
 
@@ -112,8 +113,30 @@ sub service_status
 #
 sub submissions_enabled
 {
-    my($self) = @_;
+    my($self, $app_id) = @_;
     my($stat, $txt) = $self->service_status();
+
+    #
+    # If an app id was submitted, check to see if that particular service
+    # is disabled.
+    #
+    # The status file for services is in the same directory as the overall
+    # service status file. (A little hacky but ...)
+    #
+    
+    if ($stat && defined($app_id) && $self->impl->{status_file})
+    {
+	my $app_status_dir = dirname($self->impl->{status_file});
+	my $app_status_file = "$app_status_dir/$app_id.status";
+	if (open(my $fh, $app_status_file))
+	{
+	    my $statline = <$fh>;
+	    close($fh);
+	    my($status) = $statline =~ /(\d+)/;
+	    $status //= 1;
+	    return $status;
+	}
+    }
 
     return $stat;
 }
