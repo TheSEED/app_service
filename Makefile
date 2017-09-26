@@ -23,10 +23,12 @@ DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_
 
 STARMAN_WORKERS = 5
 
-DATA_API_URL = https://www.patricbrc.org/api
+#DATA_API_URL = https://www.patricbrc.org/api
+DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
+REFERENCE_DATA_DIR = /tmp
 
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
@@ -52,6 +54,7 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
+	--define reference_data_dir=$(REFERENCE_DATA_DIR) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 
