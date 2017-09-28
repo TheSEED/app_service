@@ -116,8 +116,6 @@ getMetadataFromGenBankFile($genbank_file) if -f $genbank_file;
 getMetadataFromBioProject($genome->{bioproject_accession}) if $genome->{bioproject_accession};
 getMetadataFromBioSample($genome->{biosample_accession}) if $genome->{biosample_accession};
 
-$genome->{genome_name} = $genome->{genome_name}. "- test";
-
 # Get predicted AMR phenotypes 
 getAMRPhenotypes();
 
@@ -233,7 +231,7 @@ sub getGenomeInfo {
 			foreach my $dblink (@{$seqObj->{genbank_locus}->{dblink}}){
 				$genome->{bioproject_accession} = $1 if $dblink=~/BioProject:\s*(.*)/;
 				$genome->{biosample_accession} = $1 if $dblink=~/BioSample:\s*(.*)/;
-				$genome->{assembly_accession} = getAssemblyAccession($seqObj->{genbank_locus}->{gi}) if $seqObj->{genbank_locus}->{gi};				
+				$genome->{assembly_accession} = $1 if $genbank_file=~/(GCA_.*|GCF_.*)\.(gbf|gb|gbff)/ ;				
 			}
 			foreach my $reference (@{$seqObj->{genbank_locus}->{references}}){
 				$genome->{publication} .= $reference->{PUBMED}."," unless $genome->{publication}=~/$reference->{PUBMED}/;
