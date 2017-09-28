@@ -49,6 +49,9 @@ sub process_tree
     {
 	@tmp_args = (CLEANUP => 0);
     }
+    #
+    # For now always leave tmps around to look at.
+    @tmp_args = (CLEANUP => 0);
     my $tmpdir = File::Temp->newdir(@tmp_args);
     print STDERR "tmpdir = $tmpdir @tmp_args\n";
 
