@@ -52,6 +52,11 @@ sub process_tree
     my $tmpdir = File::Temp->newdir(@tmp_args);
     print STDERR "tmpdir = $tmpdir @tmp_args\n";
 
+    #
+    # Make tempdir readable for debugging purposes
+    #
+    chmod(0755, $tmpdir);
+
     print "api=$data_api_url\n";
     my $data_api = P3DataAPI->new($data_api_url, $token);
 
@@ -152,6 +157,27 @@ sub process_tree
     my $failed;
 
     #
+    # Copy the pepr.log to the current directory for debugging purposes.
+    #
+
+    my @pepr_logs;
+    my @pepr_logs_out;
+    if (opendir(DH, $tmpdir))
+    {
+	for my $x (readdir(DH))
+	{
+	    my $p = "$tmpdir/$x";
+	    if ($x =~ /^pepr\.log/ && -f $p)
+	    {
+		system("cp", $p, ".");
+		push(@pepr_logs, $p);
+		push(@pepr_logs_out, [$p, "$output_folder/$output_base.$x", 'txt']);
+	    }
+	}
+    }
+
+
+    #
     # Output is written to the json file. Extract the tree from it
     # and write to the newick file.
     #
@@ -200,11 +226,10 @@ sub process_tree
 	warn "Missing tree in json data";
 	$failed = "Missing tree in json data";;
     }
-	 
-	
+
     my @output = (["$tmpdir/$run_name.final.nwk", "$output_folder/$output_base.final.nwk", 'nwk'],
 		  ["$tmpdir/$run_name.nwk", "$output_folder/$output_base.nwk", 'nwk'],
-		  ["$tmpdir/pepr.log", "$output_folder/$output_base.log", "txt"],
+		  @pepr_logs_out,
 		  ["$tmpdir/$run_name.json", "$output_folder/$output_base.json", "json"],
 		  ["$tmpdir/$run_name.sup", "$output_folder/$output_base.sup", "nwk"],
 		  ["$tmpdir/$run_name.html", "$output_folder/$output_base.html", "html"],
