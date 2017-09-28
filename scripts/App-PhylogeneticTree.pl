@@ -52,6 +52,11 @@ sub process_tree
     my $tmpdir = File::Temp->newdir(@tmp_args);
     print STDERR "tmpdir = $tmpdir @tmp_args\n";
 
+    #
+    # Make tempdir readable for debugging purposes
+    #
+    chmod(0755, $tmpdir);
+
     print "api=$data_api_url\n";
     my $data_api = P3DataAPI->new($data_api_url, $token);
 
@@ -150,6 +155,11 @@ sub process_tree
     }
 
     my $failed;
+
+    #
+    # Copy the pepr.log to the current directory for debugging purposes.
+    #
+    system("cp", "$tmpdir/pepr.log", ".");
 
     #
     # Output is written to the json file. Extract the tree from it
