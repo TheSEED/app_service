@@ -231,8 +231,8 @@ sub getGenomeInfo {
 			foreach my $dblink (@{$seqObj->{genbank_locus}->{dblink}}){
 				$genome->{bioproject_accession} = $1 if $dblink=~/BioProject:\s*(.*)/;
 				$genome->{biosample_accession} = $1 if $dblink=~/BioSample:\s*(.*)/;
-				$genome->{assembly_accession} = $1 if $genbank_file=~/(GCA_.*|GCF_.*)\.(gbf|gb|gbff)/ ;				
 			}
+			$genome->{assembly_accession} = getAssemblyAccession($seqObj->{genbank_locus}->{locus}) if $seqObj->{genbank_locus}->{locus};				
 			foreach my $reference (@{$seqObj->{genbank_locus}->{references}}){
 				$genome->{publication} .= $reference->{PUBMED}."," unless $genome->{publication}=~/$reference->{PUBMED}/;
 			}
@@ -550,8 +550,9 @@ sub prepareSpGene {
 		$spgene->{organism} = $organism;
 		$spgene->{function} = $function;
 		$spgene->{classification} = $classification; 
-
-		$spgene->{pmid} = $pmid; 
+		$spgene->{antibiotics_class} = $antibiotics_class if $antibiotics_class;
+		$spgene->{antibiotics} = [split /[,;]/, $antibiotics] if $antibiotics;
+		$spgene->{pmid} = [split /[,;]/, $pmid] if $pmid;
 		$spgene->{assertion} = $assertion;
 
 		$spgene->{query_coverage} = $qcov; 
@@ -631,7 +632,7 @@ sub getMetadataFromGenBankFile {
 	$strain =~s/\n */ /g;
 	$genome->{strain} = $strain unless $strain=~/^ *(-|missing|na|n\/a|not available|not provided|not determined|nd|unknown) *$/i;
 
-	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && not $genome->{genome_name}=~/ (strain|st|str) / && not $genome->{genome_name}=~/$genome->{strain}/i);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/i));
 
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
 	$genome->{geographic_location} =~s/\n */ /g;
@@ -663,14 +664,18 @@ sub getMetadataFromGenBankFile {
 
 sub getAssemblyAccession {
 
-	my ($gi) = @_;
+	my ($accn) = @_;
+
+  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=$accn"`;
+  $xml=~s/\n//;
+  my ($gi) = $xml=~/<Id>(\d+)<\/Id>/;
 
   my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=assembly&id=$gi"`;
   $xml=~s/\n//;
   my ($assembly_id) = $xml=~/<Link>\s*<Id>(\d+)<\/Id>/;
 
   my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=$assembly_id"`;
-  my ($assembly_accession) = $xml=~/<AssemblyAccession>(\S+)<\/AssemblyAccession>/;
+	my ($assembly_accession) = $xml=~/<Genbank>(\S*)<\/Genbank>/;
 
 	return $assembly_accession;
 
@@ -711,7 +716,7 @@ sub getMetadataFromBioProject {
 	}
 
 	$genome->{strain} = $organism->{Strain} if $organism->{Strain} && not $genome->{strain};
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) );
 	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
 	$genome->{temperature_range} = $1 if $organism->{BiologicalProperties}->{Environment}->{TemperatureRange}=~/^e*(.*)/;
@@ -999,8 +1004,8 @@ sub getMetadataFromBioSample {
 		}
 
 	}
-	
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && not $genome->{genome_name}=~/$genome->{strain}/);
+
+	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) ) ;
 	
 	# parse AMR metadata
 
