@@ -255,10 +255,12 @@ sub getSpGeneRef {
 			next;
 		} 
 		$spgenes->{$key} = "$record->{property}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
-		$spgenes->{$key} .= join(',', @{$record->{classification}}) if $record->{classification};
+		$spgenes->{$key} .= join (',', @{$record->{classification}}) if $record->{classification};
 		$spgenes->{$key} .= "\t$record->{antibiotics_class}\t";
-		$spgenes->{$key} .= join(',', @{$record->{antibiotics}}) if $record->{antibiotics};
-		$spgenes->{$key} .= "\t$record->{pmid}\t$record->{assertion}";
+		$spgenes->{$key} .= join (',', @{$record->{antibiotics}}) if $record->{antibiotics};
+		$spgenes->{$key} .= "\t";
+		$spgenes->{$key} .= join (',', @{$record->{pmid}}) if $record->{pmid};
+		$spgenes->{$key} .= "\t$record->{assertion}";
 	}
 
 	return $spgenes;
