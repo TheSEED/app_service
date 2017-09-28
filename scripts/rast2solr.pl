@@ -512,6 +512,8 @@ sub prepareSpGene {
 			$source = "PATRIC";	
 		}
 
+		return unless $property && $source;
+
 		my ($qgenus) = $feature->{genome_name}=~/^(\S+)/;
 		my ($qspecies) = $feature->{genome_name}=~/^(\S+ +\S+)/;
 		my ($sgenus) = $organism=~/^(\S+)/;
