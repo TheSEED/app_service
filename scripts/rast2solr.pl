@@ -240,10 +240,10 @@ sub getGenomeInfo {
 			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date}) if $seqObj->{genbank_locus}->{date};
 		}
 
-		if ($seqObj->{genbank_locus}->{accession}[0]=~/^([A-Z]{4})\d{8}$/){ # wgs, capture only master accession
-			$genome->{genbank_accessions} .= $1."00000000" unless $genome->{genbank_accessions}=~/$1.0000000/;
+		if ($seqObj->{genbank_locus}->{accession}[1]=~/^([A-Z]{4})\d+00000$/){ # wgs, capture only master accession
+			$genome->{genbank_accessions} = $seqObj->{genbank_locus}->{accession}[1];
 		}else{
-			$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0].",";
+			$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless length($genome->{genbank_accessions}) > 100 ;
 		}
 
 	}
@@ -632,7 +632,7 @@ sub getMetadataFromGenBankFile {
 	$strain =~s/\n */ /g;
 	$genome->{strain} = $strain unless $strain=~/^ *(-|missing|na|n\/a|not available|not provided|not determined|nd|unknown) *$/i;
 
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/i));
+	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/i));
 
 	$genome->{geographic_location} = $1 if $gb=~/\/country="([^"]*)"/;
 	$genome->{geographic_location} =~s/\n */ /g;
@@ -716,7 +716,7 @@ sub getMetadataFromBioProject {
 	}
 
 	$genome->{strain} = $organism->{Strain} if $organism->{Strain} && not $genome->{strain};
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) );
+	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) );
 	
 	$genome->{disease} = $organism->{BiologicalProperties}->{Phenotype}->{Disease};
 	$genome->{temperature_range} = $1 if $organism->{BiologicalProperties}->{Environment}->{TemperatureRange}=~/^e*(.*)/;
@@ -976,7 +976,7 @@ sub getMetadataFromBioSample {
 
 	return unless -f "$outfile.biosample.xml";
 	
-	my $xml = XMLin("$outfile.biosample.xml");
+	my $xml = XMLin("$outfile.biosample.xml", ForceArray => ["Row"]);
 
 	return unless ref $xml->{BioSample}->{Attributes}->{Attribute} eq 'ARRAY';
 
@@ -1005,7 +1005,7 @@ sub getMetadataFromBioSample {
 
 	}
 
-	$genome->{genome_name} .= " strain $genome->{strain}" if (scalar (split / /,$genome->{genome_name}) <=2 && $genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) ) ;
+	$genome->{genome_name} .= " strain $genome->{strain}" if ($genome->{strain} && (not $genome->{genome_name}=~/$genome->{strain}/) ) ;
 	
 	# parse AMR metadata
 
