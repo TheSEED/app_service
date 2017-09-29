@@ -240,10 +240,10 @@ sub getGenomeInfo {
 			$genome->{completion_date} = strftime "%Y-%m-%dT%H:%M:%SZ", localtime str2time($seqObj->{genbank_locus}->{date}) if $seqObj->{genbank_locus}->{date};
 		}
 
-		if ($seqObj->{genbank_locus}->{accession}[0]=~/^([A-Z]{4})\d{8}$/){ # wgs, capture only master accession
-			$genome->{genbank_accessions} .= $1."00000000" unless $genome->{genbank_accessions}=~/$1.0000000/;
+		if ($seqObj->{genbank_locus}->{accession}[1]=~/^([A-Z]{4})\d+00000$/){ # wgs, capture only master accession
+			$genome->{genbank_accessions} = $seqObj->{genbank_locus}->{accession}[1];
 		}else{
-			$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0].",";
+			$genome->{genbank_accessions} .= $seqObj->{genbank_locus}->{accession}[0]."," unless length($genome->{genbank_accessions}) > 100 ;
 		}
 
 	}
