@@ -196,11 +196,15 @@ sub compute_coverage
 
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
-    my @cmd = ("bins_coverage", $self->contigs, $self->work_dir);
+    my @cmd = ("bins_coverage",
+	       "--statistics-file", "coverage.stats.txt",
+	       $self->contigs, $self->work_dir);
     my $rc = system(@cmd);
 
     $rc == 0 or die "Error $rc running coverage: @cmd";
 	
+    $self->app->workspace->save_file_to_file("coverage.stats.txt", {},
+					     $self->output_folder . "/coverage.stats.txt", 'txt', 1, 1, $self->token);
 }
 
 sub compute_bins
@@ -209,11 +213,15 @@ sub compute_bins
 
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
-    my @cmd = ("bins_generate", $self->work_dir);
+    my @cmd = ("bins_generate",
+	       "--statistics-file", "bins.stats.txt",
+	       $self->work_dir);
     my $rc = system(@cmd);
 
     $rc == 0 or die "Error $rc computing bins: @cmd";
 	
+    $self->app->workspace->save_file_to_file("bins.stats.txt", {},
+					     $self->output_folder . "/bins.stats.txt", 'txt', 1, 1, $self->token);
 }
 
 sub extract_fasta
