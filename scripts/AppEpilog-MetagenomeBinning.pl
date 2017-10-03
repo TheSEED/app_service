@@ -32,6 +32,7 @@ use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db
 use DBI;
 use Cwd 'abs_path';
 use JSON::XS;
+use IPC::Run;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process);
 $script->donot_create_result_folder(1);
@@ -91,7 +92,7 @@ sub process
     close($_->[1]) foreach @$fh_pairs;
 
     my @cmd = ("package_gto", $gto_dir, "all", $package_dir);
-    run_seedtk_cmd(@cmd);
+    run_seedtk_cmd(\@cmd);
 
     # since we are an epilog we don't create output folder which means
     # that value not currently set. Change that.
@@ -232,6 +233,6 @@ sub run_seedtk_cmd
 {
     my(@cmd) = @_;
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
-    my $rc = system(@cmd);
-    $rc == 0 or die "Failure $rc running seedtk cmd @cmd\n";
+    my $ok = IPC::Run::run(@cmd);
+    $ok or die "Failure $? running seedtk cmd: " . Dumper(\@cmd);
 }
