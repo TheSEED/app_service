@@ -103,6 +103,7 @@ sub process
     my $base_folder = $params->{output_path};
     my $output_folder = $base_folder . "/." . $params->{output_file};
 
+    my $ppr_report = {};
     for my $genome (@genomes)
     {
 	run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
@@ -114,13 +115,80 @@ sub process
 					   "$output_folder/$genome.checkm.txt", 'txt', 1, 1, $app->token);
 	$app->workspace->save_file_to_file("$dir/EvalBySciKit/evaluate.log", {},
 					   "$output_folder/$genome.scikit.txt", 'txt', 1, 1, $app->token);
+	$app->workspace->save_file_to_file("$dir/EvalBySciKit/evaluate.out", {},
+					   "$output_folder/$genome.scikit.eval.txt", 'txt', 1, 1, $app->token);
+	$app->workspace->save_file_to_file("$dir/EvalBySciKit/roles.mapped", {},
+					   "$output_folder/$genome.scikit.roles.mapped", 'txt', 1, 1, $app->token);
+	$app->workspace->save_file_to_file("$dir/EvalBySciKit/roles.not_mapped", {},
+					   "$output_folder/$genome.scikit.roles.not_mapped", 'txt', 1, 1, $app->token);
 	$app->workspace->save_file_to_file("$dir/quality.tbl", {},
 					   "$output_folder/$genome.quality.txt", 'txt', 1, 1, $app->token);
 
+	#
+	# Internalize the role mapping and evaluation data.
+	#
+	my $ppr_report = {};
+	if (open(RMAP, "<", "$dir/EvalBySciKit/roles.mapped"))
+	{
+	    if (open(EVAL, "<", "$dir/EvalBySciKit/evaluate.out"))
+	    {
+		my %role_map;
+		my %role_fids;
+		while (<RMAP>)
+		{
+		    chomp;
+		    my($role, $abbr, $fid) = split(/\t/);
+		    $role_map{$abbr} = $role;
+		    push(@{$role_fids{$abbr}}, $fid);
+		}
+		close(RMAP);
+
+		my %role_ok;
+		my %role_ppr;
+		while (<EVAL>)
+		{
+		    chomp;
+		    my($abbr, $predicted, $actual) = split(/\t/);
+		    $predicted = int($predicted);
+		    $actual = int($actual);
+		    if ($predicted == $actual)
+		    {
+			if (1 || $predicted)
+			{
+			    $role_ok{$abbr} = [$predicted, $actual];
+			}
+		    }
+		    else
+		    {
+			$role_ppr{$abbr} = [$predicted, $actual];
+		    }
+		}
+		close(EVAL);
+		$ppr_report->{$genome} = {
+		    roles => \%role_map,
+		    role_fids => \%role_fids,
+		    role_ok => \%role_ok,
+		    role_ppr => \%role_ppr,
+		};
+	    }
+	    else
+	    {
+		close(RMAP);
+		warn "Cannot open $dir/EvalBySciKit/evaluate.out: $!";
+	    }
+	}
+	else
+	{
+	    warn "Cannot open $dir/EvalBySciKit/roles.mapped: $!";
+	}
     }
 
     run_seedtk_cmd(["package_report", $package_dir], ">", "quality.tbl");
     run_seedtk_cmd(["package_report", "--json", $package_dir], ">", "quality.json");
+
+    my $json = JSON::XS->new->pretty(1)->canonical(1);
+    $app->workspace->save_data_to_file($json->encode($ppr_report), {},
+				       "$output_folder/ppr_report.json", 'json', 1, 1, $app->token);
 
     $app->workspace->save_file_to_file("quality.tbl", {},
 				       "$output_folder/quality.tbl", 'txt', 1, 1, $app->token);
