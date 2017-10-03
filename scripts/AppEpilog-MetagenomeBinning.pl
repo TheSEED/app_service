@@ -105,9 +105,9 @@ sub process
 
     for my $genome (@genomes)
     {
-	run_seedtk_cmd("bins", "-d", $package_dir, "checkM", $genome);
-	run_seedtk_cmd("bins", "-d", $package_dir, "eval_scikit", $genome);
-	run_seedtk_cmd("bins", "-d", $package_dir, "quality_summary", $genome);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
 
 	my $dir = "$package_dir/$genome";
 	$app->workspace->save_file_to_file("$dir/EvalByCheckm/evaluate.log", {},
@@ -118,6 +118,14 @@ sub process
 					   "$output_folder/$genome.quality.txt", 'txt', 1, 1, $app->token);
 
     }
+
+    run_seedtk_cmd(["package_report", $package_dir], ">", "quality.tbl");
+    run_seedtk_cmd(["package_report", "--json", $package_dir], ">", "quality.json");
+
+    $app->workspace->save_file_to_file("quality.tbl", {},
+				       "$output_folder/quality.tbl", 'txt', 1, 1, $app->token);
+    $app->workspace->save_file_to_file("quality.json", {},
+				       "$output_folder/quality.json", 'json', 1, 1, $app->token);
 
     #
     # Write the genome group
