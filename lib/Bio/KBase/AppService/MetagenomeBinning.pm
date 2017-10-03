@@ -196,11 +196,15 @@ sub compute_coverage
 
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
-    my @cmd = ("bins_coverage", $self->contigs, $self->work_dir);
+    my @cmd = ("bins_coverage",
+	       "--statistics-file", "coverage.stats.txt",
+	       $self->contigs, $self->work_dir);
     my $rc = system(@cmd);
 
     $rc == 0 or die "Error $rc running coverage: @cmd";
 	
+    $self->app->workspace->save_file_to_file("coverage.stats.txt", {},
+					     $self->output_folder . "/coverage.stats.txt", 'txt', 1, 1, $self->token);
 }
 
 sub compute_bins
@@ -209,11 +213,15 @@ sub compute_bins
 
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
-    my @cmd = ("bins_generate", $self->work_dir);
+    my @cmd = ("bins_generate",
+	       "--statistics-file", "bins.stats.txt",
+	       $self->work_dir);
     my $rc = system(@cmd);
 
     $rc == 0 or die "Error $rc computing bins: @cmd";
 	
+    $self->app->workspace->save_file_to_file("bins.stats.txt", {},
+					     $self->output_folder . "/bins.stats.txt", 'txt', 1, 1, $self->token);
 }
 
 sub extract_fasta
@@ -251,6 +259,8 @@ sub extract_fasta
     my $api = P3DataAPI->new();
 
     my $idx = 1;
+
+    my $all_bins = [];
     while (defined(my $bin_txt = <BINS>))
     {
 	chomp $bin_txt;
@@ -261,6 +271,7 @@ sub extract_fasta
 	    warn "Bad parse on '$bin_txt'\n";
 	    last;
 	}
+	push(@$all_bins, $bin);
 
 	my $taxon_id = $bin->{taxonID};
 	print "$bin->{name} $taxon_id\n";
@@ -269,6 +280,8 @@ sub extract_fasta
 
 	my $bin_base_name = "bin.$idx.$taxon_id";
 	my $bin_name = "$bin_base_name.fa";
+	$bin->{binFastaFile} = $bin_name;
+	$bin->{binIndex} = $idx;
 	$idx++;
 	my $bin_fa = $self->work_dir . "/$bin_name";
 	open(BIN, ">", $bin_fa) or die "Cannot write $bin_fa: $!";
@@ -286,6 +299,7 @@ sub extract_fasta
 
 	my $ws_path = $self->output_folder . "/$bin_name";
 	$self->app->workspace->save_file_to_file($bin_fa, $bin, $ws_path, 'contigs', 1, 1, $self->token);
+	$bin->{binFastaPath} = $ws_path;
 
 	my $code = 11;
 	my $domain = 'Bacteria';
@@ -297,6 +311,9 @@ sub extract_fasta
 	    shift @$lineage if ($lineage->[0] =~ /cellular organisms/);
 	    $domain = $lineage->[0];
 	}
+
+	$bin->{domain} = $domain;
+	$bin->{geneticCode} = $code;
 
 	my $descr = {
 	    contigs => $ws_path,
@@ -311,6 +328,11 @@ sub extract_fasta
 	};
 	push(@$app_list, $descr);
     }
+    my $json = JSON::XS->new->pretty(1)->canonical(1);
+    $self->app->workspace->save_data_to_file($json->encode($all_bins), {},
+					     $self->output_folder . '/bins.json', 'json', 1, 1, $self->token);
+    print "SAVE to " . $self->output_folder . "/bins.json\n";
+
     close(SAMPLE);
     close(BINS);
     print Dumper($self->app_params);
@@ -323,7 +345,7 @@ sub write_db_record
     my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
     my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
 
-    my $json = JSON::XS->new->pretty(1);
+    my $json = JSON::XS->new->pretty(1)->canonical(1);
 
     $dbh->do(qq(INSERT INTO JobGroup (parent_job, children_created, parent_app, app_spec, app_params)
 		VALUES (?, ?, ?, ?, ?)), undef,

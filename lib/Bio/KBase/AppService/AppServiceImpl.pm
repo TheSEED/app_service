@@ -802,7 +802,12 @@ sub query_task_summary
     # Query mongo for the types available, then count.
     #
 
-    my $mongo = MongoDB::MongoClient->new(host => $self->{awe_mongo_host}, port => $self->{awe_mongo_port});
+    my $mongo = MongoDB::MongoClient->new(host => $self->{awe_mongo_host},
+					  port => $self->{awe_mongo_port},
+					  db_name => $self->{awe_mongo_db},
+					  (defined($self->{awe_mongo_user}) ? (username => $self->{awe_mongo_user}) : ()),
+					  (defined($self->{awe_mongo_pass}) ? (password => $self->{awe_mongo_pass}) : ()),
+					 );
     my $db = $mongo->get_database($self->{awe_mongo_db});
     my $col = $db->get_collection("Jobs");
 
