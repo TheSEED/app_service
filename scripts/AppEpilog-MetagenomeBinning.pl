@@ -128,7 +128,6 @@ sub process
 	#
 	# Internalize the role mapping and evaluation data.
 	#
-	my $ppr_report = {};
 	if (open(RMAP, "<", "$dir/EvalBySciKit/roles.mapped"))
 	{
 	    if (open(EVAL, "<", "$dir/EvalBySciKit/evaluate.out"))
