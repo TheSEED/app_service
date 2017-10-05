@@ -1,0 +1,105 @@
+<h1>Metagenomics Binning Report for job [% job_id %]</h1>
+
+<h2>Input data</h2>
+[% IF params.contigs %]
+Contigs file [% params.contigs %]
+[% ELSE %]
+Reads files [% params.read1 %] and [% params.read2 %]
+[% END %]
+<p>
+<h2>Generated bins</h2>
+The following bins met the quality criteria of CheckM completeness >= [% min_checkm %]% and 
+coarse consistency >= [% min_scikit %]%:<p>
+
+<table border='1'>
+[% PROCESS qual_headers -%]
+[% FOR g IN good -%]
+[% PROCESS qual_row -%]
+[% END -%]
+</table>
+<P>
+The following bins did not meet the quality criteria:<p>
+
+<table border='1'>
+[% PROCESS qual_headers -%]
+[% FOR g IN bad -%]
+[% PROCESS qual_row -%]
+[% END -%]
+</table>
+
+<h2>Potentially Problematic Roles</h2>
+
+The following roles in the bins have been flagged as potentially problematic.
+<p>
+<table>
+[% FOR p IN ppr -%]
+<tr>
+<td><a href="#ppr.[% p.genome_id %]">[% p.genome_id %]</a>
+<td>[% p.ppr_count %] potentially problematic roles</td>
+</tr>
+[% END -%]
+</table>
+<p>
+
+[% FOR p IN ppr -%]
+<a name="ppr.[% p.genome_id %]">
+<h3>Potentially problematic roles in [% p.genome_id %]</h3>
+</a>
+<table border='1'>
+<tr>
+<th>Role</th>
+<th>Predicted<br>count</th>
+<th>Annotated<br>count</th>
+<th>Feature link</th>
+</tr>
+[% FOR r IN p.roles %]
+<tr>
+<td style='width: 400px'>[% r.role %]</td>
+<td>[% r.predicted %]</td>
+<td>[% r.actual %]</td>
+[% IF r.n_fids > 0 -%]
+<td><a target="_blank" href="[% r.fid_url %]">[% r.n_fids %] feature[% IF r.n_fids > 1 %]s[% END %]</a></td>
+[% ELSE -%]
+<td>[% r.n_fids %] features</td>
+[% END -%]
+</tr>
+[% END -%]
+</table>
+<p>
+[% END -%]
+
+[% BLOCK qual_headers -%]
+<tr>
+<th>Genome ID</th>
+<th>Genome Name</th>
+<th>Reference Genome</th>
+<th>Coarse consistency (%)</th>
+<th>Fine consistency (%)</th>
+<th>CheckM completeness (%)</th>
+<th>CheckM contamination (%)</th>
+<th>Contig count</th>
+<th>DNA size (bp)</th>
+<th>Contigs N50 (bp)</th>
+<th>Potentially Problematic Roles</th>
+</tr>
+[% END -%]
+
+[% BLOCK qual_row -%]
+<tr>
+<td><a target="_blank" href="[% g.genome_url %]">[% g.genome_id %]</a></td>
+<td>[% g.genome_name %]</td>
+<td>
+[% IF g.reference_genome -%]
+<a target="_blank" href="[% g.reference_url %]">[% g.reference_genome %]</a>
+[% END -%]
+</td>
+<td>[% g.scikit_coarse %]</td>
+<td>[% g.scikit_fine %]</td>
+<td>[% g.checkm_completeness %]</td>
+<td>[% g.checkm_contamination %]</td>
+<td>[% g.contigs %]</td>
+<td>[% g.dna_bp %]</td>
+<td>[% g.n50 %]</td>
+<td><a href="#ppr.[% g.genome_id %]">[% g.ppr.roles.size %] roles</a></td>
+</tr>
+[% END -%]

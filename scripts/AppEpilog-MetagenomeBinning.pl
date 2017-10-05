@@ -196,6 +196,10 @@ sub process
 				       "$output_folder/quality.json", 'json', 1, 1, $app->token);
 
     #
+    # Generate the binning report. We need to load the various reports into memory to do this.
+    #
+
+    #
     # Write the genome group
     #
     if (my $group = $params->{genome_group})
