@@ -1,0 +1,41 @@
+use strict;
+use Bio::KBase::AppService::BinningReport;
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
+use DBI;
+use Data::Dumper;
+use JSON::XS;
+use Bio::P3::Workspace::WorkspaceClientExt;
+use IPC::Run 'run';
+
+my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
+my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
+
+my $job_id = '3d13b98a-fdd2-4085-9400-b4bd04883911';
+my($params_txt) = $dbh->selectrow_array(qq(SELECT app_params
+				      FROM JobGroup
+				      WHERE parent_job = ?), undef, $job_id);
+my $params = decode_json($params_txt);
+
+my $qual_path = join("/", $params->{output_path}, "." . $params->{output_file}, "quality.json");
+
+my $qual_txt;
+run(["ws-cat", "--shock", $qual_path], '>', \$qual_txt) or die "Could not get qual at $qual_path\n";
+
+my $qual = decode_json($qual_txt);
+
+my $ppr_path = join("/", $params->{output_path}, "." . $params->{output_file}, "ppr_report.json");
+
+my $ppr_txt;
+run(["ws-cat", "--shock", $ppr_path], '>', \$ppr_txt) or die "Could not get ppr at $ppr_path\n";
+
+my $ppr = decode_json($ppr_txt);
+
+my $bins_path = join("/", $params->{output_path}, "." . $params->{output_file}, "bins.json");
+
+my $bins_txt;
+run(["ws-cat", "--shock", $bins_path], '>', \$bins_txt) or die "Could not get bins at $bins_path\n";
+
+my $bins = decode_json($bins_txt);
+
+Bio::KBase::AppService::BinningReport::write_report($job_id, $params, $qual, $ppr, $bins, \*STDOUT);
+
