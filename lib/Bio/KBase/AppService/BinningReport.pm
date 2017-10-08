@@ -7,6 +7,7 @@ use File::Basename;
 use Template;
 use Module::Metadata;
 use Bio::KBase::AppService::AppConfig 'seedtk';
+use File::Slurp;
 
 #
 # Write the binning summary report.
@@ -16,7 +17,7 @@ use Bio::KBase::AppService::AppConfig 'seedtk';
 
 sub write_report
 {
-    my($job_id, $params, $quality_report, $ppr_report, $bins, $output_fh) = @_;
+    my($job_id, $params, $quality_report, $ppr_report, $bins, $group_path, $output_fh) = @_;
 
     #
     # Read the seedtk role map in case we need it.
@@ -39,7 +40,7 @@ sub write_report
     # Extract genomes from qual report and mark up. Create good and bad genome lists.
     #
 
-    my $min_scikit = 80;
+    my $min_scikit = 85;
     my $min_checkm = 80;
 
     my $good = [];
@@ -129,8 +130,9 @@ sub write_report
 	ppr => $ppr,
 	good => $good,
 	bad => $bad,
+	genome_group_path => $group_path,
     };
-#    print Dumper($vars);
+    # write_file("debug", Dumper($vars));
     my $mod_path = Module::Metadata->find_module_by_name(__PACKAGE__);
     my $tt_file = dirname($mod_path) . "/BinningReport.tt";
     $templ->process($tt_file, $vars, $output_fh) || die "Error processing template: " . $templ->error();

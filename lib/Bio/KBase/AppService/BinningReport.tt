@@ -4,14 +4,22 @@
 [% IF params.contigs %]
 Contigs file [% params.contigs %]
 [% ELSE %]
-Reads files [% params.read1 %] and [% params.read2 %]
+Reads files [% params.paired_end_libs.1 %] and [% params.paired_end_libs.2 %]
 [% END %]
 <p>
 <h2>Generated bins</h2>
+The bins from this run have been placed into the genome group <em>
+[% IF genome_group_path -%]
+<a target="_blank" href="https://www.patricbrc.org/view/GenomeGroup[% genome_group_path %]#view_tab=genomes">[% params.genome_group %]</a>
+[% ELSE -%]
+[% params.genome_group %]
+[% END -%]
+</em>.<p>
+
 The following bins met the quality criteria of CheckM completeness >= [% min_checkm %]% and 
 coarse consistency >= [% min_scikit %]%:<p>
 
-<table border='1'>
+<table class='p3basic'>
 [% PROCESS qual_headers -%]
 [% FOR g IN good -%]
 [% PROCESS qual_row -%]
@@ -20,7 +28,7 @@ coarse consistency >= [% min_scikit %]%:<p>
 <P>
 The following bins did not meet the quality criteria:<p>
 
-<table border='1'>
+<table class='p3basic'>
 [% PROCESS qual_headers -%]
 [% FOR g IN bad -%]
 [% PROCESS qual_row -%]
@@ -31,7 +39,7 @@ The following bins did not meet the quality criteria:<p>
 
 The following roles in the bins have been flagged as potentially problematic.
 <p>
-<table>
+<table class='p3basic'>
 [% FOR p IN ppr -%]
 <tr>
 <td><a href="#ppr.[% p.genome_id %]">[% p.genome_id %]</a>
@@ -45,7 +53,7 @@ The following roles in the bins have been flagged as potentially problematic.
 <a name="ppr.[% p.genome_id %]">
 <h3>Potentially problematic roles in [% p.genome_id %]</h3>
 </a>
-<table border='1'>
+<table class='p3basic'>
 <tr>
 <th>Role</th>
 <th>Predicted<br>count</th>
@@ -54,7 +62,7 @@ The following roles in the bins have been flagged as potentially problematic.
 </tr>
 [% FOR r IN p.roles %]
 <tr>
-<td style='width: 400px'>[% r.role %]</td>
+<td style=''>[% r.role %]</td>
 <td>[% r.predicted %]</td>
 <td>[% r.actual %]</td>
 [% IF r.n_fids > 0 -%]

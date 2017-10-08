@@ -23,9 +23,11 @@
 # the PATRIC monitoring service.
 #
 
+use Bio::KBase::AppService::BinningReport;
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::MetagenomeBinning;
 use FileHandle;
+use File::Slurp;
 use strict;
 use Data::Dumper;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
@@ -33,6 +35,7 @@ use DBI;
 use Cwd 'abs_path';
 use JSON::XS;
 use IPC::Run;
+use Proc::ParallelLoop;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process);
 $script->donot_create_result_folder(1);
@@ -105,11 +108,12 @@ sub process
     my $output_folder = $base_folder . "/." . $params->{output_file};
 
     my $ppr_report = {};
+
     for my $genome (@genomes)
     {
-	run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
-	run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
-	run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
+	#run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
+	#run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
+	#run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
 
 	my $dir = "$package_dir/$genome";
 	$app->workspace->save_file_to_file("$dir/EvalByCheckm/evaluate.log", {},
@@ -196,12 +200,9 @@ sub process
 				       "$output_folder/quality.json", 'json', 1, 1, $app->token);
 
     #
-    # Generate the binning report. We need to load the various reports into memory to do this.
-    #
-
-    #
     # Write the genome group
     #
+    my $group_path;
     if (my $group = $params->{genome_group})
     {
 	my $home;
@@ -213,7 +214,7 @@ sub process
 
 	if ($home)
 	{
-	    my $group_path = "$home/Genome Groups/$group";
+	    $group_path = "$home/Genome Groups/$group";
 	    
 	    my $group_data = { id_list => { genome_id => \@genomes } };
 	    my $group_txt = encode_json($group_data);
@@ -230,6 +231,36 @@ sub process
 	    warn "Cannot find home path token='" . $app->token->token . "'\n";
 	}
     }
+    #
+    # Generate the binning report. We need to load the various reports into memory to do this.
+    #
+
+    #
+    # Load bins report from original binning run.
+    #
+    eval {
+	my $bins_report = load_workspace_json($app->workspace, "$output_folder/bins.json");
+	my $qual_report = decode_json(scalar read_file("quality.json"));
+
+	my($params_txt) = $dbh->selectrow_array(qq(SELECT app_params
+						   FROM JobGroup
+						   WHERE parent_job = ?), undef, $parent);
+	my $parent_params = decode_json($params_txt);
+
+	open(my $out, ">", "report.html") or die "Cannot write report.html: $!";
+	Bio::KBase::AppService::BinningReport::write_report($parent, $parent_params,
+							    $qual_report, $ppr_report, $bins_report,
+							    $group_path,
+							    $out);
+	close($out);
+	$app->workspace->save_file_to_file("report.html", {},
+					   "$output_folder/report.html", 'html', 1, 1, $app->token);
+    };
+    if ($@)
+    {
+	warn "Error creating final report: $@";
+    }
+
 }
 
 sub run_seedtk_cmd
@@ -238,4 +269,31 @@ sub run_seedtk_cmd
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
     my $ok = IPC::Run::run(@cmd);
     $ok or die "Failure $? running seedtk cmd: " . Dumper(\@cmd);
+}
+
+sub load_workspace_json
+{
+    my($ws, $path) = @_;
+
+    my $str;
+    open(my $fh, ">", \$str) or die "Cannot open string reference filehandle: $!";
+
+    eval {
+	$ws->copy_files_to_handles(1, $ws->{token}, [[$path, $fh]]);
+    };
+    if ($@)
+    {
+	my($err) = $@ =~ /_ERROR_(.*)_ERROR_/;
+	$err //= $@;
+	die "load_workspace_json: failed to load $path: $err\n";
+    }
+    close($fh);
+
+    my $doc = eval { decode_json($str) };
+
+    if ($@)
+    {
+	die "Error parsing json: $@";
+    }
+    return $doc;
 }
