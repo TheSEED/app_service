@@ -111,9 +111,9 @@ sub process
 
     for my $genome (@genomes)
     {
-	#run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
-	#run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
-	#run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
+	run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
 
 	my $dir = "$package_dir/$genome";
 	$app->workspace->save_file_to_file("$dir/EvalByCheckm/evaluate.log", {},
