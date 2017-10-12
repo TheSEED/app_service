@@ -17,7 +17,7 @@ The bins from this run have been placed into the genome group <em>
 </em>.<p>
 
 The following bins met the quality criteria of CheckM completeness >= [% min_checkm %]% and 
-coarse consistency >= [% min_scikit %]%:<p>
+fine consistency >= [% min_scikit %]%:<p>
 
 <table class='p3basic'>
 [% PROCESS qual_headers -%]
@@ -73,6 +73,7 @@ The following roles in the bins have been flagged as potentially problematic.
 </tr>
 [% END -%]
 </table>
+<p>
 <p>
 [% END -%]
 
