@@ -48,13 +48,18 @@ sub write_report
 
     my $url_base = 'https://www.patricbrc.org/view/Genome';
     my $fid_url_base = 'https://www.patricbrc.org/view/Genome';
-       
-    for my $gpkg (@{$quality_report->{packages}})
+
+    my $all_pkgs = $quality_report->{packages};
+    
+    @$all_pkgs = sort { ($b->{checkm_completeness} + $b->{scikit_fine}) <=>
+			    ($a->{checkm_completeness} + $a->{scikit_fine}) } @$all_pkgs;
+
+    for my $gpkg (@$all_pkgs)
     {
 	my $url = "$url_base/$gpkg->{genome_id}";
 	$gpkg->{genome_url} = $url;
 	if ($gpkg->{checkm_completeness} >= $min_checkm &&
-	    $gpkg->{scikit_coarse} >= $min_scikit)
+	    $gpkg->{scikit_fine} >= $min_scikit)
 	{
 	    push(@$good, $gpkg);
 	}
@@ -75,7 +80,6 @@ sub write_report
 	{
 	    $gpkg->{reference_url} = "$url_base/" . uri_escape($gpkg->{reference_genome});
 	}
-	
     }
 
     #
@@ -83,7 +87,7 @@ sub write_report
     #
     my $ppr = [];
 
-    for my $gpkg (@{$quality_report->{packages}})
+    for my $gpkg (@$all_pkgs)
     {
 	my $p = $ppr_report->{$gpkg->{genome_id}};
 	my $r1 = $p->{role_ppr};
