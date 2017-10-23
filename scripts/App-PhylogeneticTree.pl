@@ -145,7 +145,7 @@ sub process_tree
 
     print "Begin run. cmd=@cmd\n";
     print "In-genomes: @in_genomes\n";
-    pirnt "Out-genomes: @out_genomes\n";
+    print "Out-genomes: @out_genomes\n";
 
     my $init = sub {
 	chdir $tmpdir or die "Cannot chdir $tmpdir: $!";
