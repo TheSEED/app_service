@@ -425,9 +425,6 @@ sub get_ws_file {
     open($fh, ">", $file) or die "Cannot open $file for writing: $!";
 
     print STDERR "GET WS => $tmpdir $base $id\n";
-    print STDERR "ws = $ws\n";
-    print STDERR "token = $ws\n";
-    system("ls -la $tmpdir");
 
     eval {
 	$ws->copy_files_to_handles(1, $token, [[$id, $fh]]);
@@ -437,8 +434,6 @@ sub get_ws_file {
 	die "ERROR getting file $id\n$@\n";
     }
     close($fh);
-    print "$id $file:\n";
-    system("ls -la $tmpdir");
 
     return $file;
 }

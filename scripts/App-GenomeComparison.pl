@@ -507,7 +507,9 @@ sub get_feature_group_contigs {
 sub curl_text {
     my ($url) = @_;
     my @cmd = ("curl", curl_options(), $url);
-    print STDERR join(" ", @cmd)."\n";
+    my $cmd = join(" ", @cmd);
+    $cmd =~ s/sig=[a-z0-9]*/sig=XXXX/g;
+    print STDERR "$cmd\n";
     my ($out) = run_cmd(\@cmd);
     return $out;
 }
