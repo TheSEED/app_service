@@ -143,7 +143,10 @@ sub process_tree
 
     my $out_file = "$run_name.out";
 
-    print Dumper(\@cmd, \@in_genomes, \@out_genomes, $token);
+    print "Begin run. cmd=@cmd\n";
+    print "In-genomes: @in_genomes\n";
+    print "Out-genomes: @out_genomes\n";
+
     my $init = sub {
 	chdir $tmpdir or die "Cannot chdir $tmpdir: $!";
 	$ENV{PATH} = "$ENV{KB_RUNTIME}/pepr/bin:$ENV{KB_RUNTIME}/bin:$ENV{PATH}";

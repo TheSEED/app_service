@@ -228,7 +228,7 @@ sub process
 	}
 	else
 	{
-	    warn "Cannot find home path token='" . $app->token->token . "'\n";
+	    warn "Cannot find home path '$home'\n";
 	}
     }
     #

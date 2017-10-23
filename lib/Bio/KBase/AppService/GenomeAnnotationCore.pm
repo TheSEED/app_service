@@ -339,7 +339,7 @@ sub submit_load_files
     }
 
     push(@opts, $genome_url);
-    print "@opts\n";
+
 #curl -H "Authorization: AUTHORIZATION_TOKEN_HERE" -H "Content-Type: multipart/form-data" -F "genome=@genome.json" -F "genome_feature=@genome_feature_patric.json" -F "genome_feature=@genome_feature_refseq.json" -F "genome_feature=@genome_feature_brc1.json" -F "genome_sequence=@genome_sequence.json" -F "pathway=@pathway.json" -F "sp_gene=@sp_gene.json"  
 
     my($stdout, $stderr);
