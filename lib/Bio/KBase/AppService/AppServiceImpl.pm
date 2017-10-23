@@ -28,6 +28,7 @@ use File::Slurp;
 use Data::UUID;
 use Plack::Request;
 use IO::File;
+use IO::Handle;
 
 sub _task_info
 {
@@ -58,12 +59,21 @@ sub _task_info
 
 	if ($path =~ /^[a-zA-Z0-9_-]+$/)
 	{
-	    my $fh = IO::File->new;
-	    if ($fh->open("$dir/$task/$path", "<"))
+	    my $file_path = "$dir/$task/$path";
+	    if (-f $file_path)
 	    {
-		my $res = $req->new_response(200);
-		$res->body($fh);
-		return $res->finalize;
+		my $fh = IO::Handle->new;
+		if (open($fh, "-|", "sed", "-e", '/un=/s/sig=[a-z0-9]*/sig=XXX/', $file_path))
+		{
+		    my $res = $req->new_response(200);
+		    $res->body($fh);
+		    return $res->finalize;
+		}
+		else
+		{
+		    print STDERR "Could not open $dir/$task/$path: $!";
+		    return $req->new_response(404)->finalize();
+		}
 	    }
 	    else
 	    {
