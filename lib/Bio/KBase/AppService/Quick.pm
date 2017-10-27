@@ -43,77 +43,98 @@ hook before => sub {
     my $user = param('username');
     my $pass = param('password');
 
+    delete $ENV{KB_AUTH_TOKEN};
+    var token => undef;
+    var user => undef;
+
+    my $token;
+
     if (!$user)
     {
 	#
-	# Try basic auth header
+	# Do we have a basic authorization or the normal PATRIC service authentication
+	# header ?
 	#
 
-	my $h = request->env->{HTTP_AUTHORIZATION};
-	if ($h =~ /^Basic\s+(.*)$/)
+	my $auth_hdr = request->header("Authorization");
+	if (defined($auth_hdr))
 	{
-	    my $d = decode_base64($1);
-	    if ($d =~ /^(.*):(.*)$/)
+	    if ($auth_hdr =~ /^Basic\s+(.*)$/)
 	    {
-		$user = $1;
-		$pass = $2;
-	    }
-	}
-		
-    }
-
-    return unless ($user && $pass);
-
-    my $token_obj = $token_cache{$user, $pass};
-
-    if (!$token_obj)
-    {
-	my $ua = LWP::UserAgent->new;
-	
-	if ($user =~ /^([^@]+)\@patricbrc.org$/)
-	{
-	    my $url = "https://user.patricbrc.org/authenticate";
-	    my $content = { username => $1, password => $pass };
-	    
-	    my $res = $ua->post($url,$content);
-	    if ($res->is_success)
-	    {
-		my $txt = $res->content;
-		$token_obj = { access_token => $txt, user_name => $user };
-	    }
-	}
-	else
-	{
-	    my $headers = HTTP::Headers->new;
-	    my %headers;
-	    $headers->authorization_basic($user, $pass);
-	    $headers{Authorization} = $headers->header('Authorization');
-	    my $res = $ua->get("http://rast.nmpdr.org/goauth/token?grant_type=client_credentials",
-			       %headers);
-	    if ($res->is_success)
-	    {
-		$token_obj = decode_json($res->content);
-		$token_cache{$user, $pass} = $token_obj;
-		
+		my $d = decode_base64($1);
+		if ($d =~ /^(.*):(.*)$/)
+		{
+		    $user = $1;
+		    $pass = $2;
+		}
 	    }
 	    else
 	    {
-		warn "Could not retrieve token for user $user\n";
+		#
+		# Treat as bearer token with optional OAuth in front.
+		#
+
+		$token = $auth_hdr;
+		$token =~ s/^OAuth\s+//;
+		my $auth_token = Bio::KBase::AuthToken->new(token => $token, ignore_authrc => 1);
+		if (!$auth_token->validate())
+		{
+		    warn "Invalid token $token received: $auth_token->{error_message}\n";
+		    return;
+		}
+	    }
+	}
+    }
+
+    if ($user && $pass)
+    {
+	$token = $token_cache{$user, $pass};
+	
+	if (!$token)
+	{
+	    my $ua = LWP::UserAgent->new;
+	    
+	    if ($user =~ /^([^@]+)\@patricbrc.org$/)
+	    {
+		my $url = "https://user.patricbrc.org/authenticate";
+		my $content = { username => $1, password => $pass };
+		
+		my $res = $ua->post($url,$content);
+		if ($res->is_success)
+		{
+		    $token = $res->content;
+		}
+	    }
+	    else
+	    {
+		my $headers = HTTP::Headers->new;
+		my %headers;
+		$headers->authorization_basic($user, $pass);
+		$headers{Authorization} = $headers->header('Authorization');
+		my $res = $ua->get("http://rast.nmpdr.org/goauth/token?grant_type=client_credentials",
+				   %headers);
+		if ($res->is_success)
+		{
+		    my $token_obj = decode_json($res->content);
+		    $token = $token_obj->{access_token};
+		    $token_cache{$user, $pass} = $token;
+		    
+		}
+		else
+		{
+		    warn "Could not retrieve token for user $user\n";
+		}
 	    }
 	}
     }
     
-    if ($token_obj)
+    if ($token)
     {
-	var token => $token_obj->{access_token};
-	var user => $token_obj->{user_name};
-	$ENV{KB_AUTH_TOKEN} = $token_obj->{access_token};
+	var token => $token;
+	my($user) = $token =~ /\bun=([^|]+)/;
+	var user => $user;
+	$ENV{KB_AUTH_TOKEN} = $token;
     }
-    else
-    {
-	delete $ENV{KB_AUTH_TOKEN};
-    }
-	
 };
 
 post '/submit/GenomeAnnotation' => sub {
@@ -140,16 +161,16 @@ post '/submit/GenomeAnnotation' => sub {
     }
 
     my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
-    print Dumper($ws);
+    # print Dumper($ws);
 
     eval {
 	my $res = $ws->get({ objects => [$path], metadata_only => 1 });
-	Dumper("exists ", $res);
+	# Dumper("exists ", $res);
     };
     if ($@)
     {
 	my $res = $ws->create({ objects => [ [$path, 'folder' ] ] });
-	print Dumper($res);
+	# print Dumper($res);
     }
 
     my $cpath = "$path/contigs";
@@ -240,7 +261,7 @@ get '/:id/retrieve' => sub {
 
 	if ($meta->shock_url)
 	{
-	    print "GET " . $meta->shock_url . "\n";
+	    # print "GET " . $meta->shock_url . "\n";
 	    my $ua = LWP::UserAgent->new;
 	    my $wres = $ua->get($meta->shock_url . "?download",
 				Authorization => "OAuth " . $token);
