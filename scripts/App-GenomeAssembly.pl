@@ -377,10 +377,28 @@ sub parse_srr_id {
         push @params, "--pair";
         push @params, $lib->{read1};
         push @params, $lib->{read2};
+
+	system("ls", "-l", $lib->{read1}, $lib->{read2});
+
+	for my $f ($lib->{read1}, $lib->{read2})
+	{
+	    if (-s $f > 3_000_000_000)
+	    {
+		print "Pushing large files $f\n";
+		push(@large_files, [$f, -s $f]);
+	    }
+	}
+	
     }   # unpaired reads are a result of read filtering; ignore them when paired reads are found
     elsif ($lib->{read}) {
         push @params, "--single";
         push @params, $lib->{read};
+	system("ls", "-l", $lib->{read});
+	if (-s $lib->{read} > 3_000_000_000)
+	{
+	    print "Pushing large files $lib->{read}\n";
+	    push(@large_files, [$lib->{read}, -s $lib->{read}]);
+	}
     }
     return @params;
 }
