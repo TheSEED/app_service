@@ -12,6 +12,7 @@ use IPC::Run 'run';
 use JSON;
 use Storable;
 use URI::Escape;
+use gjoseqlib;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -407,11 +408,19 @@ sub get_patric_genome_name {
 sub get_patric_genome_faa_seed {
     my ($outdir, $gid) = @_;
     my $faa = get_patric_genome_faa($gid);
-    $faa =~ s/>(fig\|\d+\.\d+\.\w+\.\d+)\S+/>$1/g;
+
     my $ofile = "$outdir/$gid.faa";
-    print "\n$ofile, $gid\n";
+
+    open(S, "<", \$faa) or die "Cannot open string for reading";
     open(FAA, ">$ofile") or die "Could not open $ofile";
-    print FAA $faa;
+    while (my($id, $def, $seq) = read_next_fasta(\*S))
+    {
+	next if $seq eq '';
+	$id =~ s/^(fig\|\d+\.\d+\.\w+\.\d+)\S+/$1/g;
+	write_fasta(\*FAA, [$id, undef, $seq]);
+    }
+
+    print "\n$ofile, $gid\n";
     close(FAA);
     return $ofile;
 }
