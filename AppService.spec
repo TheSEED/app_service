@@ -80,4 +80,6 @@ module AppService
 
     funcdef enumerate_tasks(int offset, int count)
 	returns (list<Task>);
+
+    funcdef kill_task(task_id id) returns (int killed);
 };

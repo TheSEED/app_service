@@ -98,8 +98,8 @@ The following roles in the bins have been flagged as potentially problematic.
 <td><a target="_blank" href="[% g.genome_url %]">[% g.genome_id %]</a></td>
 <td>[% g.genome_name %]</td>
 <td>
-[% IF g.reference_genome -%]
-<a target="_blank" href="[% g.reference_url %]">[% g.reference_genome %]</a>
+[% FOR rg IN g.reference_genomes %]
+<a target="_blank" href="[% rg.reference_url %]">[% rg.reference_genome %]</a>
 [% END -%]
 </td>
 <td>[% g.scikit_coarse %]</td>

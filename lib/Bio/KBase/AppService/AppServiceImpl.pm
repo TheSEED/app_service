@@ -276,6 +276,7 @@ sub new
     $self->{awe_mongo_user} = $cfg->setting("awe-mongo-user");
     $self->{awe_mongo_pass} = $cfg->setting("awe-mongo-pass");
     $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
+    $self->{awe_admin_token_file} = $cfg->setting("awe-admin-token-file") || "";
 
     $self->{task_status_dir} = $cfg->setting("task-status-dir");
     $self->{service_url} = $cfg->setting("service-url");
@@ -1075,6 +1076,97 @@ sub enumerate_tasks
 							       method_name => 'enumerate_tasks');
     }
     return($return);
+}
+
+
+
+
+=head2 kill_task
+
+  $killed = $obj->kill_task($id)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$id is a task_id
+$killed is an int
+task_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$id is a task_id
+$killed is an int
+task_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub kill_task
+{
+    my $self = shift;
+    my($id) = @_;
+
+    my @_bad_arguments;
+    (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to kill_task:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'kill_task');
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($killed);
+    #BEGIN kill_task
+
+    #
+    # Given the task ID, invoke AWE to nuke it.
+    #
+    # This requires an AWE administrative account.
+    #
+    my $token = read_file($self->{awe_admin_token_file}, err_mode => 'quiet');
+    if (!$token)
+    {
+	die "Cannot read AWE administrative token\n";
+    }
+
+    GAH. Can one delete one's own job in awe?
+    #
+    # This is an AWE instance with the user's access. We use this to
+    # lookup the job and verify ownership (with limited privileges).
+    #
+    my $user_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
+    #
+    # This is an AWE instance with administrative access used to 
+    #
+    my $admin_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $token);
+    
+    #END kill_task
+    my @_bad_returns;
+    (!ref($killed)) or push(@_bad_returns, "Invalid type for return variable \"killed\" (value was \"$killed\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to kill_task:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
+							       method_name => 'kill_task');
+    }
+    return($killed);
 }
 
 

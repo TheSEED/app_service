@@ -72,14 +72,12 @@ sub write_report
 	# Scan the bins to find the reference genome.
 	#
 	my($bin) = grep { $_->{name} eq $gpkg->{genome_name} } @$bins;
+	$gpkg->{reference_genomes} = [];
 	if ($bin)
 	{
-	    $gpkg->{reference_genome} = $bin->{refGenomes}->[0];
+	    push(@{$gpkg->{reference_genomes}}, @{$bin->{refGenomes}});
 	}
-	if ($gpkg->{reference_genome})
-	{
-	    $gpkg->{reference_url} = "$url_base/" . uri_escape($gpkg->{reference_genome});
-	}
+	$gpkg->{reference_urls} = [ map { { reference_genome => $_, reference_url => "$url_base/" . uri_escape($_) } } @{$gpkg->{reference_genomes}} ];
     }
 
     #

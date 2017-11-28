@@ -7,6 +7,8 @@ use JSON::XS;
 use Bio::P3::Workspace::WorkspaceClientExt;
 use IPC::Run 'run';
 
+my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
+
 my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
 my $dbh = DBI->connect($dsn, db_user, db_pass, { RaiseError => 1, AutoCommit => 0 });
 
@@ -17,25 +19,39 @@ my($params_txt) = $dbh->selectrow_array(qq(SELECT app_params
 my $params = decode_json($params_txt);
 
 my $qual_path = join("/", $params->{output_path}, "." . $params->{output_file}, "quality.json");
-
-my $qual_txt;
-run(["ws-cat", "--shock", $qual_path], '>', \$qual_txt) or die "Could not get qual at $qual_path\n";
-
-my $qual = decode_json($qual_txt);
+my $qual = load_workspace_json($ws, $qual_path);
 
 my $ppr_path = join("/", $params->{output_path}, "." . $params->{output_file}, "ppr_report.json");
-
-my $ppr_txt;
-run(["ws-cat", "--shock", $ppr_path], '>', \$ppr_txt) or die "Could not get ppr at $ppr_path\n";
-
-my $ppr = decode_json($ppr_txt);
+my $ppr = load_workspace_json($ws, $ppr_path);
 
 my $bins_path = join("/", $params->{output_path}, "." . $params->{output_file}, "bins.json");
-
-my $bins_txt;
-run(["ws-cat", "--shock", $bins_path], '>', \$bins_txt) or die "Could not get bins at $bins_path\n";
-
-my $bins = decode_json($bins_txt);
+my $bins = load_workspace_json($ws, $bins_path);
 
 Bio::KBase::AppService::BinningReport::write_report($job_id, $params, $qual, $ppr, $bins, \*STDOUT);
 
+sub load_workspace_json
+{
+    my($ws, $path) = @_;
+
+    my $str;
+    open(my $fh, ">", \$str) or die "Cannot open string reference filehandle: $!";
+
+    eval {
+	$ws->copy_files_to_handles(1, $ws->{token}, [[$path, $fh]]);
+    };
+    if ($@)
+    {
+	my($err) = $@ =~ /_ERROR_(.*)_ERROR_/;
+	$err //= $@;
+	die "load_workspace_json: failed to load $path: $err\n";
+    }
+    close($fh);
+
+    my $doc = eval { decode_json($str) };
+
+    if ($@)
+    {
+	die "Error parsing json: $@";
+    }
+    return $doc;
+}

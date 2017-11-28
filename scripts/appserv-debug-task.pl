@@ -22,7 +22,7 @@ my $token = Bio::KBase::AuthToken->new;
 #
 # TODO get this from configs
 #
-my $awe_server = "http://redwood.mcs.anl.gov:7080";
+my $awe_server = "http://walnut.mcs.anl.gov:7080";
 my $awe_root = "/disks/awe";
 my $awe_logs = "$awe_root/logs";
 
