@@ -815,7 +815,7 @@ sub getMetadataFromBioProject {
 	$genome->{pathovar} = $pathovar if $pathovar;
 	$genome->{type_strain} = $typeStrain if $typeStrain;
 	$genome->{culture_collection} = $cultureCollection if $cultureCollection;
-	$genome->{comments} = $description? $description: "-";
+	push @{$genome->{comments}}, $description if $description;
 	$genome->{publication} = $publication if $publication;
 
 
