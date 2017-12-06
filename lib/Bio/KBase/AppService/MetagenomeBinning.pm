@@ -327,6 +327,7 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 	    _parent_job => $self->app->task_id,
+	    analyze_quality => 1,
 	    (binning_genome_annotation_clientgroup ? (_clientgroup => binning_genome_annotation_clientgroup) : ()),
 	};
 	push(@$app_list, $descr);
