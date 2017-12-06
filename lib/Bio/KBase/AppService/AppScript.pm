@@ -12,7 +12,7 @@ use IO::Pipe;
 use IO::Select;
 use Capture::Tiny 'capture';
 use Bio::P3::Workspace::WorkspaceClientExt;
-use Bio::KBase::AuthToken;
+use P3AuthToken;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
@@ -300,7 +300,7 @@ sub create_result_folder
 sub token
 {
     my($self) = @_;
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
+    my $token = P3AuthToken->new(ignore_authrc => ($ENV{KB_INTERACTIVE} ? 0 : 1));
     return $token;
 }
 

@@ -15,11 +15,13 @@ use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
-use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name
+					 seedtk binning_genome_annotation_clientgroup);
 use DBI;
 
 __PACKAGE__->mk_accessors(qw(app app_def params token
-			     work_dir assembly_dir stage_dir output_base output_folder 
+			     work_dir assembly_dir stage_dir
+			     output_base output_folder 
 			     assembly_params spades
 			     contigs app_params
 			    ));
@@ -325,6 +327,7 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 	    _parent_job => $self->app->task_id,
+	    (binning_genome_annotation_clientgroup ? (_clientgroup => binning_genome_annotation_clientgroup) : ()),
 	};
 	push(@$app_list, $descr);
     }

@@ -28,6 +28,8 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
+SEEDTK = /disks/patric-common/seedtk
+
 REFERENCE_DATA_DIR = /tmp
 
 ifdef TEMPDIR
@@ -55,6 +57,7 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	--define reference_data_dir=$(REFERENCE_DATA_DIR) \
+	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 

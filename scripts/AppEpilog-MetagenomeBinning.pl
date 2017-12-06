@@ -74,28 +74,22 @@ sub process
 						  WHERE parent_job = ?),
 					       undef, $parent);
 
-    my $gto_dir = abs_path("gto_dir");
-    mkdir($gto_dir);
-
-    my $package_dir = abs_path("package_dir");
-    mkdir($package_dir);
+    my $qual_dir = abs_path("qual_dir");
+    mkdir($qual_dir);
 
     my $fh_pairs = [];
-
     my @genomes;
     for my $ent (@$genome_list)
     {
 	my($job, $genome_id, $genome_name, $gto_path) = @$ent;
-	my $local_path = "$gto_dir/$genome_id.gto";
+	my $local_path = "$qual_dir/$genome_id.qual.json";
 	my $local_fh = FileHandle->new($local_path, "w");
-	push(@$fh_pairs, [$gto_path, $local_fh]);
+ 	push(@$fh_pairs, [$gto_path, $local_fh]);
 	push(@genomes, $genome_id);
     }
     $app->workspace->copy_files_to_handles(1, $app->token(), $fh_pairs);
     close($_->[1]) foreach @$fh_pairs;
 
-    my @cmd = ("package_gto", $gto_dir, "all", $package_dir);
-    run_seedtk_cmd(\@cmd);
 
     # since we are an epilog we don't create output folder which means
     # that value not currently set. Change that.
@@ -106,98 +100,6 @@ sub process
     #
     my $base_folder = $params->{output_path};
     my $output_folder = $base_folder . "/." . $params->{output_file};
-
-    my $ppr_report = {};
-
-    for my $genome (@genomes)
-    {
-	run_seedtk_cmd(["bins", "-d", $package_dir, "checkM", $genome]);
-	run_seedtk_cmd(["bins", "-d", $package_dir, "eval_scikit", $genome]);
-	run_seedtk_cmd(["bins", "-d", $package_dir, "quality_summary", $genome]);
-
-	my $dir = "$package_dir/$genome";
-	$app->workspace->save_file_to_file("$dir/EvalByCheckm/evaluate.log", {},
-					   "$output_folder/$genome.checkm.txt", 'txt', 1, 1, $app->token);
-	$app->workspace->save_file_to_file("$dir/EvalBySciKit/evaluate.log", {},
-					   "$output_folder/$genome.scikit.txt", 'txt', 1, 1, $app->token);
-	$app->workspace->save_file_to_file("$dir/EvalBySciKit/evaluate.out", {},
-					   "$output_folder/$genome.scikit.eval.txt", 'txt', 1, 1, $app->token);
-	$app->workspace->save_file_to_file("$dir/EvalBySciKit/roles.mapped", {},
-					   "$output_folder/$genome.scikit.roles.mapped", 'txt', 1, 1, $app->token);
-	$app->workspace->save_file_to_file("$dir/EvalBySciKit/roles.not_mapped", {},
-					   "$output_folder/$genome.scikit.roles.not_mapped", 'txt', 1, 1, $app->token);
-	$app->workspace->save_file_to_file("$dir/quality.tbl", {},
-					   "$output_folder/$genome.quality.txt", 'txt', 1, 1, $app->token);
-
-	#
-	# Internalize the role mapping and evaluation data.
-	#
-	if (open(RMAP, "<", "$dir/EvalBySciKit/roles.mapped"))
-	{
-	    if (open(EVAL, "<", "$dir/EvalBySciKit/evaluate.out"))
-	    {
-		my %role_map;
-		my %role_fids;
-		while (<RMAP>)
-		{
-		    chomp;
-		    my($role, $abbr, $fid) = split(/\t/);
-		    $role_map{$abbr} = $role;
-		    push(@{$role_fids{$abbr}}, $fid);
-		}
-		close(RMAP);
-
-		my %role_ok;
-		my %role_ppr;
-		while (<EVAL>)
-		{
-		    chomp;
-		    my($abbr, $predicted, $actual) = split(/\t/);
-		    $predicted = int($predicted);
-		    $actual = int($actual);
-		    if ($predicted == $actual)
-		    {
-			if (1 || $predicted)
-			{
-			    $role_ok{$abbr} = [$predicted, $actual];
-			}
-		    }
-		    else
-		    {
-			$role_ppr{$abbr} = [$predicted, $actual];
-		    }
-		}
-		close(EVAL);
-		$ppr_report->{$genome} = {
-		    roles => \%role_map,
-		    role_fids => \%role_fids,
-		    role_ok => \%role_ok,
-		    role_ppr => \%role_ppr,
-		};
-	    }
-	    else
-	    {
-		close(RMAP);
-		warn "Cannot open $dir/EvalBySciKit/evaluate.out: $!";
-	    }
-	}
-	else
-	{
-	    warn "Cannot open $dir/EvalBySciKit/roles.mapped: $!";
-	}
-    }
-
-    run_seedtk_cmd(["package_report", $package_dir], ">", "quality.tbl");
-    run_seedtk_cmd(["package_report", "--json", $package_dir], ">", "quality.json");
-
-    my $json = JSON::XS->new->pretty(1)->canonical(1);
-    $app->workspace->save_data_to_file($json->encode($ppr_report), {},
-				       "$output_folder/ppr_report.json", 'json', 1, 1, $app->token);
-
-    $app->workspace->save_file_to_file("quality.tbl", {},
-				       "$output_folder/quality.tbl", 'txt', 1, 1, $app->token);
-    $app->workspace->save_file_to_file("quality.json", {},
-				       "$output_folder/quality.json", 'json', 1, 1, $app->token);
 
     #
     # Write the genome group
@@ -247,14 +149,17 @@ sub process
 						   WHERE parent_job = ?), undef, $parent);
 	my $parent_params = decode_json($params_txt);
 
-	open(my $out, ">", "report.html") or die "Cannot write report.html: $!";
-	Bio::KBase::AppService::BinningReport::write_report($parent, $parent_params,
-							    $qual_report, $ppr_report, $bins_report,
-							    $group_path,
-							    $out);
-	close($out);
-	$app->workspace->save_file_to_file("report.html", {},
-					   "$output_folder/report.html", 'html', 1, 1, $app->token);
+	#
+	# Hold off until we finish new reporting.
+	#
+	# open(my $out, ">", "report.html") or die "Cannot write report.html: $!";
+	# Bio::KBase::AppService::BinningReport::write_report($parent, $parent_params,
+	# 						    $qual_report, $ppr_report, $bins_report,
+	# 						    $group_path,
+	# 						    $out);
+	# close($out);
+	# $app->workspace->save_file_to_file("report.html", {},
+	# 				   "$output_folder/report.html", 'html', 1, 1, $app->token);
     };
     if ($@)
     {
