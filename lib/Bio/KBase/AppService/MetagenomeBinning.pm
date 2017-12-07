@@ -216,6 +216,7 @@ sub compute_bins
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_generate",
+	       "--species",
 	       "--statistics-file", "bins.stats.txt",
 	       $self->work_dir);
     my $rc = system(@cmd);
