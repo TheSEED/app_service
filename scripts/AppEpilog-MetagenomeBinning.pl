@@ -27,15 +27,21 @@ use Bio::KBase::AppService::BinningReport;
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::MetagenomeBinning;
 use FileHandle;
+use File::Basename;
 use File::Slurp;
 use strict;
 use Data::Dumper;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
+
 use DBI;
 use Cwd 'abs_path';
 use JSON::XS;
 use IPC::Run;
 use Proc::ParallelLoop;
+use Module::Metadata;
+
+push @INC, seedtk . "/modules/kernel/lib";
+require BinningReports;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process);
 $script->donot_create_result_folder(1);
@@ -73,23 +79,27 @@ sub process
 						  FROM GenomeAnnotation_JobDetails
 						  WHERE parent_job = ?),
 					       undef, $parent);
-
-    my $qual_dir = abs_path("qual_dir");
-    mkdir($qual_dir);
-
-    my $fh_pairs = [];
     my @genomes;
+    my @gtos;
+    my %report_url_map;
     for my $ent (@$genome_list)
     {
 	my($job, $genome_id, $genome_name, $gto_path) = @$ent;
-	my $local_path = "$qual_dir/$genome_id.qual.json";
-	my $local_fh = FileHandle->new($local_path, "w");
- 	push(@$fh_pairs, [$gto_path, $local_fh]);
+	my $gto = $app->workspace->download_json($gto_path, $app->token());
+	print "$job $genome_id: $gto->{scientific_name}\n";
+	delete {$_}->{dna} foreach @{$gto->{contigs}};
 	push(@genomes, $genome_id);
-    }
-    $app->workspace->copy_files_to_handles(1, $app->token(), $fh_pairs);
-    close($_->[1]) foreach @$fh_pairs;
+	push(@gtos, $gto);
 
+	#
+	# We assume the report URL is available in the same workspace
+	# directory as the genome.
+	#
+	my $report_path = dirname($gto_path) . "/GenomeReport.html";
+	my $report_url = "https://www.patricbrc.org/workspace$report_path";
+	$report_url_map{$genome_id} = $report_url;
+    }
+    
 
     # since we are an epilog we don't create output folder which means
     # that value not currently set. Change that.
@@ -141,25 +151,44 @@ sub process
     # Load bins report from original binning run.
     #
     eval {
-	my $bins_report = load_workspace_json($app->workspace, "$output_folder/bins.json");
-	my $qual_report = decode_json(scalar read_file("quality.json"));
-
 	my($params_txt) = $dbh->selectrow_array(qq(SELECT app_params
 						   FROM JobGroup
 						   WHERE parent_job = ?), undef, $parent);
 	my $parent_params = decode_json($params_txt);
 
+	my $parent_path = $parent_params->{output_path} . "/." . $parent_params->{output_file};
+	my $bins_report = load_workspace_json($app->workspace, "$parent_path/bins.json");
+
 	#
-	# Hold off until we finish new reporting.
+	# Find template.
 	#
-	# open(my $out, ">", "report.html") or die "Cannot write report.html: $!";
-	# Bio::KBase::AppService::BinningReport::write_report($parent, $parent_params,
-	# 						    $qual_report, $ppr_report, $bins_report,
-	# 						    $group_path,
-	# 						    $out);
-	# close($out);
-	# $app->workspace->save_file_to_file("report.html", {},
-	# 				   "$output_folder/report.html", 'html', 1, 1, $app->token);
+	
+	my $mpath = Module::Metadata->find_module_by_name("BinningReports");
+	$mpath =~ s/\.pm$//;
+	
+	my $summary_tt = "$mpath/summary.tt";
+	-f $summary_tt or die "Summary not found at $summary_tt\n";
+
+	#
+	# Read SEEDtk role map.
+	#
+	my %role_map;
+	if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
+	{
+	    while (<R>)
+	    {
+		chomp;
+		my($abbr, $hash, $role) = split(/\t/);
+		$role_map{$abbr} = $role;
+	    }
+	    close(R);
+	}
+
+	my $html = BinningReports::Summary($parent, $parent_params, $bins_report, $summary_tt,
+					   $group_path, \@gtos, \%report_url_map);
+
+	$app->workspace->save_data_to_file($html, {},
+					   "$parent_path/BinningReport.html", 'html', 1, 0, $app->token);
     };
     if ($@)
     {

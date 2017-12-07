@@ -18,7 +18,11 @@ use LWP::UserAgent;
 use JSON::XS;
 use IPC::Run;
 use IO::File;
+use Module::Metadata;
 use GenomeTypeObject;
+
+push @INC, seedtk . "/modules/kernel/lib";
+require BinningReports;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
 
@@ -347,6 +351,9 @@ sub process_genome
     # invoke post-parent-job processing.
     #
 
+    my $parent_output_folder;
+    my $run_last;
+    
     if (my $parent = $params->{_parent_job})
     {
 	my $dsn = "DBI:mysql:database=" . db_name . ";host=" . db_host;
@@ -375,7 +382,17 @@ sub process_genome
 	{
 	    ($created, $completed, $app, $spec, $params) = $sth->fetchrow_array();
 	    print "Created=$created completed=$completed\n";
-	    
+
+	    eval {
+		my $params_dat = decode_json($params);
+		$parent_output_folder = $params_dat->{output_path} . "/." . $params_dat->{output_file};
+		print STDERR "Found parent output folder $parent_output_folder\n";
+	    };
+	    if ($@)
+	    {
+		warn "Error parsing parent job params data : $@\n$params\n";
+	    }
+
 	    if ($completed == $created - 1)
 	    {
 		print "We are the last one out!\n";
@@ -406,9 +423,55 @@ sub process_genome
 	$dbh->commit();
 	if ($last_job)
 	{
-	    $core->run_last_job_processing($parent, $app, $spec, $params);
+	    #
+	    # We defer this until we are outside this block so we can ensure
+	    # the genome report is written first.
+	    #
+	    $run_last = sub { $core->run_last_job_processing($parent, $app, $spec, $params); };
 	}
     }
+
+    #
+    # Write the details report for this genome.
+    #
+
+    my $bins;
+    if ($parent_output_folder)
+    {
+	eval {
+	    print "Trying to load bins from $parent_output_folder/bins.json";
+	    $bins = $ws->download_json("$parent_output_folder/bins.json", $core->token);
+	};
+	if ($@)
+	{
+	    warn "Could not load bins from $parent_output_folder/bins.json: $@\n";
+	}
+    }
+
+    my $mpath = Module::Metadata->find_module_by_name("BinningReports");
+    $mpath =~ s/\.pm$//;
+    
+    my $details_tt = "$mpath/details.tt";
+    -f $details_tt or die "Details not found at $details_tt\n";
+    my %role_map;
+    if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
+    {
+	while (<R>)
+	{
+	    chomp;
+	    my($abbr, $hash, $role) = split(/\t/);
+	    $role_map{$abbr} = $role;
+	}
+	close(R);
+    }
+
+    my $html = BinningReports::Detail($params, $bins, $details_tt, $result, \%role_map);
+    $ws->save_data_to_file($html, {}, "$output_folder/GenomeReport.html", "html", 1, 0, $core->token);
+    
+    #
+    # Do last-job processing if needed.
+    #
+    &$run_last if $run_last;
 
     $core->ctx->stderr(undef);
 }

@@ -56,7 +56,11 @@ sub run
     chomp $host;
 
     my $task_id = 'TBD';
-    if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
+    if ($ENV{AWE_TASK_ID})
+    {
+	$task_id = $ENV{AWE_TASK_ID};
+    }
+    elsif ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
     {
 	$task_id = $1;
     }
