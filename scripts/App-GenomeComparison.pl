@@ -16,7 +16,6 @@ use gjoseqlib;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 use bidir_best_hits;
 

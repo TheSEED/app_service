@@ -5,7 +5,6 @@
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::GenomeAnnotationCore;
 use Bio::KBase::AppService::AppConfig 'data_api_url';
-use Bio::KBase::AuthToken;
 use SolrAPI;
 
 use strict;
