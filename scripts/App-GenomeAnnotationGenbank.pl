@@ -103,6 +103,22 @@ sub process_genome
     my $genome = $core->impl->create_genome_from_genbank($gb_data);
 
     #
+    # Overrides from optional parameters.
+    #
+    for my $override (['code', 'genetic_code'],
+		      ['scientific_name', 'scientific_name'],
+		      ['taxonomy_id', 'ncbi_taxonomy_id'],
+		      ['domain', 'domain'])
+    {
+	my($param_name, $gto_name) = @$override;
+	
+	if (exists $params->{$param_name})
+	{
+	    $genome->{$gto_name} = $params->{$param_name};
+	}
+    }
+
+    #
     # Add owner field from token
     #
     if ($core->user_id)

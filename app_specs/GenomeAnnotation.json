@@ -74,7 +74,7 @@
       "required": 0,
       "default": false,
       "label": "Don't index genome",
-      "desc": "If set, don't index this genome in solr. It will not be availbe for analysis through the PATRIC site.",
+      "desc": "If set, don't index this genome in solr. It will not be available for analysis through the PATRIC site.",
       "type": "bool"
     },
     {
