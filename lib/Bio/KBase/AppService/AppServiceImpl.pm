@@ -1071,7 +1071,7 @@ sub enumerate_tasks
 
 =head2 kill_task
 
-  $killed = $obj->kill_task($id)
+  $killed, $msg = $obj->kill_task($id)
 
 =over 4
 
@@ -1082,6 +1082,7 @@ sub enumerate_tasks
 <pre>
 $id is a task_id
 $killed is an int
+$msg is a string
 task_id is a string
 
 </pre>
@@ -1092,6 +1093,7 @@ task_id is a string
 
 $id is a task_id
 $killed is an int
+$msg is a string
 task_id is a string
 
 
@@ -1120,39 +1122,39 @@ sub kill_task
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
-    my($killed);
+    my($killed, $msg);
     #BEGIN kill_task
 
     #
     # Given the task ID, invoke AWE to nuke it.
     #
-    # This requires an AWE administrative account.
-    #
-    my $token = read_file($self->{awe_admin_token_file}, err_mode => 'quiet');
-    if (!$token)
-    {
-	die "Cannot read AWE administrative token\n";
-    }
-
-    GAH. Can one delete one's own job in awe?
-    #
-    # This is an AWE instance with the user's access. We use this to
-    # lookup the job and verify ownership (with limited privileges).
+    # This is an AWE instance with the user's access.
     #
     my $user_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-    #
-    # This is an AWE instance with administrative access used to 
-    #
-    my $admin_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $token);
+
+    my($res, $err) = $user_awe->kill_job($id);
+
+    print STDERR "Awe killed job $id: res=$res err=$err\n";
+    if ($res)
+    {
+	$killed = 1;
+	$msg = $res;
+    }
+    else
+    {
+	$killed = 0;
+	$msg = $err;
+    }
     
     #END kill_task
     my @_bad_returns;
     (!ref($killed)) or push(@_bad_returns, "Invalid type for return variable \"killed\" (value was \"$killed\")");
+    (!ref($msg)) or push(@_bad_returns, "Invalid type for return variable \"msg\" (value was \"$msg\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to kill_task:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	die $msg;
     }
-    return($killed);
+    return($killed, $msg);
 }
 
 
