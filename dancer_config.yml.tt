@@ -7,7 +7,7 @@ engines:
 [% IF kb_service_log_dir -%]
       session_dir: "[% kb_service_log_dir %]/sessions"
 [% ELSIF deployment_flag -%]
-      session_dir: "[% kb_top %]/services/[% kb_service_name %]"
+      session_dir: "[% kb_top %]/services/[% kb_service_name %]/sessions"
 [% ELSE -%]
       session_dir: "./sessions"
 [% END -%]
