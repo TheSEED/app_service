@@ -63,7 +63,7 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 
 TESTS = $(wildcard t/client-tests/*.t)
 
-all: build-libs bin compile-typespec service
+all: build-libs bin compile-typespec service build-dancer-config
 
 build-libs:
 	$(TPAGE) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
@@ -112,7 +112,7 @@ deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
 deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts 
 
-deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
+deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts deploy-dancer-config
 	for script in start_service stop_service postinstall; do \
 		$(TPAGE) $(TPAGE_ARGS) service/$$script.tt > $(TARGET)/services/$(SERVICE)/$$script ; \
 		chmod +x $(TARGET)/services/$(SERVICE)/$$script ; \
@@ -121,6 +121,12 @@ deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
 	rm -f $(TARGET)/postinstall/$(SERVICE)
 	ln -s ../services/$(SERVICE)/postinstall $(TARGET)/postinstall/$(SERVICE)
 	rsync -arv app_specs $(TARGET)/services/$(SERVICE)/.
+
+deploy-dancer-config:
+	$(TPAGE) --define deployment_flag=1 $(TPAGE_ARGS) dancer_config.yml.tt > $(TARGET)/services/$(SERVICE)/config.yml
+
+build-dancer-config:
+	$(TPAGE) $(TPAGE_ARGS) dancer_config.yml.tt > lib/Bio/KBase/AppService/config.yml
 
 deploy-service-scripts:
 	export KB_TOP=$(TARGET); \

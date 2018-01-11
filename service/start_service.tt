@@ -14,6 +14,11 @@ export KB_DEPLOYMENT_CONFIG="$KB_TOP/deployment.cfg"
 # For phispy
 export R_LIBS="$KB_TOP/lib"
 
+#
+# Dancer apps config dir
+#
+export DANCER_CONFDIR="$KB_TOP/services/[% kb_service_name %]"
+
 [% IF kb_tempdir -%]
 export TMPDIR=[% kb_tempdir %]
 export TEMPDIR=[% kb_tempdir %]
