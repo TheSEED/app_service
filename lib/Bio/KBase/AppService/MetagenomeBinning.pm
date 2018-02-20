@@ -155,7 +155,28 @@ sub stage_contigs
 
     my $staged = $self->app->stage_in([$contigs], $self->stage_dir, 1);
 
-    $self->contigs($staged->{$contigs});
+    my $file = $staged->{$contigs};
+    if (my($unzipped) = $file =~ /(.*)\.gz$/)
+    {
+	print STDERR "Unzipping $file => $unzipped\n";
+	my $rc = system("gunzip", $file);
+	if ($rc != 0)
+	{
+	    die "Error unzipping $file: $rc\n";
+	}
+	elsif (-s $unzipped)
+	{
+	    $self->contigs($unzipped);
+	}
+	else
+	{
+	    die "Zero-length file $unzipped resulting from unzipping $file\n";
+	}
+    }
+    else
+    {
+	$self->contigs($staged->{$contigs});
+    }
 }
 
 #
