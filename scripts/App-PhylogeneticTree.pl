@@ -8,7 +8,6 @@ use JSON::XS;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 my $max_processes = 8;
 
@@ -216,7 +215,7 @@ sub process_tree
 		print FT $tree_nwk;
 		close(FT);
 		
-		my $ok = run(['svr_tree_to_html'],
+		my $ok = run(['svr_tree_to_html', '-raw'],
 			     "<", \$tree_nwk,
 			     ">", "$tmpdir/$run_name.html");
 		$ok or warn "Error code=$? running svr_tree_to_html";
@@ -224,6 +223,20 @@ sub process_tree
 	    else
 	    {
 		warn "Cannot write $tmpdir/$run_name.final.nwk: $!";
+	    }
+	    if (open(FT, ">", "$tmpdir/${run_name}_final_rooted.nwk"))
+	    {
+		print FT $tree_nwk;
+		close(FT);
+		
+		my $ok = run(['svr_tree_to_html', '-raw'],
+			     "<", \$tree_nwk,
+			     ">", "$tmpdir/$run_name.rooted.html");
+		$ok or warn "Error code=$? running svr_tree_to_html";
+	    }
+	    else
+	    {
+		warn "Cannot write $tmpdir/${run_name}_final_rooted.nwk: $!";
 	    }
 	}
     }
@@ -234,11 +247,15 @@ sub process_tree
     }
 
     my @output = (["$tmpdir/$run_name.final.nwk", "$output_folder/$output_base.final.nwk", 'nwk'],
+		  ["$tmpdir/${run_name}_final_rooted.nwk", "$output_folder/$output_base.final_rooted.nwk", 'nwk'],
 		  ["$tmpdir/$run_name.nwk", "$output_folder/$output_base.nwk", 'nwk'],
 		  @pepr_logs_out,
 		  ["$tmpdir/$run_name.json", "$output_folder/$output_base.json", "json"],
+		  ["$tmpdir/${run_name}_final_rooted.json", "$output_folder/$output_base.final_rooted.json", "json"],
 		  ["$tmpdir/$run_name.sup", "$output_folder/$output_base.sup", "nwk"],
 		  ["$tmpdir/$run_name.html", "$output_folder/$output_base.html", "html"],
+		  ["$tmpdir/$run_name.rooted.html", "$output_folder/$output_base.rooted.html", "html"],
+		  ["$tmpdir/$run_name.report.xml", "$output_folder/$output_base.report.xml", "xml"],
 		  [$out_file, "$output_folder/$output_base.out", "txt"],
 		 );
     for my $out (@output)

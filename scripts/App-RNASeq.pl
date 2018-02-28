@@ -12,7 +12,6 @@ use JSON;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_url = "http://www.alpha.patricbrc.org/api";

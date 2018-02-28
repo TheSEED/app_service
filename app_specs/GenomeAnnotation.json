@@ -70,6 +70,14 @@
       "type": "bool"
     },
     {
+      "id": "skip_indexing",
+      "required": 0,
+      "default": false,
+      "label": "Don't index genome",
+      "desc": "If set, don't index this genome in solr. It will not be available for analysis through the PATRIC site.",
+      "type": "bool"
+    },
+    {
       "id": "output_path",
       "label": "Output Folder",
       "required": 0,
@@ -147,6 +155,14 @@
       "required": 0,
       "default": null,
       "desc": "Even if this job is identical to a previous job, run it from scratch.",
+      "type": "bool"
+    },
+    { 
+      "id": "analyze_quality",
+      "label": "Enable quality analysis of genome",
+      "required": 0,
+      "default": null,
+      "desc": "If enabled, run quality analysis on genome",
       "type": "bool"
     },
     {

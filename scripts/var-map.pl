@@ -231,6 +231,9 @@ sub map_with_mosaik {
     -s "read_2.fq"      or run("ln -s -f $read2 read_2.fq");
     -s "ref.dat"        or run("MosaikBuild -fr ref.fa -oa ref.dat");
     -s "reads.mkb"      or run("MosaikBuild -q read_1.fq -q2 read_2.fq -out reads.mkb -st illumina -mfl 500");
+    system("ls -l reads.mkb");
+    sleep 5;
+    system("ls -l reads.mkb");
     -s "reads.mka.bam"  or run("MosaikAligner -in reads.mkb -out reads.mka -ia ref.dat -p $nthread -annpe pe.ann -annse se.ann");
     -s "aln.raw.sam"    or run("ln -s -f reads.mka.bam aln.raw.sam");
     -s "aln.keep.bam"   or run("samtools view -@ $nthread -f 0x2 -bS reads.mka.bam > aln.keep.bam"); # keep only properly paired reads

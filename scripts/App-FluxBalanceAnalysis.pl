@@ -3,7 +3,6 @@
 #
 
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 use strict;
 use Data::Dumper;
 use gjoseqlib;

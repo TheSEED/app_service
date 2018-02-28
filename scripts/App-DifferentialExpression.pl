@@ -4,7 +4,6 @@
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::AppConfig;
-use Bio::KBase::AuthToken;
 use strict;
 use Data::Dumper;
 use File::Basename;

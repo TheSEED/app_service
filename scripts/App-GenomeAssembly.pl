@@ -11,7 +11,6 @@ use IPC::Run 'run';
 use POSIX;
 
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 my $ar_run = "ar-run";
 my $ar_get = "ar-get";

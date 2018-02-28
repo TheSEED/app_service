@@ -2,6 +2,7 @@ TOP_DIR = ../..
 include $(TOP_DIR)/tools/Makefile.common
 
 TARGET ?= /kb/deployment
+DEPLOY_TARGET ?= $(TARGET)
 DEPLOY_RUNTIME ?= /kb/runtime
 SERVER_SPEC = AppService.spec
 
@@ -28,6 +29,8 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
+SEEDTK = /disks/patric-common/seedtk
+
 REFERENCE_DATA_DIR = /tmp
 
 ifdef TEMPDIR
@@ -39,8 +42,15 @@ SERVICE_LOGDIR = $(DEPLOYMENT_VAR_DIR)/services/$(SERVICE)
 TPAGE_SERVICE_LOGDIR = --define kb_service_log_dir=$(SERVICE_LOGDIR)
 endif
 
-TPAGE_ARGS = --define kb_top=$(TARGET) \
-	--define kb_runtime=$(DEPLOY_RUNTIME) \
+TPAGE_BUILD_ARGS =  \
+	--define kb_top=$(TARGET) \
+	--define kb_runtime=$(DEPLOY_RUNTIME)
+
+TPAGE_DEPLOY_ARGS =  \
+	--define kb_top=$(DEPLOY_TARGET) \
+	--define kb_runtime=$(DEPLOY_RUNTIME)
+
+TPAGE_ARGS = \
 	--define kb_service_name=$(SERVICE) \
 	--define kb_service_port=$(SERVICE_PORT) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
@@ -55,15 +65,16 @@ TPAGE_ARGS = --define kb_top=$(TARGET) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	--define reference_data_dir=$(REFERENCE_DATA_DIR) \
+	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)
 
-all: build-libs bin compile-typespec service
+all: build-libs bin compile-typespec service build-dancer-config
 
 build-libs:
-	$(TPAGE) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
+	$(TPAGE) $(TPAGE_BUILD_ARGS) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
 
 test:
 	# run each test
@@ -85,6 +96,7 @@ compile-typespec: Makefile
 	touch lib/biokbase/$(SERVICE_NAME_PY)/__init__.py 
 	mkdir -p lib/javascript/$(SERVICE_NAME)
 	compile_typespec \
+		--patric \
 		--impl Bio::KBase::$(SERVICE_NAME)::%sImpl \
 		--service Bio::KBase::$(SERVICE_NAME)::Service \
 		--client Bio::KBase::$(SERVICE_NAME)::Client \
@@ -108,15 +120,21 @@ deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
 deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts 
 
-deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts
+deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts deploy-dancer-config
 	for script in start_service stop_service postinstall; do \
-		$(TPAGE) $(TPAGE_ARGS) service/$$script.tt > $(TARGET)/services/$(SERVICE)/$$script ; \
+		$(TPAGE) $(TPAGE_DEPLOY_ARGS) $(TPAGE_ARGS) service/$$script.tt > $(TARGET)/services/$(SERVICE)/$$script ; \
 		chmod +x $(TARGET)/services/$(SERVICE)/$$script ; \
 	done
 	mkdir -p $(TARGET)/postinstall
 	rm -f $(TARGET)/postinstall/$(SERVICE)
 	ln -s ../services/$(SERVICE)/postinstall $(TARGET)/postinstall/$(SERVICE)
 	rsync -arv app_specs $(TARGET)/services/$(SERVICE)/.
+
+deploy-dancer-config:
+	$(TPAGE) --define deployment_flag=1 $(TPAGE_DEPLOY_ARGS) $(TPAGE_ARGS) dancer_config.yml.tt > $(TARGET)/services/$(SERVICE)/config.yml
+
+build-dancer-config:
+	$(TPAGE) $(TPAGE_BUILD_ARGS) $(TPAGE_ARGS) dancer_config.yml.tt > lib/Bio/KBase/AppService/config.yml
 
 deploy-service-scripts:
 	export KB_TOP=$(TARGET); \
@@ -132,7 +150,7 @@ deploy-service-scripts:
 	done
 
 deploy-monit:
-	$(TPAGE) $(TPAGE_ARGS) service/process.$(SERVICE).tt > $(TARGET)/services/$(SERVICE)/process.$(SERVICE)
+	$(TPAGE) $(TPAGE_DEPLOY_ARGS) $(TPAGE_ARGS) service/process.$(SERVICE).tt > $(TARGET)/services/$(SERVICE)/process.$(SERVICE)
 
 deploy-docs:
 	-mkdir doc

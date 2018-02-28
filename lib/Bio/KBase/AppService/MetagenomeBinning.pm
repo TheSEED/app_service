@@ -15,11 +15,13 @@ use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
-use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
+use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name
+					 seedtk binning_genome_annotation_clientgroup);
 use DBI;
 
 __PACKAGE__->mk_accessors(qw(app app_def params token
-			     work_dir assembly_dir stage_dir output_base output_folder 
+			     work_dir assembly_dir stage_dir
+			     output_base output_folder 
 			     assembly_params spades
 			     contigs app_params
 			    ));
@@ -153,7 +155,28 @@ sub stage_contigs
 
     my $staged = $self->app->stage_in([$contigs], $self->stage_dir, 1);
 
-    $self->contigs($staged->{$contigs});
+    my $file = $staged->{$contigs};
+    if (my($unzipped) = $file =~ /(.*)\.gz$/)
+    {
+	print STDERR "Unzipping $file => $unzipped\n";
+	my $rc = system("gunzip", $file);
+	if ($rc != 0)
+	{
+	    die "Error unzipping $file: $rc\n";
+	}
+	elsif (-s $unzipped)
+	{
+	    $self->contigs($unzipped);
+	}
+	else
+	{
+	    die "Zero-length file $unzipped resulting from unzipping $file\n";
+	}
+    }
+    else
+    {
+	$self->contigs($staged->{$contigs});
+    }
 }
 
 #
@@ -214,6 +237,7 @@ sub compute_bins
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_generate",
+	       "--species",
 	       "--statistics-file", "bins.stats.txt",
 	       $self->work_dir);
     my $rc = system(@cmd);
@@ -325,6 +349,8 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 	    _parent_job => $self->app->task_id,
+	    analyze_quality => 1,
+	    (binning_genome_annotation_clientgroup ? (_clientgroup => binning_genome_annotation_clientgroup) : ()),
 	};
 	push(@$app_list, $descr);
     }

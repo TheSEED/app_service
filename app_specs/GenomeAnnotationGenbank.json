@@ -30,6 +30,14 @@
       "type": "bool"
     },
     {
+      "id": "skip_indexing",
+      "required": 0,
+      "default": false,
+      "label": "Don't index genome",
+      "desc": "If set, don't index this genome in solr. It will not be available for analysis through the PATRIC site.",
+      "type": "bool"
+    },
+    {
       "id": "output_path",
       "label": "Output Folder",
       "required": 0,
@@ -52,6 +60,46 @@
       "default": null,
       "desc": "Specifies a custom workflow document (expert).",
       "type": "string"
+    },
+    {
+      "id": "scientific_name",
+      "label": "Scientific Name",
+      "required": 0,
+      "default": null,
+      "desc": "Scientific name of genome to be annotated. Overrides value in genbank file.",
+      "type": "string"
+    },
+    {
+      "id": "taxonomy_id",
+      "label": "NCBI Taxonomy ID",
+      "required": 0,
+      "default": null,
+      "desc": "NCBI Taxonomy identfier for this genome. Overrides value in genbank file.",
+      "type": "int"
+    },
+    {
+      "id": "code",
+      "label": "Genetic Code",
+      "required": 0,
+      "default": 11,
+      "desc": "Genetic code used in translation of DNA sequences. Overrides value in genbank file.",
+      "type": "enum",
+      "enum": [
+        "11",
+        "4"
+      ]
+    },
+    {
+      "id": "domain",
+      "label": "Domain",
+      "required": 0,
+      "default": "Bacteria",
+      "desc": "Domain of the submitted genome. Overrides value in genbank file.",
+      "type": "enum",
+      "enum": [
+        "Bacteria",
+        "Archaea"
+      ]
     },
     {
       "id": "import_only",

@@ -1,6 +1,6 @@
-=head1 Submit a PATRIC Genome Assembly job
+=head1 Submit a PATRIC Genome Assembly Job
 
-    p3-submit-genome-assembly [options] ouput-path output-name
+    p3-submit-genome-assembly [options] output-path output-name
 
 Submit a set of one or more read libraries to the PATRIC genome assembly service.
 

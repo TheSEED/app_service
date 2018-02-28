@@ -13,7 +13,6 @@ use JSON;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 my $script_dir = abs_path(dirname(__FILE__));
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;

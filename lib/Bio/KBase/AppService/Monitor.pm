@@ -6,21 +6,16 @@ use Data::Dumper;
 use LWP::UserAgent;
 use HTTP::Headers;
 use JSON::XS;
+use File::Spec;
 use Bio::KBase::AppService::Awe;
 
 our $impl;
 our $json = JSON::XS->new->pretty;
 
-set session => 'YAML';
 set views => path(dirname(__FILE__), 'templates');
 set layout => 'main';
-set template => 'template_toolkit';
-set engines => {
-    template => {
-	template_toolkit => {
-	},
-    },
-};
+
+print Dumper(Monitor => config);
 
 sub set_impl
 {

@@ -30,6 +30,23 @@
 		    ]
 		},
 		{
+		    "id": "single_end_libs",
+		    "type": "group",
+		    "allow_multiple": false,
+		    "required": 0,
+		    "default" : null,
+		    "group":[
+			{
+			    "id": "read",
+			    "required": 1,
+			    "label": "Read file",
+			    "desc": "FASTQ, FASTA or H5 file of reads",
+			    "wstype": "ReadFile",
+			    "type": "wstype"
+			},
+		    ]
+		},
+		{
 			"id": "srr_ids",
 			"required": 0,
 		        "allow_multiple": false,
