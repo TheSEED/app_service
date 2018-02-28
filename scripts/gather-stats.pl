@@ -44,7 +44,7 @@ my @q = (state => 'completed');
 #@q = ();
 
 #my $begin = DateTime->new(year => 2015, month => 10, day => 1)->set_time_zone( 'America/Chicago' );
-my $end = DateTime->new(year => 2017, month => 11, day => 1)->set_time_zone( 'America/Chicago' );
+my $end = DateTime->new(year => 2018, month => 2, day => 1)->set_time_zone( 'America/Chicago' );
 my $begin = DateTime->new(year => 2013, month => 1, day => 1)->set_time_zone( 'America/Chicago' );
 my @end;
 @end = ('$lt' => $end );

@@ -582,6 +582,13 @@ sub start_app
     };
 
     my $clientgroup = $self->{awe_clientgroup};
+
+    if ($app_id eq 'MetagenomeBinning' && $params->{contigs})
+    {
+	#  Hack to send contigs-only jobs to a different clientgroup
+	$clientgroup .= "-fast";
+	print STDERR "Redirecting job to fast queue\n" . Dumper($params);
+    }
     if ($params->{_clientgroup})
     {
 	$clientgroup = $params->{_clientgroup};
@@ -1147,7 +1154,7 @@ sub kill_task
 	die "Cannot read AWE administrative token\n";
     }
 
-    GAH. Can one delete one's own job in awe?
+    # GAH. Can one delete one's own job in awe?
     #
     # This is an AWE instance with the user's access. We use this to
     # lookup the job and verify ownership (with limited privileges).
