@@ -25,6 +25,13 @@ sub enumerate_apps
     my $dh;
     my $dir = $self->impl->{app_dir};
 
+    #
+    # We allow relaxed parsing of app definition files so that
+    # we may put comments into them.
+    #
+
+    my $json = JSON::XS->new->relaxed(1);
+
     my @list;
     
     if (!$dir) {
@@ -34,7 +41,7 @@ sub enumerate_apps
 	closedir($dh);
 	for my $f (@files)
 	{
-	    my $obj = decode_json(scalar read_file("$dir/$f"));
+	    my $obj = $json->decode(scalar read_file("$dir/$f"));
 	    if (!$obj)
 	    {
 		warn "Could not read $dir/$f\n";
@@ -59,6 +66,13 @@ sub find_app
 
     my @list;
     
+    #
+    # We allow relaxed parsing of app definition files so that
+    # we may put comments into them.
+    #
+
+    my $json = JSON::XS->new->relaxed(1);
+
     if (!$dir) {
 	warn "No app directory specified\n";
     } elsif (opendir($dh, $dir)) {
@@ -66,7 +80,7 @@ sub find_app
 	closedir($dh);
 	for my $f (@files)
 	{
-	    my $obj = decode_json(scalar read_file("$dir/$f"));
+	    my $obj = $json->decode(scalar read_file("$dir/$f"));
 	    if (!$obj)
 	    {
 		warn "Could not read $dir/$f\n";
