@@ -3,7 +3,6 @@
 #
 
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 use Bio::P3::Workspace::WorkspaceClient;
 use Bio::P3::Workspace::WorkspaceClientExt;
 use strict;

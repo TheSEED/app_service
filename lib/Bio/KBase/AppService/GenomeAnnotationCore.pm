@@ -10,7 +10,7 @@ use strict;
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 
 use Bio::KBase::GenomeAnnotation::Service;
-use Bio::KBase::AuthToken;
+use P3AuthToken;
 
 use Bio::KBase::GenomeAnnotation::GenomeAnnotationImpl;
 use Bio::KBase::GenomeAnnotation::Service;
@@ -55,9 +55,10 @@ sub init_service
 
     my $interactive = $ENV{KB_INTERACTIVE} || (-t STDIN);
 
-    my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
+    my $token = P3AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
+    my $val = P3TokenValidator->new();
 
-    if ($token->validate())
+    if ($val->validate($token))
     {
 	$ctx->authenticated(1);
 	$ctx->user_id($token->user_id);

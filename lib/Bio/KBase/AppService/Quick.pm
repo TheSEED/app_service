@@ -12,26 +12,23 @@ use LWP::UserAgent;
 use HTTP::Headers;
 use JSON::XS;
 use MIME::Base64;
+use File::Spec;
 use Bio::KBase::AppService::Awe;
 use Bio::P3::Workspace::WorkspaceClientExt;
 use Bio::KBase::AppService::Client;
+use P3AuthToken;
+use P3TokenValidator;
 
 our $impl;
 our $json = JSON::XS->new->pretty;
 our %token_cache;
+our $validator = P3TokenValidator->new();
 
-set session => 'YAML';
 set views => path(dirname(__FILE__), 'templates');
-set layout => undef;
-set template => 'template_toolkit';
-set engines => {
-    template => {
-	template_toolkit => {
-	},
-    },
-};
 set content_type => 'text/plain';
 set error_template => undef;
+
+print Dumper(Quick => config);
 
 sub set_impl
 {
@@ -76,8 +73,9 @@ hook before => sub {
 
 		$token = $auth_hdr;
 		$token =~ s/^OAuth\s+//;
-		my $auth_token = Bio::KBase::AuthToken->new(token => $token, ignore_authrc => 1);
-		if (!$auth_token->validate())
+		my $auth_token = P3AuthToken->new(token => $token, ignore_authrc => 1);
+		my($valid, $validate_err) = $validator->validate($auth_token);
+		if (!$valid)
 		{
 		    warn "Invalid token $token received: $auth_token->{error_message}\n";
 		    return;

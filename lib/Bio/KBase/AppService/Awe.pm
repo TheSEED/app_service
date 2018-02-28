@@ -108,6 +108,31 @@ sub job_state
     }
 }
 
+sub kill_job
+{
+    my($self, $job_id) = @_;
+
+    my $url = $self->server . "/job/$job_id";
+    print "delete using $url\n";
+    my $res = $self->ua->delete($url, $self->auth_header());
+    if ($res->is_success)
+    {
+	my $awe_res = $self->json->decode($res->content);
+	if ($awe_res->{status} eq 200)
+	{
+	    return $awe_res->{data};
+	}
+	else
+	{
+	    return undef, $awe_res->{error};
+	}
+    }
+    else
+    {
+	return undef, $res->content;
+    }
+}
+
 sub job
 {
     my($self, $job_id) = @_;

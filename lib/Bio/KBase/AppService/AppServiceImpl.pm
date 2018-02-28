@@ -1,6 +1,5 @@
 package Bio::KBase::AppService::AppServiceImpl;
 use strict;
-use Bio::KBase::Exceptions;
 # Use Semantic Versioning (2.0.0-rc.1)
 # http://semver.org 
 our $VERSION = "0.1.0";
@@ -276,7 +275,6 @@ sub new
     $self->{awe_mongo_user} = $cfg->setting("awe-mongo-user");
     $self->{awe_mongo_pass} = $cfg->setting("awe-mongo-pass");
     $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
-    $self->{awe_admin_token_file} = $cfg->setting("awe-admin-token-file") || "";
 
     $self->{task_status_dir} = $cfg->setting("task-status-dir");
     $self->{service_url} = $cfg->setting("service-url");
@@ -352,8 +350,7 @@ sub service_status
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to service_status:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'service_status');
+	die $msg;
     }
     return($return);
 }
@@ -443,8 +440,7 @@ sub enumerate_apps
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to enumerate_apps:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'enumerate_apps');
+	die $msg;
     }
     return($return);
 }
@@ -535,8 +531,7 @@ sub start_app
     (!ref($workspace)) or push(@_bad_arguments, "Invalid type for argument \"workspace\" (value was \"$workspace\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to start_app:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'start_app');
+	die $msg;
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
@@ -648,8 +643,7 @@ sub start_app
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to start_app:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'start_app');
+	die $msg;
     }
     return($task);
 }
@@ -734,8 +728,7 @@ sub query_tasks
     (ref($task_ids) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"task_ids\" (value was \"$task_ids\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to query_tasks:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_tasks');
+	die $msg;
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
@@ -761,8 +754,7 @@ sub query_tasks
     (ref($tasks) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"tasks\" (value was \"$tasks\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to query_tasks:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_tasks');
+	die $msg;
     }
     return($tasks);
 }
@@ -850,8 +842,7 @@ sub query_task_summary
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to query_task_summary:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_task_summary');
+	die $msg;
     }
     return($status);
 }
@@ -918,8 +909,7 @@ sub query_task_details
     (!ref($task_id)) or push(@_bad_arguments, "Invalid type for argument \"task_id\" (value was \"$task_id\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to query_task_details:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_task_details');
+	die $msg;
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
@@ -953,8 +943,7 @@ sub query_task_details
     (ref($details) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"details\" (value was \"$details\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to query_task_details:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'query_task_details');
+	die $msg;
     }
     return($details);
 }
@@ -1042,8 +1031,7 @@ sub enumerate_tasks
     (!ref($count)) or push(@_bad_arguments, "Invalid type for argument \"count\" (value was \"$count\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to enumerate_tasks:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'enumerate_tasks');
+	die $msg;
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
@@ -1079,8 +1067,7 @@ sub enumerate_tasks
     (ref($return) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to enumerate_tasks:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'enumerate_tasks');
+	die $msg;
     }
     return($return);
 }
@@ -1090,7 +1077,7 @@ sub enumerate_tasks
 
 =head2 kill_task
 
-  $killed = $obj->kill_task($id)
+  $killed, $msg = $obj->kill_task($id)
 
 =over 4
 
@@ -1101,6 +1088,7 @@ sub enumerate_tasks
 <pre>
 $id is a task_id
 $killed is an int
+$msg is a string
 task_id is a string
 
 </pre>
@@ -1111,6 +1099,7 @@ task_id is a string
 
 $id is a task_id
 $killed is an int
+$msg is a string
 task_id is a string
 
 
@@ -1135,46 +1124,45 @@ sub kill_task
     (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
     if (@_bad_arguments) {
 	my $msg = "Invalid arguments passed to kill_task:\n" . join("", map { "\t$_\n" } @_bad_arguments);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'kill_task');
+	die $msg;
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
-    my($killed);
+    my($killed, $msg);
     #BEGIN kill_task
 
     #
     # Given the task ID, invoke AWE to nuke it.
     #
-    # This requires an AWE administrative account.
-    #
-    my $token = read_file($self->{awe_admin_token_file}, err_mode => 'quiet');
-    if (!$token)
-    {
-	die "Cannot read AWE administrative token\n";
-    }
-
-    # GAH. Can one delete one's own job in awe?
-    #
-    # This is an AWE instance with the user's access. We use this to
-    # lookup the job and verify ownership (with limited privileges).
+    # This is an AWE instance with the user's access.
     #
     my $user_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-    #
-    # This is an AWE instance with administrative access used to 
-    #
-    my $admin_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $token);
+
+    my($res, $err) = $user_awe->kill_job($id);
+
+    print STDERR "Awe killed job $id: res=$res err=$err\n";
+    if ($res)
+    {
+	$killed = 1;
+	$msg = $res;
+    }
+    else
+    {
+	$killed = 0;
+	$msg = $err;
+    }
     
     #END kill_task
     my @_bad_returns;
     (!ref($killed)) or push(@_bad_returns, "Invalid type for return variable \"killed\" (value was \"$killed\")");
+    (!ref($msg)) or push(@_bad_returns, "Invalid type for return variable \"msg\" (value was \"$msg\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to kill_task:\n" . join("", map { "\t$_\n" } @_bad_returns);
-	Bio::KBase::Exceptions::ArgumentValidationError->throw(error => $msg,
-							       method_name => 'kill_task');
+	die $msg;
     }
-    return($killed);
+    return($killed, $msg);
 }
+
 
 
 
@@ -1212,6 +1200,7 @@ Return the module version. This is a Semantic Versioning number.
 sub version {
     return $VERSION;
 }
+
 
 =head1 TYPES
 

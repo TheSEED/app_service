@@ -8,7 +8,6 @@ use JSON::XS;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
-use Bio::KBase::AuthToken;
 
 my $max_processes = 8;
 
