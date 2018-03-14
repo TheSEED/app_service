@@ -7,10 +7,12 @@ use strict;
 use Getopt::Long::Descriptive;
 use Bio::P3::Workspace::WorkspaceClientExt;
 use Bio::KBase::AppService::Client;
+use P3AuthToken;
 use Try::Tiny;
 use IO::Handle;
 use Data::Dumper;
 use File::Basename;
+use JSON::XS;
 
 my($opt, $usage) = describe_options("%c %o workspace-dir input-file [input file ...]",
 				    ["scientific-name=s", "Scientific name for this genome"],
@@ -46,7 +48,7 @@ else
 }
 
 my $interactive = $ENV{KB_INTERACTIVE} || (-t STDIN);
-my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
+my $token = P3AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
 
 my $ws = Bio::P3::Workspace::WorkspaceClientExt->new($opt->workspace_url);
 my $app_service = Bio::KBase::AppService::Client->new($opt->app_service_url);
@@ -95,7 +97,7 @@ if ($opt->workflow_file)
     };
     if (!$workflow)
     {
-	die "Error parsing workflow file " . $opt->workflow_file . "\n";
+	die "Error parsing workflow file " . $opt->workflow_file . ": $@\n";
     }
 
     if (ref($workflow) ne 'HASH' ||
