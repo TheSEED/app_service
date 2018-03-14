@@ -176,7 +176,7 @@ sub subproc_run
 {
     my($self, $args) = @_;
     
-    my $json = JSON::XS->new->pretty(1);
+    my $json = JSON::XS->new->pretty(1)->relaxed(1);
 
     my $app_def_file = shift @$args;
     my $params_file = shift @$args;
