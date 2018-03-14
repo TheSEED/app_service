@@ -7,6 +7,15 @@
       # Common parameters
       #
       {
+         "desc" : "Input type (reads / contigs / genbank)",
+	 "required": 1,
+	 "default": null,
+	 "label": "Input Type",
+	 "type": "enum",
+	 "enum" : [ "reads", "contigs", "genbank" ],
+	 "id": "input_type"
+      },
+      {
          "desc" : "Path to which the output will be written. Defaults to the directory containing the input data. ",
          "required" : 1,
          "default" : null,
@@ -37,7 +46,7 @@
                "type" : "wstype",
                "id" : "read1",
                "desc" : "FASTQ or FASTA file of reads",
-               "required" : 1
+               "required" : 0
             },
             {
                "required" : 0,
@@ -93,13 +102,18 @@
          "default" : null
       },
       {
+         "id" : "single_end_libs",
+         "default" : null,
+         "required" : 0,
+         "allow_multiple" : true,
+         "type" : "group",
          "group" : [
             {
                "label" : "Read file",
                "wstype" : "ReadFile",
                "id" : "read",
                "type" : "wstype",
-               "required" : 1,
+               "required" : 0,
                "desc" : "FASTQ, FASTA or H5 file of reads"
             },
             {
@@ -117,11 +131,6 @@
                ]
             }
          ],
-         "default" : null,
-         "required" : 0,
-         "allow_multiple" : true,
-         "type" : "group",
-         "id" : "single_end_libs"
       },
       {
          "label" : "SRR ID",
@@ -186,7 +195,7 @@
       #
     {
       "id": "genbank_file",
-      "required": 1,
+      "required": 0,
       "default": null,
       "label": "Genbank file",
       "desc": "Genome to process",
@@ -198,7 +207,7 @@
          "wstype" : "Contigs",
          "type" : "wstype",
          "id" : "contigs",
-         "required" : 1,
+         "required" : 0,
          "desc" : "Input set of DNA contigs for annotation",
          "default" : null
       },
