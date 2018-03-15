@@ -169,7 +169,7 @@ if ($opt->workflow_file && $opt->import_only)
 $output_path = strip_ws_prefix($output_path);
 $output_path = expand_workspace_path($output_path);
 $output_path =~ s,/+$,, if $output_path ne '/';
-print Dumper($output_path, $opt);
+#print Dumper($output_path, $opt);
 $opt->{workspace_upload_path} = $output_path unless $opt->workspace_upload_path;
 
 $output_path =~ s,/+$,,;
