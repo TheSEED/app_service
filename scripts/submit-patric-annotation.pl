@@ -113,7 +113,6 @@ if ($opt->workflow_file)
 #
 try {
     my $res = $ws->get({ objects => [$ws_dir], metadata_only => 1 });
-    print Dumper($res);
 } catch {
     my($err) = /_ERROR_(.*)_ERROR_/;
     if ($err =~ /Object not found/)
