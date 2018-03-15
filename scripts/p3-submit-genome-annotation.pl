@@ -84,7 +84,10 @@ my $app_service = Bio::KBase::AppService::Client->new();
 
 my($opt, $usage) =
     describe_options("%c %o output-path output-name",
-		     ["help|h", "Show this help message"],
+		     ["Submit an annotation job with output written to output-path and named output-name."],
+		     ["The output-path parameter is a PATRIC workspace path."],
+		     ["The output-name parameter is a name that will describe this annotation in the workspace."],
+		     ["It may not contain slash (/) characters."],
 		     [],
 		     ["The following options describe the inputs to the annotation."],
 		     [],
@@ -112,6 +115,8 @@ my($opt, $usage) =
 		     ["index-nowait", "Do not wait for indexing to complete before the job is marked as complete."],
 		     ["no-index", "Do not index this genome. If this option is selected the genome will not be visible on the PATRIC website."],
 		     ["dry-run", "Dry run. Upload files and validate input but do not submit annotation"],
+		     [],
+		     ["help|h", "Show this help message"],
 		    );
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) if @ARGV != 2;
@@ -124,6 +129,11 @@ my $output_name = shift;
 # support in Getopt::Long::Descriptive but the error messages it emits
 # are really not user-friendly.
 #
+
+if ($output_name =~ m,/,)
+{
+    die "The output path may not contain a slash character\n";
+}
 
 my($input_file, $input_mode, $app_name);
 
@@ -158,8 +168,8 @@ if ($opt->workflow_file && $opt->import_only)
 #
 $output_path = strip_ws_prefix($output_path);
 $output_path = expand_workspace_path($output_path);
-$output_path =~ s,/$,, if $output_path ne '/';
-# print Dumper($output_path, $opt);
+$output_path =~ s,/+$,, if $output_path ne '/';
+print Dumper($output_path, $opt);
 $opt->{workspace_upload_path} = $output_path unless $opt->workspace_upload_path;
 
 $output_path =~ s,/+$,,;
@@ -384,7 +394,7 @@ sub process_filename
 	my $stat = $ws->stat($wspath);
 	if (!$stat || !S_ISREG($stat->mode))
 	{
-	    die "Workspace path $wspath not found\n";
+	    die "Workspace path $wspath not found for file $path\n";
 	}
     }
     else
@@ -412,14 +422,17 @@ sub process_filename
 
 sub expand_workspace_path
 {
-    my($wspath) = @_;
-    if ($wspath !~ m,^/,)
+    my($wspath_in) = @_;
+    my $wspath = $wspath_in;
+    if ($wspath_in !~ m,^/,)
     {
 	if (!$opt->workspace_path_prefix)
 	{
 	    die "Cannot process $wspath: no workspace path prefix set (--workspace-path-prefix parameter)\n";
 	}
-	$wspath = $opt->workspace_path_prefix . "/" . $wspath;
+	$wspath = $opt->workspace_path_prefix ;
+	$wspath =~ s,/+$,,;
+	$wspath .= "/" . $wspath_in;
     }
     return $wspath;
 }
