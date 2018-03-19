@@ -377,7 +377,11 @@ sub query_solr
 	close($fh);
     }
 
-    my $resultObj = decode_json($result);
+    my $resultObj = eval { decode_json($result); };
+    if ($@)
+    {
+	die "Error parsing result from query $solrQ: $@";
+    }
     return $resultObj;
 }
 
