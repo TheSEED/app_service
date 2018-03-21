@@ -675,6 +675,8 @@ multiplier       = 1e-6
 format           = %.2f
 
 <tick>
+skip_first_label = yes
+skip_last_label  = yes
 # major tick marks
 spacing        = 100u
 size           = 6p
@@ -761,7 +763,7 @@ stroke_thickness = 0
 stroke_color     = black
 fill_color       = black
 
-show_label       = yes
+show_label       = no
 label_font       = default
 # label_radius   = (dims(ideogram,radius_outer)+dims(ideogram,radius_inner))/2
 # label_radius   = 1.08r
@@ -827,7 +829,7 @@ sub circos_plot_config {
 
     my $outer = 0.95;
     my $inner = 0.50;
-    my $gap   = 0.026;
+    my $gap   = 0.013;
     my $maxsize = 30;
 
     my $n = @{$opts->{comp_genomes}} + 1;
