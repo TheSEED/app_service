@@ -675,6 +675,8 @@ multiplier       = 1e-6
 format           = %.2f
 
 <tick>
+skip_first_label = yes
+skip_last_label  = yes
 # major tick marks
 spacing        = 100u
 size           = 6p
@@ -761,7 +763,7 @@ stroke_thickness = 0
 stroke_color     = black
 fill_color       = black
 
-show_label       = yes
+show_label       = no
 label_font       = default
 # label_radius   = (dims(ideogram,radius_outer)+dims(ideogram,radius_inner))/2
 # label_radius   = 1.08r
