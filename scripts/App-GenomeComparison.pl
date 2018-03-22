@@ -641,7 +641,7 @@ sub circos_housekeeping_config {
 # are uninterpretable.
 
 max_ticks*            = 5000
-max_ideograms*        = 2000
+max_ideograms*        = 5000
 max_links*            = 25000
 max_points_per_track* = 25000
 
@@ -866,7 +866,7 @@ sub circos_plot_config {
 }
 
 sub patric_url {
-    return '/portal/portal/patric/Feature?cType=feature&cId=[id]';
+    return '/view/Feature/[id]';
 }
 
 sub circos_plot_block {
