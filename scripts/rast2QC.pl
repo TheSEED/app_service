@@ -76,15 +76,13 @@ my $spgeneRef = $solrh->getSpGeneRef();
 # Process GenomeObj
 genomeQuality();
 
-#subsystemSummary();
-
 # write to json files
 writeJson();
 
 
 sub writeJson {
 
-	print "Preparing JSON files ...\n";
+	print "Preparing new GTO file...\n";
 
 	my $genome_json = $json->pretty->encode($genomeObj);	
 	open FH, ">$outfile" or die "Cannot write $outfile: $!"; 
@@ -96,18 +94,20 @@ sub writeJson {
 
 sub genomeQuality {
 
-	print "Getting genome metadata ...\n";
+	print "Preparing genome QC and summary stats ...\n";
 
 	my ($chromosomes, $plasmids, $contigs, $sequences, $cds, $genome_length, $gc_count, $taxon_lineage_ranks);
 
+	# Taxon lineage ids and names
 	($genomeObj->{taxon_lineage_ids}, $genomeObj->{taxon_lineage_names}, $taxon_lineage_ranks)  = $solrh->getTaxonLineage($genomeObj->{ncbi_taxonomy_id});
-
+	
+	# Identify species, needed for comparing to species level stats 
 	for(my $i=0; $i < scalar @{$taxon_lineage_ranks}; $i++){
 		$genomeObj->{species} = $genomeObj->{taxon_lineage_names}[$i] if $$taxon_lineage_ranks[$i]=~/species/i;
 	}
 
+	# Read the existing genome quality data
 	my $qc = $genomeObj->{genome_quality_measure};
-
 
 	# Compute assembly stats
 	my @contig_lengths = ();
@@ -125,7 +125,6 @@ sub genomeQuality {
 	$qc->{gc_content} = sprintf("%.2f", ($gc_count*100/$qc->{genome_length}));
 	$qc->{genome_status} = "Plasmid" if ($qc->{contigs} == $qc->{plasmids});
 
-
 	# Compute L50 and N50
 	my @contig_lengths_sorted = sort { $b <=> $a } @contig_lengths;
 	my ($i,$total_length)=(0,0);
@@ -137,10 +136,9 @@ sub genomeQuality {
 	$qc->{contig_l50} = $i;
 	$qc->{contig_n50} = $total_length;
 
-
 	# Compute annotation stats
 	foreach my $feature (@{$genomeObj->{features}}){		
-		
+	
 		# Feature summary	
 		if ($feature->{type}=~/CDS/){
 			$qc->{feature_summary}->{cds}++;
@@ -155,6 +153,7 @@ sub genomeQuality {
 			$qc->{feature_summary}->{repeat_region}++;
 		}
 
+		# If CDS, process for protein summary, else skip to next feature
 		next unless $feature->{type}=~/CDS/;
 		
 		# Protein summary
@@ -188,6 +187,7 @@ sub genomeQuality {
 		$qc->{protein_summary}->{go_assignment}++ if scalar @go;
 		$qc->{protein_summary}->{pathway_assignment}++ if scalar @pathways;
 
+		# Specialty gene summary
 		foreach my $spgene (@{$feature->{similarity_associations}}){
 			my ($source, $source_id, $qcov, $scov, $identity, $evalue) = @{$spgene};
 			$source_id=~s/^\S*\|//;
@@ -196,6 +196,7 @@ sub genomeQuality {
 			$qc->{specialty_gene_summary}->{$property.":".$source}++;	
 		}
 
+		# PATRIC AMR gene summary 
 		if ($spgeneRef->{$feature->{function}}){
 			my ($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion)
       = split /\t/, $spgeneRef->{$feature->{product}};
@@ -204,8 +205,9 @@ sub genomeQuality {
 		}
 		$qc->{specialty_gene_summary}->{"Antibiotic Resitsance:PATRIC"}++ if $spgeneRef->{$feature->{function}};
 	
-	}
+	} # finished processing all features
 
+	# Subsystem summary
 	foreach my $subsystem (@{$genomeObj->{subsystems}}){
 		my ($superclass, $class, $subclass) = @{$subsystem->{classification}};
 		$qc->{subsystem_summary}->{$superclass}->{subsystems}++;
@@ -214,19 +216,23 @@ sub genomeQuality {
 		}	
 	}
 
+	# Additional genome stats based on annotation summary 
 	$qc->{cds_ratio} = sprintf "%.2f", $qc->{feature_summary}->{cds} * 1000 / $qc->{genome_length};
 	$qc->{hypothetical_cds_ratio} = sprintf "%.2f", $qc->{protein_summary}->{hypothetical} / $qc->{feature_summary}->{cds};
 	$qc->{partial_cds_ratio} = sprintf "%.2f", $qc->{feature_summary}->{partial_cds} / $qc->{feature_summary}->{cds};
-	$qc->{plfam_cds_ratio} = sprintf "%.2f", $qc->{protein_summary}->{plfam_cds} / $qc->{feature_summary}->{cds};
+	$qc->{plfam_cds_ratio} = sprintf "%.2f", $qc->{protein_summary}->{plfam_assignment} / $qc->{feature_summary}->{cds};
 
-
-	# QC flags blased on genome assembly quality
+	# Prepare Genome quality flagsBased on the assembly and annotation stats
+	
+	# Genome quality flags blased on genome assembly quality
 	push @{$qc->{genome_quality_flags}}, "High contig L50" if $qc->{contig_l50} > 500;
   push @{$qc->{genome_quality_flags}}, "Low contig N50" if $qc->{contig_n50} < 5000;
 	
 	push @{$qc->{genome_quality_flags}}, "Plasmid only" if $qc->{genome_status} =~/plasmid/i; 
 	push @{$qc->{genome_quality_flags}}, "Metagenomic bin" if $qc->{genome_status} =~/metagenome bin/i; 
-	#push @{$genome->{genome_quality_flags}}, "Misidentified taxon" if $genome->{infered_taxon} && not $genome->{genome_name} =~/$genome->{predicted_species}/i;
+	
+	#push @{$qc->{genome_quality_flags}}, "Misidentified taxon"
+	#	if $genomeObj->{infered_taxon} && not $genomeObj->{scientific_name} =~/$genomeObj->{infered_taxon}/i;
 	
 	push @{$qc->{genome_quality_flags}}, "Too many contigs" if $qc->{contigs} > 1000;
 	
@@ -240,14 +246,23 @@ sub genomeQuality {
 	push @{$qc->{genome_quality_flags}}, "Low Fine consistency score" 
 		if $qc->{fine_consistency} && $qc->{fine_consistency} < 85;
 
-
-	# QC flags based on annotation quality
+	# Genome quality flags based on annotation quality
 	push @{$qc->{genome_quality_flags}}, "No CDS" unless $qc->{feature_summary}->{cds};	
 	push @{$qc->{genome_quality_flags}}, "Abnormal CDS ratio" if $qc->{cds_ratio} < 0.5 || $qc->{cds_ratio} > 1.5;
 	push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" if $qc->{hypothetical_cds_ratio} > 0.7;
 	push @{$qc->{genome_quality_flags}}, "Too many partial CDS" if $qc->{partial_cds_ratio} > 0.3;
 
+	# Genome quality flags based on comparison with species stats
+	# Not implemented yet
 
+	# Overall genome quality 
+	if (scalar @{$qc->{genome_quality_flags}}){
+		$qc->{genome_quality} = "Poor";
+	}else{
+		$qc->{genome_quality} = "Good";
+	} 
+
+	# Update the genome quality measure obj in the GTO
 	$genomeObj->{genome_quality_measure} = $qc;
 
 }
