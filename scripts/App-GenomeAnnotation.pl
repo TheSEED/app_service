@@ -332,6 +332,11 @@ sub process_genome
 	$ok or warn "p3-cp $checkm_out to ws:$output_folder failed\n";
     }
 
+    {
+	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
+	$result = $core->impl->compute_genome_quality_control($result);
+    }
+
     my $gto_path = $core->write_output($genome, $result, {}, undef,
 				       $params->{public} ? 1 : 0,
 				       $params->{queue_nowait} ? 1 : 0,

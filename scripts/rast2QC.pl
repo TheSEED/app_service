@@ -116,6 +116,10 @@ sub genomeQuality
     $qc->{genome_length} = $qc->{genome_metrics}->{totlen};
     
     # Compute annotation stats
+
+    my @keys = qw(cds partial_cds rRNA tRNA misc_RNA repeat_region);
+    $qc->{feature_summary}->{$_} = 0 foreach @keys;
+    
     foreach my $feature ($genomeObj->features())
     {
 	# Feature summary	
