@@ -196,13 +196,21 @@ sub generate_report
     
     my $anno_folder = $self->output_folder . "/.annotation";
     my $file = "annotation.genome";
+    my $report = $self->output_folder . "/FullGenomeReport.html";
 
     $self->app->workspace->download_file("$anno_folder/$file", $file, 1, $self->token->token);
 
-    my $genome = GenomeTypeObject->new({file => $file});
-    my $genome_id = $genome->{id};
-    my $rc = system("genome-report", "-g", $genome_id, "-t", $self->token->token);
-    print "report for $genome_id: $rc\n";
+    my $rc = system("create-report", "-i", $file, "-o", "FullGenomeReport.html");
+    if ($rc != 0)
+    {
+	warn "Failure rc=$rc creating genome report\n";
+    }
+    else
+    {
+	$self->app->workspace->save_file_to_file($file, {}, $report, 'html', 
+						 1, 1, $self->token->token);
+    }
+    
 }
 
 sub await_task_completion
