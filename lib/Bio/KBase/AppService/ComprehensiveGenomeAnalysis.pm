@@ -55,8 +55,6 @@ sub run
     $self->output_base($output_base);
     $self->output_folder($output_folder);
 
-    goto x;
-
     if ($params->{input_type} eq 'reads')
     {
 	$self->process_reads();
@@ -74,7 +72,6 @@ sub run
     #
     # We have our base annotation completed. Run our report.
     #
- x:
     $self->generate_report();
 }
 
