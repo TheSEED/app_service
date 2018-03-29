@@ -9,7 +9,6 @@ use File::Temp;
 use File::Basename;
 use IPC::Run 'run';
 use JSON;
-use Bio::P3::Workspace::WorkspaceClientExt;
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 
@@ -27,23 +26,6 @@ exit $rc;
 our $global_ws;
 our $global_token;
 
-sub ws_mkdir
-{
-    my(@paths) = @_;
-
-    try {
-	my $ret = $ws->create({ objects => [ map { [$_, 'folder'] } @paths ] });
-    } catch {
-	if (my($err) = /_ERROR_(.*)_ERROR_/)
-	{
-	    die "Workspace error: $err\n";
-	}
-	else
-	{
-	    die "Error on create: $_\n";
-	}
-    };
-}
 
 sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
