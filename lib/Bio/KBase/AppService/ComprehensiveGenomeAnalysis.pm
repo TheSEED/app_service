@@ -165,6 +165,11 @@ sub process_contigs
     $annotation_input->{output_file} = "annotation";
     $annotation_input->{contigs} = $self->contigs;
 
+    #
+    # We don't require a wait for indexing here.
+    #
+    $annotation_input->{queue_nowait} = 1;
+
     if (binning_genome_annotation_clientgroup)
     {
 	$annotation_input->{_clientgroup} = binning_genome_annotation_clientgroup;
