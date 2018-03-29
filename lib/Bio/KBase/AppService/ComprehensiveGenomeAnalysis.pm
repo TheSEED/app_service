@@ -210,7 +210,7 @@ sub generate_report
     }
     else
     {
-	$self->app->workspace->save_file_to_file($file, {}, $report, 'html', 
+	$self->app->workspace->save_file_to_file("FullGenomeReport.html", {}, $report, 'html', 
 						 1, 1, $self->token->token);
     }
     
