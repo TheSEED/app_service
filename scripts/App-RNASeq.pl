@@ -9,7 +9,7 @@ use File::Temp;
 use File::Basename;
 use IPC::Run 'run';
 use JSON;
-
+use Bio::P3::Workspace::WorkspaceClientExt;
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 
@@ -26,6 +26,24 @@ exit $rc;
 
 our $global_ws;
 our $global_token;
+
+sub ws_mkdir
+{
+    my(@paths) = @_;
+
+    try {
+	my $ret = $ws->create({ objects => [ map { [$_, 'folder'] } @paths ] });
+    } catch {
+	if (my($err) = /_ERROR_(.*)_ERROR_/)
+	{
+	    die "Workspace error: $err\n";
+	}
+	else
+	{
+	    die "Error on create: $_\n";
+	}
+    };
+}
 
 sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -68,7 +86,7 @@ sub process_rnaseq {
     print STDERR '\@outputs = '. Dumper(\@outputs);
     for (@outputs) {
 	my ($ofile, $type) = @$_;
-	if (-f "$ofile") {
+	if (-f "$ofile" and not $type != "job_result") and not $type != "folder" {
             my $filename = basename($ofile);
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
@@ -76,7 +94,12 @@ sub process_rnaseq {
 					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
 					       # (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
 					       $global_token);
-	} else {
+	} elsif ($type == "job_result" or $type == "folder") {
+            my $filename = basename($ofile);
+            print STDERR "Output folder = $output_folder\n";
+            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
+            $app->workspace->save_file_to_file("$ofile", {},"$output_folder/$filename", $type, 1);
+    } else {
 	    warn "Missing desired output file $ofile\n";
 	}
     }
@@ -87,10 +110,30 @@ sub process_rnaseq {
 
 sub run_rna_rocket {
     my ($params, $tmpdir, $host) = @_;
+    
+    my $cwd = getcwd();
+    my $params_to_app = Clone::clone($params);
+
+
+    #
+    # Write job description.
+    #
+    my $jdesc = "$cwd/jobdesc.json";
+    open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
+    print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
+    close(JDESC);
+    my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
+    my $dat = { data_api => $data_api };
+    my $sstring = encode_json($dat);
 
     my $exps     = params_to_exps($params);
     my $labels   = $params->{experimental_conditions};
     my $ref_id   = $params->{reference_genome_id} or die "Reference genome is required for RNA-Rocket\n";
+    my $output_name = $params->{output_file} or die "Output name is required for RNA-Rocket\n";
+    my $dsuffix = "_diffexp";
+    my $diffexp_name = ".$output_name$dsuffix";
+    my $diffexp_folder = "$outdir/.$output_name$dsuffix";
+    my $diffexp_file = "$outdir/$output_name$dsuffix";
     my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir, $host);
 
     print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
@@ -107,8 +150,12 @@ sub run_rna_rocket {
     }
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir);
-    push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
-    push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
+    push @cmd, ("-d", $diffexp_name);
+    push @cmd, ("--jfile", $jdesc);
+    push @cmd, ("--sstring", $sstring);
+
+    #push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
+    #push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
 
     print STDERR "cmd = ", join(" ", @cmd) . "\n\n";
 
@@ -116,9 +163,12 @@ sub run_rna_rocket {
     print STDERR "STDOUT:\n$out\n";
     print STDERR "STDERR:\n$err\n";
 
+
     run("echo $outdir && ls -ltr $outdir");
 
-    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam $outdir/$ref_id/*/replicate*/*.bai");
+    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam $outdir/$ref_id/*/replicate*/*.bai $outdir/$ref_id/*/replicate*/*.html");
+
+
     print STDERR '\@files = '. Dumper(\@files);
     my @new_files;
     for (@files) {
@@ -130,9 +180,11 @@ sub run_rna_rocket {
             push @new_files, $_;
         }
     }
-    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : [ $_, 'txt' ] } @new_files;
+    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : /\.html$/ ? [$_, 'html' ] : [ $_, 'txt' ] } @new_files;
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
+    push @outputs, [ $diffexp_file, 'job_result' ] if -s $diffexp_file;
+    push @outputs, [ $diffexp_folder, 'folder' ] if -e $diffexp_folder and -d $diffexp_folder;
 
     return @outputs;
 }
