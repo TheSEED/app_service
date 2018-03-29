@@ -16,7 +16,7 @@ use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
-use Bio::KBase::AppService::AppConfig qw(data_api_url);
+use Bio::KBase::AppService::AppConfig qw(data_api_url binning_genome_annotation_clientgroup);
 use GenomeTypeObject;
 
 
@@ -164,6 +164,12 @@ sub process_contigs
     $annotation_input->{output_path} = $self->output_folder;
     $annotation_input->{output_file} = "annotation";
     $annotation_input->{contigs} = $self->contigs;
+
+    if (binning_genome_annotation_clientgroup)
+    {
+	$annotation_input->{_clientgroup} = binning_genome_annotation_clientgroup;
+    }
+
 
     print "Annotate with " . Dumper($annotation_input);
 
