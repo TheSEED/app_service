@@ -235,6 +235,8 @@ sub genomeQuality
     }
     
     # Prepare Genome quality flags based on the assembly and annotation stats
+
+    $qc->{genome_quality_flags} = [];
 	
     # Genome quality flags blased on genome assembly quality
     push @{$qc->{genome_quality_flags}}, "High contig L50" if $qc->{genome_metrics}->{L50} > 500;
