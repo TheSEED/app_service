@@ -237,8 +237,8 @@ sub genomeQuality
     # Prepare Genome quality flags based on the assembly and annotation stats
 	
     # Genome quality flags blased on genome assembly quality
-    push @{$qc->{genome_quality_flags}}, "High contig L50" if $qc->{contig_l50} > 500;
-    push @{$qc->{genome_quality_flags}}, "Low contig N50" if $qc->{contig_n50} < 5000;
+    push @{$qc->{genome_quality_flags}}, "High contig L50" if $qc->{genome_metrics}->{L50} > 500;
+    push @{$qc->{genome_quality_flags}}, "Low contig N50" if $qc->{genome_metrics}->{N50} < 5000;
 	
     push @{$qc->{genome_quality_flags}}, "Plasmid only" if $qc->{genome_status} =~/plasmid/i; 
     push @{$qc->{genome_quality_flags}}, "Metagenomic bin" if $qc->{genome_status} =~/metagenome bin/i; 
