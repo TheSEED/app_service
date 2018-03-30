@@ -62,6 +62,7 @@ sub run
     }
     elsif ($params->{input_type} eq 'contigs')
     {
+	$self->contigs($params->{contigs});
 	$self->process_contigs();
     }
     elsif ($params->{input_type} eq 'genbank')
