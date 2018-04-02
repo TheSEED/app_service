@@ -96,7 +96,6 @@ sub run_rna_rocket {
     my $cwd = getcwd();
     my $params_to_app = Clone::clone($params);
 
-
     #
     # Write job description.
     #
@@ -148,21 +147,54 @@ sub run_rna_rocket {
 
     run("echo $outdir && ls -ltr $outdir");
 
-    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam $outdir/$ref_id/*/replicate*/*.bai $outdir/$ref_id/*/replicate*/*.html");
+    #
+    # Collect output and assign types.
+    #
 
-
-    print STDERR '\@files = '. Dumper(\@files);
-    my @new_files;
-    for (@files) {
-        if (m|/\S*?/replicate\d/|) {
-            my $fname = $_; $fname =~ s|/(\S*?)/(replicate\d)/|/$1\_$2\_|;
-            run_cmd(["mv", $_, $fname]);
-            push @new_files, $fname;
-        } else {
-            push @new_files, $_;
-        }
+    #
+    # BAM/BAI/GTF files are in the replicate folders.
+    # We flatten the file structure in replicate folders for the
+    # files we are saving.
+    #
+    my @sets = map { basename($_) } glob("$outdir/$ref_id/*");
+    for my $set (@sets)
+    {
+	my @reps = map { basename($_) } glob("$outdir/$ref_id/$set/replicate*");
+	
+	for my $rep (@reps)
+	{
+	    my $path = "$outdir/$ref_id/$set/$rep";
+	    #
+	    # Suffix/type list for output
+	    #
+	    my @types = (['.bam', 'bam'], ['.bai', 'bai'], ['.gtf', 'gff'], ['.html', 'html'], ['_tracking', 'txt']);
+	    for my $t (@types)
+	    {
+		my($suffix, $type) = @$t;
+		for my $f (glob("$path/*$suffix"))
+		{
+		    my $base = basename($f);
+		    my $nf = "$outdir/${ref_id}/${set}_${rep}_${base}";
+		    if (rename($f, $nf))
+		    {
+			push(@outputs, [$nf, $type]);
+		    }
+		    else
+		    {
+			warn "Error renaming $f to $nf\n";
+		    }
+		}
+	    }
+	}
     }
-    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : /\.html$/ ? [$_, 'html' ] : [ $_, 'txt' ] } @new_files;
+
+    #
+    # Remaining files are loaded as plain text.
+    #
+    for my $txt (glob("$outdir/$ref_id/*diff"))
+    {
+	push(@outputs, [$txt, 'txt']);
+    }
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
     push @outputs, [ $diffexp_file, 'job_result' ] if -s $diffexp_file;
