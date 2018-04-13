@@ -207,6 +207,7 @@ sub _awe_to_task
 	app => $u->{app_id},
 	workspace => $u->{workspace},
 	parameters => decode_json($u->{parameters}),
+	user_id => $i->{user},
 	status => $self->_awe_state_to_status($t->{state}),
 	submit_time => $i->{submittime},
 	start_time => $i->{startedtime},
@@ -471,6 +472,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -498,6 +500,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -670,6 +673,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -695,6 +699,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -970,6 +975,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -996,6 +1002,7 @@ Task is a reference to a hash where the following keys are defined:
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
+	user_id has a value which is a string
 	status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
@@ -1434,6 +1441,7 @@ id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
+user_id has a value which is a string
 status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
@@ -1452,6 +1460,7 @@ id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
+user_id has a value which is a string
 status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string

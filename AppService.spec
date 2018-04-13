@@ -34,6 +34,7 @@ module AppService
 	app_id app;
 	workspace_id workspace;
 	task_parameters parameters;
+	string user_id;
 
 	task_status status;
 	string submit_time;
