@@ -163,7 +163,7 @@ sub run
     # 	}
     # }
 
-    return $rc >> 8;
+    return $rc;
 }
 
 sub write_block
