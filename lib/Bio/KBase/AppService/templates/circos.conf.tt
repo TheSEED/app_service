@@ -1,0 +1,83 @@
+# circos.conf
+
+karyotype = [% karyotype_file %]
+
+chromosomes_units = 1000000
+
+<ideogram>
+
+<spacing>
+default = [% chromosome_spacing %]
+</spacing>
+
+radius    = 0.9r
+thickness = 20p
+fill      = yes
+
+</ideogram>
+
+<<include [% ticks_conf_file %]>>
+
+<highlights>
+[% FOR h IN highlights %]
+<highlight>
+file = [% h.file %]
+r1 = [% h.r1 %]
+r0 = [% h.r0 %]
+fill_color = [% h.fill_color %]
+</highlight>
+[% END %]
+</highlights>
+
+<plots>
+
+type      = line
+thickness = 2
+
+[% FOR plot IN plots -%]
+<plot>
+
+[% FOR param IN plot.params -%]
+[% param.key %]     = [% param.value %]
+[% END -%]
+
+<axes>
+[% FOR axis IN plot.axes -%]
+<axis>
+[% FOR param IN axis.params -%]
+[% param.key %]     = [% param.value %]
+[% END -%]
+</axis>
+[% END -%]
+</axes>
+
+<backgrounds>
+<background>
+color     = [% plot.background %]
+</background>
+</backgrounds>
+
+</plot>
+[% END -%]
+</plots>
+
+################################################################
+# The remaining content is standard and required. It is imported 
+# from default files in the Circos distribution.
+#
+# These should be present in every Circos configuration file and
+# overridden as required. To see the content of these files, 
+# look in etc/ in the Circos distribution.
+
+<image>
+# Included from Circos distribution.
+<<include etc/image.conf>>
+</image>
+
+# RGB/HSV color definitions, color lists, location of fonts, fill patterns.
+# Included from Circos distribution.
+<<include etc/colors_fonts_patterns.conf>>
+
+# Debugging, I/O an dother system parameters
+# Included from Circos distribution.
+<<include etc/housekeeping.conf>>
