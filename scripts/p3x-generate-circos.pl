@@ -2,7 +2,7 @@ use Data::Dumper;
 use strict;
 use GenomeTypeObject;
 use P3DataAPI;
-use Cwd 'abs_path';
+use Cwd qw(abs_path getcwd);
 use Getopt::Long::Descriptive;
 use JSON::XS;
 use File::Slurp;
@@ -57,7 +57,7 @@ if ($opt->data_dir)
 }
 else
 {
-    $data_dir = File::Temp->newdir(CLEANUP => 0);
+    $data_dir = File::Temp->newdir(CLEANUP => 1);
     print STDERR "Writing to tempdir $data_dir\n";
 }
 
@@ -120,9 +120,11 @@ $circos->write_configs($vars);
 # Run circos.
 #
 
-chdir($data_dir) or die "Cannot chdir $data_dir: $!";
-
-my $ok = IPC::Run::run(["circos"]); # , ">", "circos.out", "2>", "circos.err");
+my $ok = IPC::Run::run(["circos"],
+		       init => sub {
+			   chdir($data_dir) or die "Cannot chdir $data_dir: $!";
+		       },
+		      ); # , ">", "circos.out", "2>", "circos.err");
 if (!$ok)
 {
     die "Error $! running circos";
@@ -130,11 +132,11 @@ if (!$ok)
 	
 if ($opt->output_png)
 {
-    copy("circos.png", $opt->output_png) or die "Error copying output: $!";
+    copy("$data_dir/circos.png", $opt->output_png) or die "Error copying output: $!";
 }
 
 if ($opt->output_svg)
 {
-    copy("circos.svg", $opt->output_svg) or die "Error copying output: $!";
+    copy("$data_dir/circos.svg", $opt->output_svg) or die "Error copying circos.svg to " . $opt->output_svg . ": $!";
 }
 

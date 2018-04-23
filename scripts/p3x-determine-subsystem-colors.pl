@@ -38,6 +38,7 @@ my $color_map = [
 
 
 my($opt, $usage) = describe_options("%c %o gto-file",
+				    ["output|o=s" => "Write output to this file"],
 				    ["help|h" => "Show this help message."]);
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) unless @ARGV == 1;
@@ -47,6 +48,16 @@ my $gto_file = shift;
 my $gto = GenomeTypeObject->new({file => $gto_file});
 $gto or die "Cannot load gto from file $gto_file: $!";
 
+my $out_fh;
+if ($opt->output)
+{
+    open($out_fh, ">", $opt->output) or die "Cannot write " . $opt->output . ": $!";
+}
+else
+{
+    $out_fh = \*STDOUT;
+}
+ 
 my $summary = $gto->{subsystem_summary};
 
 if (!$summary)
@@ -78,4 +89,4 @@ for my $superclass (@sorted)
 
 my $json = JSON::XS->new->pretty(1);
 
-print $json->encode($res);
+print $out_fh $json->encode($res);

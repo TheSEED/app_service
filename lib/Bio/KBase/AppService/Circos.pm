@@ -197,7 +197,7 @@ sub generate_configuration
 	my($seq, $id) = @$contig{'dna', 'id'};
 	
 	my $len = $contig_length{$id};
-	print "$id $len\n";
+
 	print K "chr - $id $id 0 " . ($len - 1) . " " . $self->chr_color . "\n";
 
 	if ($len < 100000)

@@ -6,6 +6,8 @@ radius           = 1r
 color            = black
 thickness        = 2p
 
+skip_first_label = yes
+
 # the tick label is derived by multiplying the tick position
 # by 'multiplier' and casting it in 'format':
 #
