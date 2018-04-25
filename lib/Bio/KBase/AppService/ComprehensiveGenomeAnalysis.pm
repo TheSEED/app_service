@@ -101,9 +101,9 @@ sub process_reads
     $assembly_input->{output_file} = "assembly";
 
     my $client = Bio::KBase::AppService::Client->new();
-    my $task = $client->start_app("GenomeAssembly", $assembly_input, $self->output_folder);
+#    my $task = $client->start_app("GenomeAssembly", $assembly_input, $self->output_folder);
 
-#    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
     print "Created task " . Dumper($task);
 
     my $task_id = $task->{id};
@@ -236,9 +236,9 @@ sub process_contigs
     print "Annotate with " . Dumper($annotation_input);
 
     my $client = Bio::KBase::AppService::Client->new();
-    my $task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
+#    my $task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
 
-    #my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
     print "Created task " . Dumper($task);
 
     my $task_id = $task->{id};
@@ -297,17 +297,59 @@ sub generate_report
     };
     $gto->destroy_to_file($annotated_file);
 
-    my $rc = system("create-report", "-i", $annotated_file, "-o", "FullGenomeReport.html");
+    #
+    # For the circular viewer, we need the sp_gene load file.
+    #
+    my $sp_genes = "sp_gene.json";
+    $self->app->workspace->download_file("$anno_folder/load_files/$sp_genes", $sp_genes, 1, $self->token->token);
+
+    #
+    # Create the subsystem color map used in both the circular viewer and the report itself.
+    #
+
+    my $ss_colors = "subsystem_colors.json";
+
+    my $rc = system("p3x-determine-subsystem-colors", "-o", $ss_colors, $annotated_file);
+    $rc == 0 or die "p3x-determine-subsystem-colors failed with rc=$rc";
+    
+    #
+    # Create circular viewer data.
+    #
+
+    my @cmd = ("p3x-generate-circos",
+	       "--subsystem-colors", $ss_colors,
+	       "--specialty-genes", $sp_genes,
+	       "--output-png", "circos.png",
+	       "--output-svg", "circos.svg",
+	       $annotated_file);
+    $rc = system(@cmd);
+    $rc == 0 or die "Circos build failed with rc=$rc: @cmd";
+
+    @cmd = ("create-report",
+	    "-i", $annotated_file,
+	    "-o", "FullGenomeReport.html",
+	    "-c", "circos.svg",
+	    "-s", $ss_colors);
+    print STDERR "@cmd\n";
+    my $rc = system(@cmd);
     if ($rc != 0)
     {
 	warn "Failure rc=$rc creating genome report\n";
     }
     else
     {
-	$self->app->workspace->save_file_to_file("FullGenomeReport.html", {}, $report, 'html', 
+	my $ws = $self->app->workspace;
+	$ws->save_file_to_file("FullGenomeReport.html", {}, $report, 'html', 
 						 1, 1, $self->token->token);
-	$self->app->workspace->save_file_to_file($annotated_file, {}, $saved_genome, 'genome', 
+	$ws->save_file_to_file($annotated_file, {}, $saved_genome, 'genome', 
 						 1, 1, $self->token->token);
+	$ws->save_file_to_file("circos.svg", {}, $self->output_folder . "/circos.svg", 'svg',
+			       1, 0, $self->token->token);
+	$ws->save_file_to_file("circos.png", {}, $self->output_folder . "/circos.png", 'png',
+			       1, 0, $self->token->token);
+	$ws->save_file_to_file($ss_colors, {}, $self->output_folder . "/$ss_colors", 'json',
+			       1, 0, $self->token->token);
+
     }
     
 }
