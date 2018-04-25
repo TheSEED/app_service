@@ -101,9 +101,9 @@ sub process_reads
     $assembly_input->{output_file} = "assembly";
 
     my $client = Bio::KBase::AppService::Client->new();
-#    my $task = $client->start_app("GenomeAssembly", $assembly_input, $self->output_folder);
+    my $task = $client->start_app("GenomeAssembly", $assembly_input, $self->output_folder);
 
-    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+#    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
     print "Created task " . Dumper($task);
 
     my $task_id = $task->{id};
@@ -236,9 +236,9 @@ sub process_contigs
     print "Annotate with " . Dumper($annotation_input);
 
     my $client = Bio::KBase::AppService::Client->new();
-#    my $task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
+    my $task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
 
-    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+#    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
     print "Created task " . Dumper($task);
 
     my $task_id = $task->{id};
