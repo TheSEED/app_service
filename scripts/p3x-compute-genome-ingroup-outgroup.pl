@@ -15,18 +15,19 @@ use File::Temp;
 use File::Copy;
 use Cwd qw(abs_path getcwd);
 
-my($opt, $usage) = describe_options("%c %o reference-sketch contigs-file ingroup-file outgroup-file",
+my($opt, $usage) = describe_options("%c %o reference-sketch contigs-file ingroup-file [outgroup-file]",
 				    ["ingroup-size|I=n" => "Number of ingroup genomes to find", { default => 10 }],
-				    ["outgroup-size|O=n"=> "Number of outgroup genomes to find", { default => 3 }],
+				    ["outgroup-size|O=n"=> "Number of outgroup genomes to find", { default => 0 }],
 				    ["parallel|p=i"	=> "Number of processors to use for mash", { default => 4 }],
 				    ["kmer-size|k=i"	=> "Kmer size to use (must match the sketch)", { default => 15 }],
 				    ["sketch-size|s=i"	=> "Sketch size to use (must match the sketch)", { default => 100000 }],
 				    ["rooted-tree|r=s"	=> "Save the rooted tree in this file"],
 				    ["ingroup-tree|g=s" => "Save the ingroup tree in this file"],
+				    ["logfile|l=s"      => "Write log to this file"],
 				    ["help|h"		=> "Show this help message"]);
 				     
 print($usage->text), exit 0 if $opt->help;
-die($usage->text) unless @ARGV == 4;
+die($usage->text) if ($opt->outgroup_size && @ARGV != 4) || (!$opt->outgroup_size && @ARGV != 3);
 
 my $ref_sketch = shift;
 my $contigs = shift;
@@ -56,8 +57,12 @@ my $tmp = File::Temp->newdir(CLEANUP => 1);
 # We chdir to our tempdir to keep from stomping on what might be here.
 #
 
+my $logfile = abs_path($opt->logfile) if $opt->logfile;
+$logfile //= "neighbor_masher.log";
+
 my $here = getcwd();
 chdir($tmp) or die "Cannot chdir $tmp: $!";
+
 
 #
 # We need to find the jarfiles. They live in the PATRIC environment
@@ -81,16 +86,27 @@ my $run_name = "$tmp/run";
 
 my @cmd = ("java",
 	   "-cp", join(":", @jar_paths),
+	   "-Dlogfile.name=$logfile",
+	   "-Dlog4j.configuration=file:$jar_dir/log4j.properties",
 	   "edu.vt.vbi.ci.util.NeighborMasher",
 	   "-p", $opt->parallel,
 	   "-mash", "mash",
 	   "-ingroup", $contigs,
 	   "-outgroup_sketch", $ref_sketch,
-	   "-outgroup_count", $opt->outgroup_size,
 	   "-expand_ingroup", $opt->ingroup_size,
 	   "-k", $opt->kmer_size,
 	   "-s", $opt->sketch_size,
 	   "-run_name", $run_name);
+
+if ($opt->outgroup_size)
+{
+    push(@cmd, "-outgroup_count", $opt->outgroup_size);
+}
+else
+{
+    push(@cmd, "-ingroup_only");
+}
+   
 print "@cmd\n";
 my $rc = system(@cmd);
 if ($rc != 0)
@@ -104,7 +120,10 @@ if ($rc != 0)
 
 chdir($here);
 copy("${run_name}_ingroup.txt", $ingroup) or die "Cannot copy ${run_name}_ingroup.txt to $ingroup: $!";
-copy("${run_name}_outgroup.txt", $outgroup) or die "Cannot copy ${run_name}_outgroup.txt to $outgroup: $!";
+if ($opt->outgroup_size)
+{
+    copy("${run_name}_outgroup.txt", $outgroup) or die "Cannot copy ${run_name}_outgroup.txt to $outgroup: $!";
+}
 
 my $tbase = "_k" . $opt->kmer_size . "_s" . $opt->sketch_size;
 
