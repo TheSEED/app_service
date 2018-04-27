@@ -15,14 +15,17 @@ use Data::Dumper;
 use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
+use Date::Parse;
 use Bio::KBase::AppService::Client;
 use Bio::KBase::AppService::AppConfig qw(data_api_url binning_genome_annotation_clientgroup);
 use GenomeTypeObject;
-
+use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
+use Archive::Zip::MemberRead;
 
 __PACKAGE__->mk_accessors(qw(app app_def params token
 			     output_base output_folder 
 			     contigs app_params
+			     assembly_statistics annotation_statistics
 			    ));
 
 sub new
@@ -30,8 +33,9 @@ sub new
     my($class) = @_;
 
     my $self = {
-	assembly_params => [],
 	app_params => [],
+	assembly_statistics => {},
+	annotation_statistics => {},
     };
     return bless $self, $class;
 }
@@ -125,13 +129,64 @@ sub process_reads
 
     #
     # Report is named by the arast id.
+    # Download the report zip so we can read the quast report and determine
+    # the runs that completed and which was chosen.
     #
 
-    my $report_path = join("/",$self->output_folder, ".assembly", "${arast_id}_analysis.zip");
+    my @assemblies;
+    eval {
+	my $analysis_base = "${arast_id}_analysis";
+	my $analysis_zip = "${analysis_base}.zip";
+	my $analysis_path = join("/",$self->output_folder, ".assembly", $analysis_zip);
+	$self->app->workspace->download_file($analysis_path, $analysis_zip, 1, $self->token);
+	if (! -s $analysis_zip)
+	{
+	    die "Failed to download $analysis_path to $analysis_zip\n";
+	}
+    
+	my $zip = Archive::Zip->new();
+	system("ls", "-l", $analysis_zip);
+	$zip->read($analysis_zip) == AZ_OK or die "Cannot read $analysis_zip: $!";
+	my $fh = Archive::Zip::MemberRead->new($zip, "$analysis_base/transposed_report.tsv");
+	my $hdrs = $fh->getline();
+	print STDERR "Report headers from $analysis_path: $hdrs";
+	while (my $l = $fh->getline())
+	{
+	    chomp $l;
+	    print "Line: $l\n";
+	    my($assembly, @rest) = split(/\t/, $l);
+	    $assembly =~ s/_contigs$//;
+	    push(@assemblies, $assembly);
+	}
+    };
+    if ($@)
+    {
+	die "Retrieval and analysis of assembly report failed:\n$@\n";
+    }
 
     #
-    # But maulik isn't interested in this data so we'll skip it.
+    # Fill in assembly run stats for the genome object.
     #
+    {
+	my $chosen_assembly = $assemblies[0];
+	my $other_assemblies = join("\t", @assemblies[1..$#assemblies]);
+	my $start = str2time($qtask->{start_time});
+	my $end = str2time($qtask->{completed_time});
+	my $elap = $end - $start;
+	$self->assembly_statistics({
+	    job_id => $qtask->{id},
+	    start_time => $qtask->{start_time},
+	    completion_time => $qtask->{completed_time},
+	    elapsed_time => $elap,
+	    app_name => $qtask->{app},
+	    attributes => {
+		arast_job_id => $arast_id,
+		chosen_assembly => $chosen_assembly,
+		other_assemblies => $other_assemblies,
+	    },
+	    parameters => $qtask->{parameters},
+	});
+    }
 
     #
     # Determine our contigs location.
@@ -165,6 +220,7 @@ sub process_contigs
     $annotation_input->{output_path} = $self->output_folder;
     $annotation_input->{output_file} = "annotation";
     $annotation_input->{contigs} = $self->contigs;
+    $annotation_input->{analyze_quality} = 1;
 
     #
     # We don't require a wait for indexing here.
@@ -182,7 +238,7 @@ sub process_contigs
     my $client = Bio::KBase::AppService::Client->new();
     my $task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
 
-    # my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+#    my $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
     print "Created task " . Dumper($task);
 
     my $task_id = $task->{id};
@@ -193,6 +249,26 @@ sub process_contigs
 	die "ComprehensiveGenomeAnalysis: process_reads failed\n";
     }
 
+
+    #
+    # Fill in annotation run stats for the genome object.
+    #
+    {
+	my $start = str2time($qtask->{start_time});
+	my $end = str2time($qtask->{completed_time});
+	my $elap = $end - $start;
+	my $stats = {
+	    job_id => $qtask->{id},
+	    start_time => $qtask->{start_time},
+	    completion_time => $qtask->{completed_time},
+	    elapsed_time => $elap,
+	    app_name => $qtask->{app},
+	    attributes => {
+	    },
+	    parameters => $qtask->{parameters},
+	};
+	$self->annotation_statistics($stats);
+    }
 }
     
 sub generate_report
@@ -205,19 +281,75 @@ sub generate_report
     
     my $anno_folder = $self->output_folder . "/.annotation";
     my $file = "annotation.genome";
+    my $annotated_file = "annotation-with-stats.genome";
     my $report = $self->output_folder . "/FullGenomeReport.html";
+    my $saved_genome = $self->output_folder . "/annotated.genome";
 
     $self->app->workspace->download_file("$anno_folder/$file", $file, 1, $self->token->token);
 
-    my $rc = system("create-report", "-i", $file, "-o", "FullGenomeReport.html");
+    #
+    # Load the genome object, augment with the statistics, and write back out.
+    #
+    my $gto = GenomeTypeObject->new({file => $file});
+    $gto->{job_data} = {
+	assembly => $self->assembly_statistics,
+	annotation => $self->annotation_statistics,
+    };
+    $gto->destroy_to_file($annotated_file);
+
+    #
+    # For the circular viewer, we need the sp_gene load file.
+    #
+    my $sp_genes = "sp_gene.json";
+    $self->app->workspace->download_file("$anno_folder/load_files/$sp_genes", $sp_genes, 1, $self->token->token);
+
+    #
+    # Create the subsystem color map used in both the circular viewer and the report itself.
+    #
+
+    my $ss_colors = "subsystem_colors.json";
+
+    my $rc = system("p3x-determine-subsystem-colors", "-o", $ss_colors, $annotated_file);
+    $rc == 0 or die "p3x-determine-subsystem-colors failed with rc=$rc";
+    
+    #
+    # Create circular viewer data.
+    #
+
+    my @cmd = ("p3x-generate-circos",
+	       "--subsystem-colors", $ss_colors,
+	       "--specialty-genes", $sp_genes,
+	       "--output-png", "circos.png",
+	       "--output-svg", "circos.svg",
+	       $annotated_file);
+    $rc = system(@cmd);
+    $rc == 0 or die "Circos build failed with rc=$rc: @cmd";
+
+    @cmd = ("create-report",
+	    "-i", $annotated_file,
+	    "-o", "FullGenomeReport.html",
+	    "-c", "circos.svg",
+	    "-s", $ss_colors);
+    print STDERR "@cmd\n";
+    my $rc = system(@cmd);
     if ($rc != 0)
     {
 	warn "Failure rc=$rc creating genome report\n";
     }
     else
     {
-	$self->app->workspace->save_file_to_file("FullGenomeReport.html", {}, $report, 'html', 
+	my $ws = $self->app->workspace;
+	$ws->save_file_to_file("FullGenomeReport.html", {}, $report, 'html', 
 						 1, 1, $self->token->token);
+	$ws->save_file_to_file($annotated_file, {}, $saved_genome, 'genome', 
+						 1, 1, $self->token->token);
+	$ws->save_file_to_file("circos.svg", {}, $self->output_folder . "/circos.svg", 'svg',
+			       1, 0, $self->token->token);
+	$ws->save_file_to_file("circos.png", {}, $self->output_folder . "/circos.png", 'png',
+			       1, 0, $self->token->token);
+	$ws->save_file_to_file($ss_colors, {}, $self->output_folder . "/$ss_colors", 'json',
+			       1, 0, $self->token->token);
+
     }
     
 }
