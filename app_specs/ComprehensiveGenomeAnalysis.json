@@ -1,0 +1,315 @@
+{
+   "id" : "ComprehensiveGenomeAnalysis",
+   "label" : "Comprehensive Genome Analysis",
+   "description" : "Analyze a genome from reads or contigs, generating a detailed analysis report.",
+   "parameters" : [
+      #
+      # Common parameters
+      #
+      {
+         "desc" : "Input type (reads / contigs / genbank)",
+	 "required": 1,
+	 "default": null,
+	 "label": "Input Type",
+	 "type": "enum",
+	 "enum" : [ "reads", "contigs", "genbank" ],
+	 "id": "input_type"
+      },
+      {
+         "desc" : "Path to which the output will be written. Defaults to the directory containing the input data. ",
+         "required" : 1,
+         "default" : null,
+         "label" : "Output Folder",
+         "type" : "folder",
+         "id" : "output_path"
+      },
+      {
+         "required" : 1,
+         "desc" : "Basename for the generated output files. Defaults to the basename of the input data.",
+         "default" : null,
+         "label" : "File Basename",
+         "id" : "output_file",
+         "type" : "wsid"
+      },
+      #
+      # Assembly parameters
+      #
+      {
+         "id" : "paired_end_libs",
+         "allow_multiple" : true,
+         "type" : "group",
+         "required" : 0,
+         "group" : [
+            {
+               "wstype" : "ReadFile",
+               "label" : "Read file 1",
+               "type" : "wstype",
+               "id" : "read1",
+               "desc" : "FASTQ or FASTA file of reads",
+               "required" : 0
+            },
+            {
+               "required" : 0,
+               "desc" : "FASTQ or FASTA file of reads",
+               "id" : "read2",
+               "type" : "wstype",
+               "wstype" : "ReadFile",
+               "label" : "Read file 2"
+            },
+            {
+               "default" : "infer",
+               "enum" : [
+                  "infer",
+                  "illumina",
+                  "pacbio",
+                  "nanopore"
+               ],
+               "desc" : "Sequencing platform used to generate the read library",
+               "required" : 0,
+               "id" : "platform",
+               "type" : "enum",
+               "label" : "Sequencing Platform"
+            },
+            {
+               "type" : "bool",
+               "id" : "interleaved",
+               "label" : "Are the paired end reads interleaved?",
+               "default" : false,
+               "required" : 0
+            },
+            {
+               "default" : false,
+               "required" : 0,
+               "type" : "bool",
+               "id" : "read_orientation_outward",
+               "label" : "Do the two reads in each pair face outward?"
+            },
+            {
+               "id" : "insert_size_mean",
+               "type" : "int",
+               "label" : "Average insert size",
+               "default" : null,
+               "required" : 0
+            },
+            {
+               "default" : null,
+               "required" : 0,
+               "type" : "float",
+               "id" : "insert_size_stdev",
+               "label" : "Average insert standard deviation"
+            }
+         ],
+         "default" : null
+      },
+      {
+         "id" : "single_end_libs",
+         "default" : null,
+         "required" : 0,
+         "allow_multiple" : true,
+         "type" : "group",
+         "group" : [
+            {
+               "label" : "Read file",
+               "wstype" : "ReadFile",
+               "id" : "read",
+               "type" : "wstype",
+               "required" : 0,
+               "desc" : "FASTQ, FASTA or H5 file of reads"
+            },
+            {
+               "label" : "Sequencing Platform",
+               "id" : "platform",
+               "type" : "enum",
+               "desc" : "Sequencing platform used to generate the read library",
+               "required" : 0,
+               "default" : "infer",
+               "enum" : [
+                  "infer",
+                  "illumina",
+                  "pacbio",
+                  "nanopore"
+               ]
+            }
+         ],
+      },
+      {
+         "label" : "SRR ID",
+         "type" : "string",
+         "id" : "srr_ids",
+         "allow_multiple" : true,
+         "desc" : "Sequence Read Archive (SRA) Run ID",
+         "required" : 0,
+         "default" : null
+      },
+      {
+         "label" : "Contig file",
+         "wstype" : "Contigs",
+         "type" : "wstype",
+         "id" : "reference_assembly",
+         "required" : 0,
+         "desc" : "Reference set of assembled DNA contigs",
+         "default" : null
+      },
+      {
+         "type" : "enum",
+         "id" : "recipe",
+         "label" : "Assembly recipe",
+         "default" : "auto",
+         "enum" : [
+            "auto",
+            "full_spades",
+            "fast",
+            "miseq",
+            "smart",
+            "kiki"
+         ],
+         "desc" : "Recipe used for assembly",
+         "required" : 0
+      },
+      {
+         "id" : "pipeline",
+         "type" : "string",
+         "label" : "Assembly pipeline arguments",
+         "default" : null,
+         "desc" : "Advanced assembly pipeline arguments that overrides recipe",
+         "required" : 0
+      },
+      {
+         "label" : "Minimal output contig length",
+         "type" : "int",
+         "id" : "min_contig_len",
+         "desc" : "Filter out short contigs in final assembly",
+         "required" : 0,
+         "default" : 300
+      },
+      {
+         "type" : "float",
+         "id" : "min_contig_cov",
+         "label" : "Minimal output contig coverage",
+         "default" : 5,
+         "required" : 0,
+         "desc" : "Filter out contigs with low read depth in final assembly"
+      },
+      #
+      # Annotation parameters. Exactly one of reads, contigs, or genbank file input is required.
+      #
+    {
+      "id": "genbank_file",
+      "required": 0,
+      "default": null,
+      "label": "Genbank file",
+      "desc": "Genome to process",
+      "wstype": "genbank_file",
+      "type": "wstype"
+       },
+      {
+         "label" : "Contig file",
+         "wstype" : "Contigs",
+         "type" : "wstype",
+         "id" : "contigs",
+         "required" : 0,
+         "desc" : "Input set of DNA contigs for annotation",
+         "default" : null
+      },
+      {
+         "desc" : "Scientific name of genome to be annotated",
+         "required" : 1,
+         "default" : null,
+         "label" : "Scientific Name",
+         "type" : "string",
+         "id" : "scientific_name"
+      },
+      {
+         "label" : "NCBI Taxonomy ID",
+         "type" : "int",
+         "id" : "taxonomy_id",
+         "required" : 0,
+         "desc" : "NCBI Taxonomy identfier for this genome",
+         "default" : null
+      },
+      {
+         "id" : "code",
+         "type" : "enum",
+         "label" : "Genetic Code",
+         "default" : 11,
+         "enum" : [
+            "11",
+            "4"
+         ],
+         "desc" : "Genetic code used in translation of DNA sequences",
+         "required" : 1
+      },
+      {
+         "id" : "domain",
+         "type" : "enum",
+         "label" : "Domain",
+         "default" : "Bacteria",
+         "enum" : [
+            "Bacteria",
+            "Archaea"
+         ],
+         "desc" : "Domain of the submitted genome",
+         "required" : 1
+      },
+      #
+      # Control parameters
+      #
+      {
+         "default" : false,
+         "desc" : "Make this genome public",
+         "required" : 0,
+         "id" : "public",
+         "type" : "bool",
+         "label" : "Public"
+      },
+      {
+         "desc" : "If set, don't wait for the indexing to finish before marking the job complete.",
+         "required" : 0,
+         "default" : false,
+         "label" : "Don't wait on indexing queue",
+         "type" : "bool",
+         "id" : "queue_nowait"
+      },
+      {
+         "id" : "skip_indexing",
+         "type" : "bool",
+         "label" : "Don't index genome",
+         "default" : false,
+         "required" : 0,
+         "desc" : "If set, don't index this genome in solr. It will not be available for analysis through the PATRIC site."
+      },
+      {
+         "desc" : "Reference genome ID",
+         "required" : 0,
+         "default" : null,
+         "label" : "Reference genome ID",
+         "type" : "string",
+         "id" : "reference_genome_id"
+      },
+      {
+         "label" : "(Internal) Parent job for this annotation",
+         "type" : "string",
+         "id" : "_parent_job",
+         "required" : 0,
+         "desc" : "(Internal) Parent job for this annotation",
+         "default" : null
+      },
+      {
+         "label" : "Custom workflow",
+         "id" : "workflow",
+         "type" : "string",
+         "desc" : "Specifies a custom workflow document (expert).",
+         "required" : 0,
+         "default" : null
+      },
+      {
+         "id" : "analyze_quality",
+         "type" : "bool",
+         "label" : "Enable quality analysis of genome",
+         "default" : null,
+         "required" : 0,
+         "desc" : "If enabled, run quality analysis on genome"
+      }
+   ],
+   "script" : "App-ComprehensiveGenomeAnalysis"
+}

@@ -11,6 +11,7 @@ use Try::Tiny;
 use IO::Handle;
 use Data::Dumper;
 use File::Basename;
+use P3AuthToken;
 use JSON::XS;
 
 my($opt, $usage) = describe_options("%c %o ws-dir genbank-file [genbank-file ...]",
@@ -42,7 +43,7 @@ else
 }
 
 my $interactive = $ENV{KB_INTERACTIVE} || (-t STDIN);
-my $token = Bio::KBase::AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
+my $token = P3AuthToken->new(ignore_authrc => ($interactive ? 0 : 1));
 
 if ($opt->workflow_file && $opt->import_only)
 {

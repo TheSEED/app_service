@@ -161,6 +161,7 @@ sub default_workflow
 	      { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
+	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		  # { name => 'call_features_prophage_phispy' },
@@ -183,6 +184,7 @@ sub import_workflow
 	      { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
+	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		 );
