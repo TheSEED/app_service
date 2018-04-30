@@ -12,6 +12,13 @@
             "default": null,
             "type": "string"
         },
+	{
+	    "id": "contrasts",
+	    "label": "Contrast list",
+	    "required": 0,
+	    "default": null,
+	    "type": "string"
+	},
         {
 	    "id": "strand_specific",
 	    "label": "Are the reads in this study strand-specific?",
