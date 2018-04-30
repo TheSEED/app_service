@@ -244,7 +244,7 @@ sub getSpGeneRef {
 
 	$ref_file = $self->{reference_data_dir}."/sp_gene_ref.json";
 
-  if (-f $ref_file && $ref_file=~/xxxxxxx/){
+  if (-f $ref_file){
 		#print STDERR "Reading from $ref_file\n";
 		open FH, "$ref_file" or "Can't open $ref_file\n";
 		$resultObj = decode_json(join "", <FH>);
