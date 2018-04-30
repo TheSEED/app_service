@@ -39,6 +39,26 @@ sub getTaxonLineage {
 }
 
 
+sub getSpeciesInfo {
+
+	my ($self, $taxon_id) = @_;
+	my ($species_info);
+
+	my $core = "taxonomy";
+	my $query = "/?q=taxon_id:$taxon_id";
+	my $fields = "&fl=*";
+
+	my $resultObj = $self->query_solr($core, $query, $fields);
+
+	foreach my $record (@{$resultObj}){
+		$species_info = $record;
+	}
+
+	return $species_info;
+
+}
+
+
 sub getEC {
 
 	my ($self, $ec_no) = @_;
@@ -224,7 +244,7 @@ sub getSpGeneRef {
 
 	$ref_file = $self->{reference_data_dir}."/sp_gene_ref.json";
 
-  if (-f $ref_file){
+  if (-f $ref_file && $ref_file=~/xxxxxxx/){
 		#print STDERR "Reading from $ref_file\n";
 		open FH, "$ref_file" or "Can't open $ref_file\n";
 		$resultObj = decode_json(join "", <FH>);
@@ -232,7 +252,7 @@ sub getSpGeneRef {
 	}else{
 		my $core = "sp_gene_ref";
 		my $query = "/?q=source:*";
-		my $fields = "&fl=source,source_id,property,locus_tag,organism,function,classification,antibiotics_class,antibiotics,pmid,assertion";
+		my $fields = "&fl=source,source_id,property,gene_name,locus_tag,organism,function,classification,antibiotics_class,antibiotics,pmid,assertion";
 
 		my $start = 0;
   	while ($start < 200000){
@@ -254,7 +274,7 @@ sub getSpGeneRef {
 		}else{
 			next;
 		} 
-		$spgenes->{$key} = "$record->{property}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
+		$spgenes->{$key} = "$record->{property}\t$record->{gene_name}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
 		$spgenes->{$key} .= join (',', @{$record->{classification}}) if $record->{classification};
 		$spgenes->{$key} .= "\t$record->{antibiotics_class}\t";
 		$spgenes->{$key} .= join (',', @{$record->{antibiotics}}) if $record->{antibiotics};

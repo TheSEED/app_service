@@ -11,6 +11,7 @@
 
 use strict;
 use Getopt::Long::Descriptive;
+use FindBin qw($Bin);
 use JSON;
 use Data::Dumper;
 use Digest::MD5 qw(md5 md5_hex md5_base64);
@@ -24,7 +25,7 @@ eval
     $have_config = 1;
 };
     
-
+use lib "$Bin";
 use SolrAPI;
 
 my ($data_api_url, $reference_data_dir);
@@ -79,14 +80,20 @@ sub genomeQuality
 
     # Taxon lineage ids and names
     my($lineage_ids, $lineage_names, $lineage_ranks) = $solrh->getTaxonLineage($genomeObj->{ncbi_taxonomy_id});
+		my $species;
 
     my $glin = $genomeObj->{ncbi_lineage} = [];
     # Identify species, needed for comparing to species level stats 
     for (my $i=0; $i < @$lineage_ranks; $i++)
     {
-	push(@$glin, [$lineage_names->[$i], $lineage_ids->[$i], $lineage_ranks->[$i]]);
-	$genomeObj->{ncbi_species} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /species/i;
-	$genomeObj->{ncbi_genus} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /genus/i;
+			push(@$glin, [$lineage_names->[$i], $lineage_ids->[$i], $lineage_ranks->[$i]]);
+			if ($lineage_ranks->[$i] =~ /species/i)
+			{
+				$genomeObj->{ncbi_species} = $lineage_names->[$i];
+				$species = $solrh->getSpeciesInfo($lineage_ids->[$i]);
+				#$species = $solrh->getSpeciesInfo("817");
+			}
+			$genomeObj->{ncbi_genus} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /genus/i;
     }
 
     # Read the existing genome quality data
@@ -101,7 +108,17 @@ sub genomeQuality
     }
 	
     $qc->{gc_content} = $genomeObj->compute_contigs_gc();
-    $qc->{genome_status} = "Plasmid" if ($qc->{contigs} == $qc->{plasmids});
+		
+		if ($qc->{contigs} == $qc->{chromosomes}+$qc->{plasmids})
+		{
+			$qc->{genome_status} = "Complete";
+		}elsif ($qc->{contigs} == $qc->{plasmids})
+		{
+			$qc->{genome_status} = "Plasmid";
+		}else
+		{
+			$qc->{genome_status} = "WGS";
+		}
 
     # Compute L50 and N50
     #
@@ -170,6 +187,7 @@ sub genomeQuality
 	my %ec_seen;
 	my %go_seen;
 	my %pathway_seen;
+
 	foreach my $ec_number (@ec_no)
 	{
 	    my $ec_description = $ecRef->{$ec_number}->{ec_description};
@@ -204,12 +222,15 @@ sub genomeQuality
 	# PATRIC AMR gene summary 
 	if ($spgeneRef->{$feature->{function}})
 	{
-	    my ($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion)
-      = split /\t/, $spgeneRef->{$feature->{product}};
+	    my ($property, $gene_name, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion)
+      = split /\t/, $spgeneRef->{$feature->{function}};
 	    $qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++;
-	    push @{$qc->{amr_genes}}, [$feature->{id},$feature->{function}];
+	    push @{$qc->{amr_genes}}, [$feature->{id}, $gene_name, $feature->{function}, $classification];
+	    #print "$feature->{id}\t$gene_name\n";
+	    @{$qc->{amr_gene_summary}->{$classification}} = sort { lc $a cmp lc $b } @{$qc->{amr_gene_summary}->{$classification}}, $gene_name 
+				unless (grep {$_ eq $gene_name} @{$qc->{amr_gene_summary}->{$classification}}) || $gene_name eq "";
 	}
-	$qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++ if $spgeneRef->{$feature->{function}};
+	#$qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++ if $spgeneRef->{$feature->{function}};
 	
     } # finished processing all features
     
@@ -254,26 +275,45 @@ sub genomeQuality
     push @{$qc->{genome_quality_flags}}, "Genome too short" if $qc->{genome_length} < 300000;
 
     push @{$qc->{genome_quality_flags}}, "Low CheckM completeness score" 
-	if $qc->{checkm_data}->{Completeness} && $qc->{checkm_data}->{Completeness} < 80;
+			if $qc->{checkm_data}->{Completeness} && $qc->{checkm_data}->{Completeness} < 80;
     push @{$qc->{genome_quality_flags}}, "High CheckM contamination score" 
-	if $qc->{checkm_data}->{Contamination} && $qc->{checkm_data}->{Contamination} > 10;
+			if $qc->{checkm_data}->{Contamination} && $qc->{checkm_data}->{Contamination} > 10;
     push @{$qc->{genome_quality_flags}}, "Low Fine consistency score" 
-	if $qc->{fine_consistency} && $qc->{fine_consistency} < 85;
+			if $qc->{fine_consistency} && $qc->{fine_consistency} < 85;
     
     # Genome quality flags based on annotation quality
-    push @{$qc->{genome_quality_flags}}, "No CDS" unless $qc->{feature_summary}->{cds};	
-    push @{$qc->{genome_quality_flags}}, "Abnormal CDS ratio" if $qc->{cds_ratio} < 0.5 || $qc->{cds_ratio} > 1.5;
-    push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" if $qc->{hypothetical_cds_ratio} > 0.7;
-    push @{$qc->{genome_quality_flags}}, "Too many partial CDS" if $qc->{partial_cds_ratio} > 0.3;
+    push @{$qc->{genome_quality_flags}}, "No CDS"
+			unless $qc->{feature_summary}->{cds};	
+    push @{$qc->{genome_quality_flags}}, "Abnormal CDS ratio"
+			if $qc->{cds_ratio} < 0.5 || $qc->{cds_ratio} > 1.5;
+    push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS"
+			if $qc->{hypothetical_cds_ratio} > 0.7;
+    push @{$qc->{genome_quality_flags}}, "Too many partial CDS" 
+			if $qc->{partial_cds_ratio} > 0.3;
     
     # Genome quality flags based on comparison with species stats
-    # Not implemented yet
+		push @{$qc->{genome_quality_flags}}, "Genome too short"
+			if $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
+		push @{$qc->{genome_quality_flags}}, "Genome too long"
+			if $qc->{genome_length} > $species->{genome_length_mean} + 3*$species->{genome_length_sd};
+		
+		push @{$qc->{genome_quality_flags}}, "Low CDS count"
+			if $qc->{feature_summary}->{cds} < $species->{cds_mean} - 3*$species->{cds_sd};
+		push @{$qc->{genome_quality_flags}}, "High CDS count"
+			if $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
+
+		push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" 
+			if $qc->{feature_summary}->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
+
+		push @{$qc->{genome_quality_flags}}, "Low PLfam CDS ratio" 
+			if $qc->{feature_summary}->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd};
+
 
     # Overall genome quality 
     if (scalar @{$qc->{genome_quality_flags}}){
-	$qc->{genome_quality} = "Poor";
+			$qc->{genome_quality} = "Poor";
     }else{
-	$qc->{genome_quality} = "Good";
+			$qc->{genome_quality} = "Good";
     } 
     
     # Update the genome quality measure obj in the GTO

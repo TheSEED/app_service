@@ -102,14 +102,17 @@ my $genome;
 my @sequences = ();
 my @features = ();
 my @pathwaymap = ();
+my @subsystemmap = ();
 my @spgenemap = (); 
 my @taxonomy = ();
 my @genome_amr = ();
 my $featureIndex;
+my %subsystem_assignments=();
 
 
 # Process GenomeObj
 getGenomeInfo();
+getGenomeQuality();
 
 # Get additional genome metadata 
 getMetadataFromGenBankFile($genbank_file) if -f $genbank_file;
@@ -121,6 +124,9 @@ getAMRPhenotypes();
 
 # Get genome sequences
 getGenomeSequences();
+
+# Get subsystems
+getSubsystems();
 
 # Get Genome features from genome obj
 getGenomeFeatures();
@@ -141,6 +147,7 @@ sub writeJson {
 	my $sequence_json = $json->pretty->encode(\@sequences);
 	my $feature_json = $json->pretty->encode(\@features);
 	my $pathwaymap_json = $json->pretty->encode(\@pathwaymap);
+	my $subsystemmap_json = $json->pretty->encode(\@subsystemmap);
 	my $spgenemap_json = $json->pretty->encode(\@spgenemap);
 	my $taxonomy_json = $json->pretty->encode(\@taxonomy);
 	my $genome_amr_json = $json->pretty->encode(\@genome_amr);
@@ -159,6 +166,10 @@ sub writeJson {
 
 	open FH, ">pathway.json" or die "Cannot write pathway.json: $!"; 
 	print FH $pathwaymap_json;
+	close FH;
+	
+	open FH, ">subsystem.json" or die "Cannot write subsystem.json: $!"; 
+	print FH $subsystemmap_json;
 	close FH;
 
 	open FH, ">sp_gene.json" or die "Cannot write sp_gene.json: $!"; 
@@ -209,23 +220,11 @@ sub getGenomeInfo {
 	foreach my $type (@{$genomeObj->{typing}}){
 		$genome->{mlst} .= "," if $genome->{mlst};
 		$genome->{mlst} .= $type->{typing_method}.".".$type->{database}.".".$type->{tag};
-		#$genome->{mlst} .= "," if $genome->{mlst};
-		#$genome->{mlst} .= @{$type}[0].".".@{$type}[1].".".@{$type}[2];
 	}	
 
 	foreach my $seqObj (@{$genomeObj->{contigs}}) {
 
-		if ($seqObj->{genbank_locus}->{definition}=~/chromosome|complete genome/i){
-			$chromosomes++;	
-		}elsif ($seqObj->{genbank_locus}->{definition}=~/plasmid/i){
-			$plasmids++;
-		}else{
-			$contigs++;
-		}
-
 		$sequences++;
-		$genome_length += length($seqObj->{dna});
-		$gc_count += $seqObj->{dna}=~tr/GCgc//;
 
 		if ($sequences == 1){
 			foreach my $dblink (@{$seqObj->{genbank_locus}->{dblink}}){
@@ -249,13 +248,44 @@ sub getGenomeInfo {
 	}
 	$genome->{genbank_accessions}=~s/,*$//g;
 	
-	$genome->{chromosomes} = $chromosomes if $chromosomes;
-	$genome->{plasmids} = $plasmids if $plasmids;
-	$genome->{contigs} = $contigs if $contigs ;		
-	$genome->{sequences} = $sequences;
-	$genome->{genome_length} = $genome_length;
-	$genome->{gc_content} = sprintf("%.2f", ($gc_count*100/$genome_length));
-	$genome->{genome_status} = ($contigs > 0)? "WGS": "Complete";
+}
+
+
+sub getGenomeQuality {
+
+	print "Getting genome quality ...\n";
+
+	my $qc = $genomeObj->{genome_quality_measure}; 
+
+	$genome->{chromosomes} = $qc->{chromosomes};
+	$genome->{plasmids} = $qc->{plasmids};
+	$genome->{contigs} = $qc->{contigs};
+	$genome->{genome_length} = $qc->{genome_length};
+	$genome->{gc_content} = $qc->{gc_content};
+	$genome->{contig_l50} = $qc->{genome_metrics}->{L50};
+	$genome->{contig_n50} = $qc->{genome_metrics}->{N50};
+
+	$genome->{genome_status} = $qc->{genome_status}; 
+
+	$genome->{trna} = $qc->{feature_summary}->{tRNA};
+	$genome->{rrna} = $qc->{feature_summary}->{rRNA};
+	$genome->{cds} = $qc->{feature_summary}->{cds};
+
+	$genome->{cds_ratio} = $qc->{cds_ratio};
+	$genome->{hypothetical_cds} = $qc->{protein_summary}->{hypothetical};
+	$genome->{hypothetical_cds_ratio} = $qc->{hypothetical_cds_ratio};
+	$genome->{partial_cds} = $qc->{feature_summary}->{partial_cds};
+	$genome->{partial_cds_ratio} = $qc->{partial_cds_ratio};
+	$genome->{plfam_cds} = $qc->{protein_summary}->{plfam_assignment};
+	$genome->{plfam_cds_ratio} = $qc->{plfam_cds_ratio};
+
+	$genome->{coarse_consistency} = $qc->{coarse_consistency};
+	$genome->{fine_consistency} = $qc->{fine_consistency};
+	$genome->{checkm_completeness} = $qc->{checkm_data}->{Completeness};
+	$genome->{checkm_contamination} = $qc->{checkm_data}->{Contamination};
+
+	$genome->{genome_quality_flags} = $qc->{genome_quality_flags};
+	$genome->{genome_quality} = $qc->{genome_quality};
 
 }
 
@@ -353,6 +383,25 @@ sub getGenomeSequences {
 
 		push @sequences, $sequence;
 
+	}
+
+}
+
+
+sub getSubsystems{
+
+	print "Getting subsystems ...\n";
+
+	foreach my $subsystem (@{$genomeObj->{subsystems}}){
+		my $subsystem_name = $subsystem->{name};
+		my $active = $subsystem->{variant_code};
+		my ($superclass, $class, $subclass) = @{$subsystem->{classification}};
+		foreach my $role (@{$subsystem->{role_bindings}}){
+			my $role_id = $role->{role_id};
+			foreach my $patric_id (@{$role->{features}}){
+				push @{$subsystem_assignments{$patric_id}}, "$patric_id\t$role_id\t$subsystem_name\t$superclass\t$class\t$subclass\t$active\n";
+			}
+		}
 	}
 
 }
@@ -484,6 +533,15 @@ sub getGenomeFeatures{
 		# Prepare PATRIC AMR genes for matching functions 
 		push @spgenemap, prepareSpGene($feature, ()) if $spgeneRef->{$feature->{product}};
 
+		foreach my $subsystem_assignment (@{$subsystem_assignments{$feature->{patric_id}}}){
+			my @values = split /\t/, $subsystem_assignment;
+			my $subsystem_name = $values[2];
+			$subsystem_name =~s/_/ /g;
+			push @{$feature->{subsystem}}, $subsystem_name; 
+		
+			push @subsystemmap, prepareSubsystem($feature, $subsystem_assignment);	
+		}
+
 		push @features, $feature  unless $feature->{feature_type} eq 'gene'; 
 
 		$genome->{lc($annotation).'_cds'}++ if $feature->{feature_type} eq 'CDS';
@@ -498,16 +556,16 @@ sub prepareSpGene {
 		my ($feature, $spgene_match) = @_;
 
 		my $spgene;
-		my ($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion); 
+		my ($property, $gene_name, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion); 
 		my ($source, $source_id, $qcov, $scov, $identity, $evalue);
 
 		if($spgene_match){ # All specialty genes from external sources
 			($source, $source_id, $qcov, $scov, $identity, $evalue) = @$spgene_match;
 			$source_id=~s/^\S*\|//;
-			($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
+			($property, $gene_name, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
 			= split /\t/, $spgeneRef->{$source.'_'.$source_id} if ($source && $source_id);
 		}elsif($spgeneRef->{$feature->{product}}){ # PATRIC AMR genes, match by functional role
-			($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
+			($property, $gene_name, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion) 
 			= split /\t/, $spgeneRef->{$feature->{product}};
 			$source = "PATRIC";	
 		}
@@ -539,7 +597,7 @@ sub prepareSpGene {
 		$spgene->{alt_locus_tag} = $feature->{alt_locus_tag};
 		$spgene->{refseq_locus_tag} = $feature->{refseq_locus_tag};
 		
-		$spgene->{gene} = $feature->{gene};
+		$spgene->{gene} = $gene_name? $gene_name : $feature->{gene};
 		$spgene->{product} = $feature->{product};
 
 		$spgene->{property} = $property;
@@ -613,6 +671,51 @@ sub preparePathways {
 	}
 
 	return @pathways;
+
+}
+
+sub prepareSubsystem {
+
+	my ($feature, $subsystem_assignment) = @_;
+
+	my $subsystem;
+
+	chomp $subsystem_assignment;
+	my ($patric_id, $role_id, $subsystem_id, $superclass, $class, $subclass, $active) = split /\t/, $subsystem_assignment;
+	my $subsystem_name = $subsystem_id;
+	$subsystem_id =~s/ /_/g;
+	$subsystem_name =~s/_/ /g;
+	my $role_name = $role_id;
+	$role_id =~s/ /_/g;
+	$role_name =~s/_/ /g;
+
+	$subsystem->{owner} = $feature->{owner};
+	$subsystem->{public} = $public;
+
+	$subsystem->{genome_id} = $feature->{genome_id};
+	$subsystem->{genome_name} = $feature->{genome_name};
+	$subsystem->{taxon_id} = $feature->{taxon_id};
+
+	$subsystem->{feature_id} = $feature->{feature_id};
+	$subsystem->{patric_id} = $feature->{patric_id};
+	$subsystem->{refseq_locus_tag} = $feature->{refseq_locus_tag};
+		
+	$subsystem->{gene} = $feature->{gene};
+	$subsystem->{product} = $feature->{product};
+		
+	$subsystem->{role_id} = $role_id;
+	$subsystem->{role_name} = $role_name;
+		
+	$subsystem->{subsystem_id} = $subsystem_id;
+	$subsystem->{subsystem_name} = $subsystem_name;
+		
+	$subsystem->{superclass} = $superclass;
+	$subsystem->{class} = $class;
+	$subsystem->{subclass} = $subclass;
+	
+	$subsystem->{active} = $active;
+		
+	return $subsystem;
 
 }
 
