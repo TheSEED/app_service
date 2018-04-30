@@ -386,7 +386,7 @@ sub generate_report
 	    # write to lowercase so we don't obscure our full report, which is upper case
 	    # and is intended to lead the list.
 	    #
-	    my $base = lc(basename($file));
+	    my $base = lcfirst(basename($file));
 	    $ws->save_file_to_file($file, {}, $self->output_folder . "/$base", $type,
 			       1, 0, $self->token->token);
 	}
