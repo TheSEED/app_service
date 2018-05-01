@@ -214,7 +214,7 @@ sub genomeQuality
 	{
 	    my ($source, $source_id, $qcov, $scov, $identity, $evalue) = @{$spgene};
 	    $source_id=~s/^\S*\|//;
-	    my ($property, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion)
+	    my ($property, $gene_name, $locus_tag, $organism, $function, $classification, $antibiotics_class, $antibiotics, $pmid, $assertion)
 		= split /\t/, $spgeneRef->{$source.'_'.$source_id} if ($source && $source_id);
 	    $qc->{specialty_gene_summary}->{$property.":".$source}++;	
 	}
@@ -226,11 +226,9 @@ sub genomeQuality
       = split /\t/, $spgeneRef->{$feature->{function}};
 	    $qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++;
 	    push @{$qc->{amr_genes}}, [$feature->{id}, $gene_name, $feature->{function}, $classification];
-	    #print "$feature->{id}\t$gene_name\n";
 	    @{$qc->{amr_gene_summary}->{$classification}} = sort { lc $a cmp lc $b } @{$qc->{amr_gene_summary}->{$classification}}, $gene_name 
 				unless (grep {$_ eq $gene_name} @{$qc->{amr_gene_summary}->{$classification}}) || $gene_name eq "";
 	}
-	#$qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++ if $spgeneRef->{$feature->{function}};
 	
     } # finished processing all features
     
