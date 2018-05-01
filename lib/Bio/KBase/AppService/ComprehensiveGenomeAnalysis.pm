@@ -355,7 +355,7 @@ sub generate_report
 
     @cmd = ("create-report",
 	    "-i", $annotated_file,
-#	    @tree_param,
+	    @tree_param,
 	    "-o", "FullGenomeReport.html",
 	    "-c", "circos.svg",
 	    "-s", $ss_colors);
