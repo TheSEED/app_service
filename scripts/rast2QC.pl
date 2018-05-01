@@ -226,6 +226,7 @@ sub genomeQuality
       = split /\t/, $spgeneRef->{$feature->{function}};
 	    $qc->{specialty_gene_summary}->{"Antibiotic Resistance:PATRIC"}++;
 	    push @{$qc->{amr_genes}}, [$feature->{id}, $gene_name, $feature->{function}, $classification];
+	    print STDERR Dumper($feature, $spgeneRef->{$feature->{function}}, $gene_name);
 	    #print "$feature->{id}\t$gene_name\n";
 	    @{$qc->{amr_gene_summary}->{$classification}} = sort { lc $a cmp lc $b } @{$qc->{amr_gene_summary}->{$classification}}, $gene_name 
 				unless (grep {$_ eq $gene_name} @{$qc->{amr_gene_summary}->{$classification}}) || $gene_name eq "";
