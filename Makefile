@@ -33,6 +33,8 @@ SEEDTK = /disks/patric-common/seedtk
 
 REFERENCE_DATA_DIR = /tmp
 
+MASH_REFERENCE_SKETCH = /vol/patric3/production/data/trees/listOfRepRefGenomeFnaFiles.txt.msh 
+
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
 endif
@@ -66,6 +68,7 @@ TPAGE_ARGS = \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	--define reference_data_dir=$(REFERENCE_DATA_DIR) \
 	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
+	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 

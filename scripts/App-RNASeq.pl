@@ -6,11 +6,13 @@ use strict;
 use Carp;
 use Data::Dumper;
 use File::Temp;
+use File::Slurp;
 use File::Basename;
 use IPC::Run 'run';
 use JSON;
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
+use Cwd;
 
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_url = "http://www.alpha.patricbrc.org/api";
@@ -26,6 +28,7 @@ exit $rc;
 our $global_ws;
 our $global_token;
 
+our $shock_cutoff = 10_000;
 
 sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -41,8 +44,8 @@ sub process_rnaseq {
 
     my $recipe = $params->{recipe};
 
-    my $tmpdir = File::Temp->newdir();
-    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    # my $tmpdir = File::Temp->newdir();
+    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/RNApubref";
     # my $tmpdir = "/tmp/RNAuser";
     system("chmod 755 $tmpdir");
@@ -66,26 +69,51 @@ sub process_rnaseq {
     }
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
-    for (@outputs) {
-	my ($ofile, $type) = @$_;
-	if (-f "$ofile" and not $type != "job_result") and not $type != "folder" {
-            my $filename = basename($ofile);
-            print STDERR "Output folder = $output_folder\n";
-            print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
-	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
-					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       # (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
-					       $global_token);
-	} elsif ($type == "job_result" or $type == "folder") {
+
+    #
+    # Create folders first.
+    #
+    for my $fent (grep { $_->[1] eq 'folder' } @outputs)
+    {
+	my $folder = $fent->[0];
+	my $file = basename($folder);
+	my $path = "$output_folder/$file";
+	eval {
+	    $app->workspace->create( { objects => [[$path, 'folder']] } );
+	};
+	if ($@)
+	{
+	    warn "error creating $path: $@";
+	}
+    }
+    for my $output (@outputs)
+    {
+	my($ofile, $type) = @$output;
+	next if $type eq 'folder';
+
+	if (! -f $ofile)
+	{
+	    warn "Output file '$ofile' of type '$type' does not exist\n";
+	    next;
+	}
+	
+	if ($type eq 'job_result')
+	{
             my $filename = basename($ofile);
             print STDERR "Output folder = $output_folder\n";
             print STDERR "Saving $ofile => $output_folder/$filename ...\n";
             $app->workspace->save_file_to_file("$ofile", {},"$output_folder/$filename", $type, 1);
-    } else {
-	    warn "Missing desired output file $ofile\n";
+	}
+	else
+	{
+	    my $filename = basename($ofile);
+	    print STDERR "Output folder = $output_folder\n";
+	    print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
+	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
+					       (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
+					       $global_token);
 	}
     }
-
     my $time2 = `date`;
     write_output("Start: $time1"."End:   $time2", "$tmpdir/DONE");
 }
@@ -94,18 +122,22 @@ sub run_rna_rocket {
     my ($params, $tmpdir, $host) = @_;
     
     my $cwd = getcwd();
-    my $params_to_app = Clone::clone($params);
 
+    my $json = JSON::XS->new->pretty(1);
     #
     # Write job description.
     #
     my $jdesc = "$cwd/jobdesc.json";
-    open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
-    print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
-    close(JDESC);
+    write_file($jdesc, $json->encode($params));
+
     my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
-    my $dat = { data_api => $data_api };
+    my $dat = { data_api => "$data_api/genome_feature" };
+    #
+    # no pretty, ensure it's on one line
+    #
     my $sstring = encode_json($dat);
+
+    my $outdir = "$tmpdir/Rocket";
 
     my $exps     = params_to_exps($params);
     my $labels   = $params->{experimental_conditions};
@@ -123,8 +155,6 @@ sub run_rna_rocket {
     my $rocket = "prok_tuxedo.py";
     verify_cmd($rocket);
 
-    my $outdir = "$tmpdir/Rocket";
-
     my @cmd = ($rocket);
     if ($host) {
         push @cmd, ("--index");
@@ -140,9 +170,20 @@ sub run_rna_rocket {
 
     print STDERR "cmd = ", join(" ", @cmd) . "\n\n";
 
-    my ($rc, $out, $err) = run_cmd(\@cmd);
-    print STDERR "STDOUT:\n$out\n";
-    print STDERR "STDERR:\n$err\n";
+    #
+    # Run directly with IPC::Run so that stdout/stderr can flow in realtime to the
+    # output collection infrastructure.
+    #
+    my $ok = run(\@cmd);
+    if (!$ok)
+    {
+	die "Error $? running @cmd\n";
+    }
+
+#    my ($rc, $out, $err) = run_cmd(\@cmd);
+#    print STDERR "STDOUT:\n$out\n";
+#    print STDERR "STDERR:\n$err\n";
+    
 
 
     run("echo $outdir && ls -ltr $outdir");
@@ -150,6 +191,7 @@ sub run_rna_rocket {
     #
     # Collect output and assign types.
     #
+    my @outputs;
 
     #
     # BAM/BAI/GTF files are in the replicate folders.

@@ -33,9 +33,9 @@ __PACKAGE__->mk_accessors(qw(gto data_dir subsystem_color_map json chr_color gc_
 
 our %track_color = (fwd => 'lgrey',
 		    rev => 'lgrey',
-		    misc => '131,59,118',
-		    amr => '255,165,0',
-		    vf => '0,0,255');
+		    misc => 'black',
+		    amr => 'black',
+		    vf => 'black');
 
 sub new
 {

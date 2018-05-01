@@ -327,6 +327,7 @@ sub submit_load_files
 		 [genome_amr => "genome_amr.json"],
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
+		 [subsystem => "subsystem.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     
