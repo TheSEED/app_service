@@ -483,6 +483,10 @@ sub getGenomeFeatures{
 		$feature->{feature_id}		=	"$annotation.$feature->{genome_id}.$feature->{accession}.".
 																	"$feature->{feature_type}.$feature->{start}.$feature->{end}.$strand";
 
+		if ($feature->{feature_type}=~/classifier_predicted_region/){
+			my $evidence =  $featObj->{annotations}->[0]->[0];
+			($feature->{classifier_score}, $feature->{classifier_round}) = $evidence=~/alpha=(\S*) round=(\S*)/;
+		}
 
 
 		foreach my $alias (@{$featObj->{alias_pairs}}){
