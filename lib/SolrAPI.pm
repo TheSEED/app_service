@@ -238,53 +238,58 @@ sub getSpGeneInfo {
 
 
 sub getSpGeneRef {
-
-	my ($self) = @_;
-	my ($spgenes, $ref_file, $resultObj);
-
-	$ref_file = $self->{reference_data_dir}."/sp_gene_ref.json";
-
-  if (-f $ref_file){
-		#print STDERR "Reading from $ref_file\n";
-		open FH, "$ref_file" or "Can't open $ref_file\n";
-		$resultObj = decode_json(join "", <FH>);
-		close FH;
-	}else{
-		my $core = "sp_gene_ref";
-		my $query = "/?q=source:*";
-		my $fields = "&fl=source,source_id,property,gene_name,locus_tag,organism,function,classification,antibiotics_class,antibiotics,pmid,assertion";
-
-		my $start = 0;
-  	while ($start < 200000){
-  	  push @{$resultObj}, @{$self->query_solr($core, $query, $fields, $start)};
-			$start = $start + 25000;
-		}
-
-		open FH, ">$ref_file";
-		print FH encode_json($resultObj);
-		close FH;
-  }
+    
+    my ($self) = @_;
+    my ($spgenes, $ref_file, $resultObj);
+    
+    $ref_file = $self->{reference_data_dir}."/sp_gene_ref.json";
+    
+    if (-f $ref_file){
+	#print STDERR "Reading from $ref_file\n";
+	open FH, "$ref_file" or "Can't open $ref_file\n";
+	$resultObj = decode_json(join "", <FH>);
+	close FH;
+    }else{
+	my $core = "sp_gene_ref";
+	my $query = "/?q=source:*";
+	my $fields = "&fl=source,source_id,property,gene_name,locus_tag,organism,function,classification,antibiotics_class,antibiotics,pmid,assertion";
 	
-	foreach my $record (@{$resultObj}){
-		my $key = "";
-		if ($record->{source} && $record->{source_id}){
-			$key = $record->{source}.'_'.$record->{source_id};
-		}elsif($record->{function}){
-			$key = $record->{function};
-		}else{
-			next;
-		} 
-		$spgenes->{$key} = "$record->{property}\t$record->{gene_name}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
-		$spgenes->{$key} .= join (',', @{$record->{classification}}) if $record->{classification};
-		$spgenes->{$key} .= "\t$record->{antibiotics_class}\t";
-		$spgenes->{$key} .= join (',', @{$record->{antibiotics}}) if $record->{antibiotics};
-		$spgenes->{$key} .= "\t";
-		$spgenes->{$key} .= join (',', @{$record->{pmid}}) if $record->{pmid};
-		$spgenes->{$key} .= "\t$record->{assertion}";
+	my $start = 0;
+  	while ($start < 200000){
+	    push @{$resultObj}, @{$self->query_solr($core, $query, $fields, $start)};
+	    $start = $start + 25000;
 	}
+	
+	if (open(FH, ">", $ref_file))
+	{
+	    print FH encode_json($resultObj);
+	    close FH;
+	}
+	else
+	{
+	    warn "Cannot write cache file $ref_file: $!";
+	}
+    }
+    
+    foreach my $record (@{$resultObj}){
+	my $key = "";
+	if ($record->{source} && $record->{source_id}){
+	    $key = $record->{source}.'_'.$record->{source_id};
+	}elsif($record->{function}){
+	    $key = $record->{function};
+	}else{
+	    next;
+	} 
+	$spgenes->{$key} = "$record->{property}\t$record->{gene_name}\t$record->{locus_tag}\t$record->{organism}\t$record->{function}\t";
+	$spgenes->{$key} .= join (',', @{$record->{classification}}) if $record->{classification};
+	$spgenes->{$key} .= "\t$record->{antibiotics_class}\t";
+	$spgenes->{$key} .= join (',', @{$record->{antibiotics}}) if $record->{antibiotics};
+	$spgenes->{$key} .= "\t";
+	$spgenes->{$key} .= join (',', @{$record->{pmid}}) if $record->{pmid};
+	$spgenes->{$key} .= "\t$record->{assertion}";
+    }
 
-	return $spgenes;
-
+    return $spgenes;
 }
 
 

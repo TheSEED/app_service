@@ -641,7 +641,7 @@ sub circos_housekeeping_config {
 # are uninterpretable.
 
 max_ticks*            = 5000
-max_ideograms*        = 2000
+max_ideograms*        = 5000
 max_links*            = 25000
 max_points_per_track* = 25000
 
@@ -675,6 +675,8 @@ multiplier       = 1e-6
 format           = %.2f
 
 <tick>
+skip_first_label = yes
+skip_last_label  = yes
 # major tick marks
 spacing        = 100u
 size           = 6p
@@ -761,7 +763,7 @@ stroke_thickness = 0
 stroke_color     = black
 fill_color       = black
 
-show_label       = yes
+show_label       = no
 label_font       = default
 # label_radius   = (dims(ideogram,radius_outer)+dims(ideogram,radius_inner))/2
 # label_radius   = 1.08r
@@ -827,7 +829,7 @@ sub circos_plot_config {
 
     my $outer = 0.95;
     my $inner = 0.50;
-    my $gap   = 0.026;
+    my $gap   = 0.013;
     my $maxsize = 30;
 
     my $n = @{$opts->{comp_genomes}} + 1;
@@ -864,7 +866,7 @@ sub circos_plot_config {
 }
 
 sub patric_url {
-    return '/portal/portal/patric/Feature?cType=feature&cId=[id]';
+    return '/view/Feature/[id]';
 }
 
 sub circos_plot_block {
