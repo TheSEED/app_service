@@ -37,6 +37,7 @@ module AppService
 	string user_id;
 
 	task_status status;
+	task_status awe_status;
 	string submit_time;
 	string start_time;
 	string completed_time;
