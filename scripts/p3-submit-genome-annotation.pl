@@ -24,10 +24,11 @@ Submit a genome to the PATRIC genome annotation service.
     					 we will not continue the service submission.
     	   --genbank-file FILE		 A genbank file to be annotated.
 	   --contigs FILE		 A file of DNA contigs to be annotated.
+           --recipe NAME		 Use the given annotation recipe for this genome.
            --reference-genome GID	 The PATRIC identifier of a reference genome
 	   		      		 whose annotations will be propagated as
 					 part of this annotation.
-
+    
     	The following options describe the genome to be annotated. In each case
 	where the value for the specified option may be drawn from a submitted
 	genbank file it is optional to supply the value. If a value is supplied,
@@ -96,6 +97,7 @@ my($opt, $usage) =
 		     ["overwrite|f", "If a file to be uploaded already exists in the workspace, overwrite it on upload. Otherwise we will not continue the service submission."],
 		     ["genbank-file=s", "A genbank file to be annotated."],
 		     ["contigs-file=s", "A file of DNA contigs to be annotated."],
+		     ["recipe=s", "Use the given non-default recipe for this annotation"],
 		     ["reference-genome=s", "The PATRIC identifier of a reference genome whose annotations will be propagated as part of this annotation."],
 		     [],
 		     ["The following options describe the genome to be annotated."],
@@ -161,6 +163,10 @@ elsif ($opt->contigs_file)
 if ($opt->workflow_file && $opt->import_only)
 {
     die "A custom workflow may not be supplied when using --import-only\n";
+}
+if ($opt->workflow_file && $opt->recipe)
+{
+    die "A custom workflow may not be supplied when using --recipe\n";
 }
 
 #
@@ -241,6 +247,7 @@ my $params = {
     output_path => $output_path,
     output_file => $output_name,
     queue_nowait => ($opt->index_nowait ? 1 : 0),
+    ($opt->recipe ? (recipe => $opt->recipe) : ()),
     (defined($workflow) ? (workflow => $workflow_txt) : ()),
     ($opt->no_index ? (skip_indexing => 1) : ()),
 };
