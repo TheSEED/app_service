@@ -316,6 +316,13 @@ else
 	}
 	$params->{taxonomy_id} = $taxon_id;
     }
+    else
+    {
+	$params->{taxonomy_id} = 6666666;
+	$params->{domain} //= "B";
+	$params->{code} //= 11;
+	$params->{scientific_name} //= "Unknown sp.";
+    }
 }
    
 if ($opt->dry_run)

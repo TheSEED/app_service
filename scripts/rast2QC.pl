@@ -47,7 +47,7 @@ my ($opt, $usage) = describe_options("%c %o",
 				     ["genomeobj-file=s", "RASTtk annotations as GenomeObj.json file"],
 				     ["new-genomeobj-file=s", "New RASTtk annotations as GenomeObj.json file"],
 				     ["data-api-url=s", "Data API URL", { default => $data_api_url }],
-				     ["reference-data-dir=s", "Data API URL", { default => $reference_data_dir }],
+				     ["reference-data-dir=s", "Reference data directory", { default => $reference_data_dir }],
 				     [],
 				     ["help|h", "Print usage message and exit"] );
 
@@ -80,20 +80,24 @@ sub genomeQuality
 
     # Taxon lineage ids and names
     my($lineage_ids, $lineage_names, $lineage_ranks) = $solrh->getTaxonLineage($genomeObj->{ncbi_taxonomy_id});
-		my $species;
 
+    my $species;
     my $glin = $genomeObj->{ncbi_lineage} = [];
-    # Identify species, needed for comparing to species level stats 
-    for (my $i=0; $i < @$lineage_ranks; $i++)
+
+    if ($lineage_ranks)
     {
-			push(@$glin, [$lineage_names->[$i], $lineage_ids->[$i], $lineage_ranks->[$i]]);
-			if ($lineage_ranks->[$i] =~ /species/i)
-			{
-				$genomeObj->{ncbi_species} = $lineage_names->[$i];
-				$species = $solrh->getSpeciesInfo($lineage_ids->[$i]);
-				#$species = $solrh->getSpeciesInfo("817");
-			}
-			$genomeObj->{ncbi_genus} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /genus/i;
+	# Identify species, needed for comparing to species level stats 
+	for (my $i=0; $i < @$lineage_ranks; $i++)
+	{
+	    push(@$glin, [$lineage_names->[$i], $lineage_ids->[$i], $lineage_ranks->[$i]]);
+	    if ($lineage_ranks->[$i] =~ /species/i)
+	    {
+		$genomeObj->{ncbi_species} = $lineage_names->[$i];
+		$species = $solrh->getSpeciesInfo($lineage_ids->[$i]);
+		#$species = $solrh->getSpeciesInfo("817");
+	    }
+	    $genomeObj->{ncbi_genus} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /genus/i;
+	}
     }
 
     # Read the existing genome quality data
@@ -290,28 +294,28 @@ sub genomeQuality
 			if $qc->{partial_cds_ratio} > 0.3;
     
     # Genome quality flags based on comparison with species stats
-		push @{$qc->{genome_quality_flags}}, "Genome too short"
-			if $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
-		push @{$qc->{genome_quality_flags}}, "Genome too long"
-			if $qc->{genome_length} > $species->{genome_length_mean} + 3*$species->{genome_length_sd};
-		
-		push @{$qc->{genome_quality_flags}}, "Low CDS count"
-			if $qc->{feature_summary}->{cds} < $species->{cds_mean} - 3*$species->{cds_sd};
-		push @{$qc->{genome_quality_flags}}, "High CDS count"
-			if $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
-
-		push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" 
-			if $qc->{feature_summary}->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
-
-		push @{$qc->{genome_quality_flags}}, "Low PLfam CDS ratio" 
-			if $qc->{feature_summary}->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd};
+    push @{$qc->{genome_quality_flags}}, "Genome too short"
+	if $species && $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
+    push @{$qc->{genome_quality_flags}}, "Genome too long"
+	if $species && $qc->{genome_length} > $species->{genome_length_mean} + 3*$species->{genome_length_sd};
+    
+    push @{$qc->{genome_quality_flags}}, "Low CDS count"
+	if $species && $qc->{feature_summary}->{cds} < $species->{cds_mean} - 3*$species->{cds_sd};
+    push @{$qc->{genome_quality_flags}}, "High CDS count"
+	if $species && $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
+    
+    push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" 
+	if $species && $qc->{feature_summary}->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
+    
+    push @{$qc->{genome_quality_flags}}, "Low PLfam CDS ratio" 
+	if $species && $qc->{feature_summary}->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd};
 
 
     # Overall genome quality 
     if (scalar @{$qc->{genome_quality_flags}}){
-			$qc->{genome_quality} = "Poor";
-    }else{
-			$qc->{genome_quality} = "Good";
+	$qc->{genome_quality} = "Poor";
+    } else {
+	$qc->{genome_quality} = "Good";
     } 
     
     # Update the genome quality measure obj in the GTO
