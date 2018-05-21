@@ -179,9 +179,9 @@ my $default_taxon_id = 6666666;
 my $default_scientific_name = "Unknown sp.";
 my $default_genetic_code = 11;
 
-if ($opt->phage && !$opt->recipe)
+if ($opt->phage)
 {
-    $opt->{recipe} = "phage";
+    $opt->{recipe} = "phage" unless $opt->recipe;
     $default_domain = "V";
 }
 
