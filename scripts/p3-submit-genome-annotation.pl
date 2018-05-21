@@ -24,6 +24,7 @@ Submit a genome to the PATRIC genome annotation service.
     					 we will not continue the service submission.
     	   --genbank-file FILE		 A genbank file to be annotated.
 	   --contigs FILE		 A file of DNA contigs to be annotated.
+           --phage			 Set annotation defaults for phage annotation.
            --recipe NAME		 Use the given annotation recipe for this genome.
            --reference-genome GID	 The PATRIC identifier of a reference genome
 	   		      		 whose annotations will be propagated as
@@ -97,6 +98,7 @@ my($opt, $usage) =
 		     ["overwrite|f", "If a file to be uploaded already exists in the workspace, overwrite it on upload. Otherwise we will not continue the service submission."],
 		     ["genbank-file=s", "A genbank file to be annotated."],
 		     ["contigs-file=s", "A file of DNA contigs to be annotated."],
+		     ["phage", "Set defaults for phage annotation."],
 		     ["recipe=s", "Use the given non-default recipe for this annotation"],
 		     ["reference-genome=s", "The PATRIC identifier of a reference genome whose annotations will be propagated as part of this annotation."],
 		     [],
@@ -167,6 +169,20 @@ if ($opt->workflow_file && $opt->import_only)
 if ($opt->workflow_file && $opt->recipe)
 {
     die "A custom workflow may not be supplied when using --recipe\n";
+}
+
+#
+# Set up some defaults.
+#
+my $default_domain = "B";
+my $default_taxon_id = 6666666;
+my $default_scientific_name = "Unknown sp.";
+my $default_genetic_code = 11;
+
+if ($opt->phage && !$opt->recipe)
+{
+    $opt->{recipe} = "phage";
+    $default_domain = "V";
 }
 
 #
@@ -318,10 +334,10 @@ else
     }
     else
     {
-	$params->{taxonomy_id} = 6666666;
-	$params->{domain} //= "B";
-	$params->{code} //= 11;
-	$params->{scientific_name} //= "Unknown sp.";
+	$params->{taxonomy_id} = $default_taxon_id;
+	$params->{domain} //= $default_domain;
+	$params->{code} //= $default_genetic_code;
+	$params->{scientific_name} //= $default_scientific_name;
     }
 }
    
