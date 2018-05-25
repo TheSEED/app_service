@@ -197,7 +197,14 @@ sub process_genome
 	}
 	$workflow = JSON::XS->new->pretty(1)->encode($core->import_workflow());
     }
+
+
     my $result = $core->run_pipeline($genome, $workflow, $params->{recipe});
+    
+    {
+	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
+	$result = $core->impl->compute_genome_quality_control($result);
+    }
 
     #
     # TODO fill in metadata?
