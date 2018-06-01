@@ -91,7 +91,7 @@ sub process_rnaseq {
             {
 	        my $filename = basename($ofile);
             print STDERR "Output folder = $folder\n";
-            print STDERR "Saving $ofile => $output\_$filename ...\n";
+            print STDERR "Saving $ofile => $output_folder\_$filename ...\n";
             $app->workspace->save_file_to_file("$ofile", {}, "$path/$filename", $type, 1,
                             (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
                             $global_token);
