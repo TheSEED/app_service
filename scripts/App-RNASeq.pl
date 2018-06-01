@@ -87,10 +87,10 @@ sub process_rnaseq {
 	}
     else {
         my $type ="txt";
-        for my $ofile (glob("$path/*json"))
+        for my $ofile (glob("$folder/*json"))
             {
 	        my $filename = basename($ofile);
-            print STDERR "Output folder = $path\n";
+            print STDERR "Output folder = $folder\n";
             print STDERR "Saving $ofile => $output\_$filename ...\n";
             $app->workspace->save_file_to_file("$ofile", {}, "$path/$filename", $type, 1,
                             (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
