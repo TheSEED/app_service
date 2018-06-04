@@ -197,18 +197,22 @@ sub _awe_state_to_status
 sub _awe_to_task
 {
     my($self, $t) = @_;
-    
+
+    my $id = $t->{id};
     my $i = $t->{info};
     my $u = $i->{userattr};
     my $atask = $t->{tasks}->[0];
 
+    my $astat = $self->_awe_state_to_status($t->{state});
+
     my $task = {
-	id => $t->{id},
+	id => $id,
 	app => $u->{app_id},
 	workspace => $u->{workspace},
 	parameters => decode_json($u->{parameters}),
 	user_id => $i->{user},
-	status => $self->_awe_state_to_status($t->{state}),
+	awe_status => $astat,
+	status => $astat,
 	submit_time => $i->{submittime},
 	start_time => $i->{startedtime},
 	completed_time => $i->{completedtime},
@@ -218,6 +222,27 @@ sub _awe_to_task
 	awe_stderr_shock_node => $self->_lookup_output($atask, "awe_stderr.txt"),
 	
     };
+
+    #
+    # Check exit code if available. Overrides status returned from awe.
+    #
+
+    return $task if $astat eq 'deleted';
+    
+    my $rc = $self->{util}->get_task_exitcode($id);
+    if (defined($rc))
+    {
+	if ($rc == 0 && $astat ne 'completed')
+	{
+	    warn "Task $id: awe shows $astat but exitcode = 0. Setting to completed\n";
+	    $task->{status} = 'completed';
+	}
+	elsif ($rc != 0 && $astat eq 'completed')
+	{
+	    warn "Task $id: awe shows $astat but exitcode=$rc. Setting to failed\n";
+	    $task->{status} = 'failed';
+	}
+    }
     return $task;
 }
 
@@ -1066,7 +1091,7 @@ sub enumerate_tasks
     }
     else
     {
-	die "Query failed: $error\n";
+	die "Query '$q' failed: $error\n";
     }
 
     #END enumerate_tasks

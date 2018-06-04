@@ -88,7 +88,7 @@ sub user_id
 
 sub run_pipeline
 {
-    my($self, $genome, $workflow_txt) = @_;
+    my($self, $genome, $workflow_txt, $recipe_id) = @_;
 
     my $workflow;
     if ($workflow_txt)
@@ -96,8 +96,6 @@ sub run_pipeline
 	#
 	# Workflow is to be a json document that we parse here and format-check.
 	#
-
-	
 	eval {
 	    $workflow = $self->json->decode($workflow_txt);
 	};
@@ -113,7 +111,19 @@ sub run_pipeline
 	    die "Invalid workflow document (must be a object containing a stage list)";
 	}
     }
-
+    elsif ($recipe_id)
+    {
+	my $recipe = $self->impl->find_recipe($recipe_id);
+	if ($recipe->{workflow})
+	{
+	    $workflow = $recipe->{workflow};
+	    print STDERR "Using workflow id $recipe_id: $recipe->{name}\n";
+	}
+	else
+	{
+	    die "Recipe $recipe_id not found\n";
+	}
+    }
     
 
     if (!$workflow)
@@ -327,6 +337,7 @@ sub submit_load_files
 		 [genome_amr => "genome_amr.json"],
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
+		 [subsystem => "subsystem.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     

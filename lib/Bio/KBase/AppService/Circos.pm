@@ -162,6 +162,10 @@ sub generate_configuration
     {
 	$cutoff = $gto->{genome_quality_measure}->{genome_metrics}->{L90};
     }
+    if ($opt->max_contigs && $cutoff > $opt->max_contigs)
+    {
+	$cutoff = $opt->max_contigs;
+    }
 
     $template_vars{chromosome_spacing} = $cutoff > 100 ? "0.001r": "0.005r";
     

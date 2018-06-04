@@ -155,4 +155,28 @@ sub submissions_enabled
     return $stat;
 }
 
+sub get_task_exitcode
+{
+    my($self, $id) = @_;
+    my $tdir = $self->impl->{task_status_dir};
+    if (open(my $fh, "<", "$tdir/$id/exitcode"))
+    {
+	my $l = <$fh>;
+	close($fh);
+	if ($l =~ /(\d+)/)
+	{
+	    return $1;
+	}
+	else
+	{
+	    warn "Invalid exitcode file $tdir/$id/exitcode\n";
+	    return undef;
+	}
+    }
+    else
+    {
+	return undef;
+    }
+}
+
 1;
