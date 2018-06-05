@@ -18,6 +18,7 @@ my($opt, $usage) = describe_options("%c %o gto-file",
 				    ["output-svg=s" => "Write output svg file here"],
 				    ["output-png=s" => "Write output png file here"],
 				    ["truncate-small-contigs" => "If true, truncate display to remove small contigs below L90"],
+				    ["max-contigs=i" => "Maximum number of contigs to render"],
 				    ["subsystem-colors=s" => "Subsystem superclass color map file"],
 				    ["specialty-genes=s" => "Specialty genes load file (json)"],
 				    ["help|h" => "Show this help message"]);

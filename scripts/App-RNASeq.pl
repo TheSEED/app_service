@@ -85,6 +85,20 @@ sub process_rnaseq {
 	{
 	    warn "error creating $path: $@";
 	}
+	else
+	{
+	    my $type ="txt";
+	    for my $ofile (glob("$folder/*json"))
+            {
+	        my $filename = basename($ofile);
+		my $dest = "$path/$filename";
+		print STDERR "Output folder = $folder\n";
+		print STDERR "Saving $ofile => $dest ...\n";
+		$app->workspace->save_file_to_file($ofile, {}, $dest, $type, 1,
+						   (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
+						   $global_token);
+            }
+	}
     }
     for my $output (@outputs)
     {

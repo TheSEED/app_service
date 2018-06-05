@@ -38,6 +38,16 @@ sub process_genome
 
     my $json = JSON::XS->new->pretty(1)->canonical(1);
 
+    #
+    # Do some sanity checking on params.
+    #
+    # Both recipe and workflow may not be specified.
+    #
+    if ($params->{workflow} && $params->{recipe})
+    {
+	die "Both a workflow document and a recipe may not be supplied to an annotation request";
+    }
+
     my $core = Bio::KBase::AppService::GenomeAnnotationCore->new(app => $app,
 								 app_def => $app_def,
 								 params => $params);
@@ -179,7 +189,7 @@ sub process_genome
     #
     eval {
 
-	$result = $core->run_pipeline($genome, $params->{workflow});
+	$result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe});
 
 	#
 	# Compute scikit-based consistency measure.
