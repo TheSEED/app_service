@@ -294,6 +294,7 @@ sub genomeQuality
 			if $qc->{partial_cds_ratio} > 0.3;
     
     # Genome quality flags based on comparison with species stats
+
     push @{$qc->{genome_quality_flags}}, "Genome too short"
 	if $species && $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
     push @{$qc->{genome_quality_flags}}, "Genome too long"
@@ -305,10 +306,10 @@ sub genomeQuality
 	if $species && $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
     
     push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" 
-	if $species && $qc->{feature_summary}->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
+	if $species && $qc->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
     
     push @{$qc->{genome_quality_flags}}, "Low PLfam CDS ratio" 
-	if $species && $qc->{feature_summary}->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd};
+	if $species && $qc->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd} && $qc->{plfam_cds_ratio} < 0.8;
 
 
     # Overall genome quality 
