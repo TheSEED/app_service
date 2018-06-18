@@ -88,16 +88,26 @@ sub process_rnaseq {
 	else
 	{
 	    my $type ="txt";
-	    for my $ofile (glob("$folder/*json"))
-            {
-	        my $filename = basename($ofile);
-		my $dest = "$path/$filename";
-		print STDERR "Output folder = $folder\n";
-		print STDERR "Saving $ofile => $dest ...\n";
-		$app->workspace->save_file_to_file($ofile, {}, $dest, $type, 1,
-						   (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
-						   $global_token);
-            }
+	    if (opendir(my $dh, $folder))
+	    {
+		while (my $filename = readdir($dh))
+		{
+		    if ($filename =~ /\*\.json$/)
+		    {
+			my $ofile = "$folder/$filename";
+			my $dest = "$path/$filename";
+			print STDERR "Output folder = $folder\n";
+			print STDERR "Saving $ofile => $dest ...\n";
+			$app->workspace->save_file_to_file($ofile, {}, $dest, $type, 1,
+							   (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
+							   $global_token);
+		    }
+		}
+	    }
+	    else
+	    {
+		warn "Cannot open output folder $folder: $!";
+	    }
 	}
     }
     for my $output (@outputs)
