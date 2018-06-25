@@ -338,7 +338,8 @@ sub generate_report
 
     my @cmd = ("p3x-generate-circos",
 	       "--truncate-small-contigs",
-	       "--truncate-small-contigs-threshold", 500,
+	       "--truncate-small-contigs-threshold", 300,
+	       "--max-contigs", 500,
 	       "--truncation-status-file", "$stat_tmp",
 	       "--subsystem-colors", $ss_colors,
 	       "--specialty-genes", $sp_genes,
