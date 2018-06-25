@@ -333,7 +333,13 @@ sub generate_report
     # Create circular viewer data.
     #
 
+    my $stat_tmp = File::Temp->new;
+    close($stat_tmp);
+
     my @cmd = ("p3x-generate-circos",
+	       "--truncate-small-contigs",
+	       "--truncate-small-contigs-threshold", 500,
+	       "--truncation-status-file", "$stat_tmp",
 	       "--subsystem-colors", $ss_colors,
 	       "--specialty-genes", $sp_genes,
 	       "--output-png", "circos.png",
@@ -341,6 +347,22 @@ sub generate_report
 	       $annotated_file);
     $rc = system(@cmd);
     $rc == 0 or die "Circos build failed with rc=$rc: @cmd";
+
+    my $n_contigs;
+    my $n_contigs_drawn;
+
+    my @circos_stat_param;
+
+    if (open(my $fh, "<", "$stat_tmp"))
+    {
+	my $l = <$fh>;
+	if ($l =~ m,^(\d+)/(\d+),)
+	{
+	    $n_contigs_drawn = $1;
+	    $n_contigs = $2;
+	    @circos_stat_param = ("--n-contigs" => $n_contigs, "--n-contigs-drawn" => $n_contigs_drawn);
+	}
+    }
 
     my $tree_dir = "codon_tree";
     my $tree_ingroup_size = 10;
@@ -356,6 +378,7 @@ sub generate_report
     @cmd = ("create-report",
 	    "-i", $annotated_file,
 	    @tree_param,
+	    @circos_stat_param,
 	    "-o", "FullGenomeReport.html",
 	    "-c", "circos.svg",
 	    "-s", $ss_colors);
