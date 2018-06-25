@@ -357,12 +357,18 @@ sub generate_report
     if (open(my $fh, "<", "$stat_tmp"))
     {
 	my $l = <$fh>;
+	chomp $l;
+	print STDERR "p3x-generate-circos generated truncation statistics: '$l'\n";
 	if ($l =~ m,^(\d+)/(\d+),)
 	{
 	    $n_contigs_drawn = $1;
 	    $n_contigs = $2;
 	    @circos_stat_param = ("--n-contigs" => $n_contigs, "--n-contigs-drawn" => $n_contigs_drawn);
 	}
+    }
+    else
+    {
+	print STDERR "p3x-generate-circos did not generate truncation statistics\n";
     }
 
     my $tree_dir = "codon_tree";
@@ -384,7 +390,8 @@ sub generate_report
 	    "-c", "circos.svg",
 	    "-s", $ss_colors);
     
-    print STDERR "@cmd\n";
+    print STDERR "Creating report with command: @cmd\n";
+
     my $rc = system(@cmd);
     if ($rc != 0)
     {

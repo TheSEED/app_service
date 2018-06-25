@@ -207,7 +207,7 @@ sub generate_configuration
 
     for my $contig (@contigs)
     {
-	next if $ctg_index++ > $cutoff;
+	next if $ctg_index++ >= $cutoff;
 
 	my($seq, $id) = @$contig{'dna', 'id'};
 	
