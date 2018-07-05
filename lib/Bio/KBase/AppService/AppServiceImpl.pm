@@ -237,7 +237,7 @@ sub _awe_to_task
 	    warn "Task $id: awe shows $astat but exitcode = 0. Setting to completed\n";
 	    $task->{status} = 'completed';
 	}
-	elsif ($rc != 0 && $astat eq 'completed')
+	elsif ($rc != 0 && ($astat eq 'in-progress' || $astat eq 'completed'))
 	{
 	    warn "Task $id: awe shows $astat but exitcode=$rc. Setting to failed\n";
 	    $task->{status} = 'failed';
