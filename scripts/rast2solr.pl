@@ -343,7 +343,7 @@ sub getGenomeSequences {
 		my $seq_id = $seqObj->{id};	
 		$sequence->{gi} = $seqObj->{genbank_locus}->{gi};
 
-		if($seqObj->{genbank_locus}->{accession}){
+		if($seqObj->{genbank_locus}->{accession}[0]=~/\S+/){
 			$sequence->{accession} = $seqObj->{genbank_locus}->{accession}[0];
 		}elsif($seq_id=~/gi\|(\d+)\|(ref|gb)\|([\w\.]+)/){
 			$sequence->{gi} = $1;
