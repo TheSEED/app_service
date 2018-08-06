@@ -327,12 +327,18 @@ sub prepare_ref_data {
     write_output($out, "$dir/$gid.fna");
 
     # snpEff data
-    $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.PATRIC.gbf";
-    $url = $ftp_url;
-    # my $out = curl_text($url);
-    my $out = `curl $url`;
-    write_output($out, "$dir/genes.gbk") if $out;
-    my $has_gbk = $out ? 1 : 0;
+    # $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.PATRIC.gbf";
+    # $url = $ftp_url;
+    # my $out = curl_text($url);     
+    # my $out = `curl $url`;
+    # write_output($out, "$dir/genes.gbk") if $out;
+    # my $has_gbk = $out ? 1 : 0;
+
+    #Generate genbank file
+    system("p3-gto $gid -o $dir");
+    system("rast-export-genome -i $dir/$gid.gto -o $dir/genes.gbk genbank");
+    my $has_gbk = 0;    
+    $has_gbk = 1 if -s "$dir/genes.gbk";
 
     return $has_gbk;
 }
