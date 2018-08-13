@@ -16,6 +16,7 @@ use base 'Class::Accessor';
 use JSON::XS;
 use Bio::KBase::AppService::Client;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name
+					 binning_spades_threads binning_spades_ram
 					 seedtk binning_genome_annotation_clientgroup);
 use DBI;
 
@@ -192,6 +193,16 @@ sub assemble
     push(@$params,
 	 "--meta",
 	 "-o", $self->assembly_dir);
+
+    if (binning_spades_threads)
+    {
+	push(@$params, "--threads", binning_spades_threads);
+    }
+    if (binning_spades_ram)
+    {
+	push(@$params, "--memory", binning_spades_ram);
+    }
+    
     my @cmd = ($self->spades, @$params);
     my $rc = system(@cmd);
     #my $rc = 0;
