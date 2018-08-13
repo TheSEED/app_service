@@ -343,8 +343,8 @@ sub getGenomeSequences {
 		my $seq_id = $seqObj->{id};	
 		$sequence->{gi} = $seqObj->{genbank_locus}->{gi};
 
-		if($seqObj->{genbank_locus}->{locus}){
-			$sequence->{accession} = $seqObj->{genbank_locus}->{locus};
+		if($seqObj->{genbank_locus}->{accession}[0]=~/\S+/){
+			$sequence->{accession} = $seqObj->{genbank_locus}->{accession}[0];
 		}elsif($seq_id=~/gi\|(\d+)\|(ref|gb)\|([\w\.]+)/){
 			$sequence->{gi} = $1;
 			$sequence->{accession} = $3;
@@ -1016,8 +1016,7 @@ sub getGenomeFeaturesFromGenBankFile {
 			my $strand = ($feature->{strand} eq '+')? 'fwd':'rev';
 			$feature->{feature_id}		=	"$annotation.$feature->{genome_id}.$feature->{accession}.".
 																	"$feature->{feature_type}.$feature->{start}.$feature->{end}.$strand";
-
-
+			
 			for my $tag ($featObj->get_all_tags){
 
 				for my $value ($featObj->get_tag_values($tag)){
@@ -1057,7 +1056,7 @@ sub getGenomeFeaturesFromGenBankFile {
 	
 			push @features, $feature  unless ($feature->{feature_type} eq 'gene' && (grep {$_=~/Bacteria|Archaea/} @{$genome->{taxon_lineage_names}}));
 		
-			$genome->{lc($annotation).'_cds'}++ if $feature->{feature_type} eq 'CDS'	
+			$genome->{lc($annotation).'_cds'}++ if $feature->{feature_type} eq 'CDS';	
 
 		}
 
