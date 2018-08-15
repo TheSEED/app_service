@@ -19,6 +19,7 @@ use SolrAPI;
 use IPC::Run 'run';
 use IO::File;
 use JSON::XS;
+use Cwd;
 
 my $get_time = sub { time, 0 };
 eval {
@@ -134,9 +135,47 @@ sub run_pipeline
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
     
     print STDERR "Running pipeline on host " . `hostname`. "\n";
+
+    #
+    # We create an output folder for the pipeline and arrange
+    # for the current directory to be placed there; any output written to
+    # that folder by the pipeline will be copied to the output folder
+    # in the workspace.
+    #
+
+    my $out_dir = File::Temp->newdir(CLEANUP => 0);
+    my $here = getcwd();
+    chdir($out_dir);
     
     my $result = $self->impl->run_pipeline($genome, $workflow);
     
+    chdir($here);
+    my $output_folder = $self->app->result_folder();
+
+    my %skip_files = map { $_ => 1 } qw(formatdb.log error.log);
+    
+    if (opendir(DH, $out_dir))
+    {
+	while (my $f = readdir(DH))
+	{
+	    next if $f =~ /^\./;
+	    next if $skip_files{$f};
+	    print STDERR "Copy $out_dir/$f to $output_folder\n";
+	    my $ok = IPC::Run::run(['p3-cp',
+				    "-r",
+				    '-m', 'txt=txt',
+				    '-m', 'html=html',
+				    "$out_dir/$f",
+				    "ws:$output_folder"]);
+	    $ok or warn "Error copying $out_dir/$f to $output_folder\n";
+	}
+	closedir(DH);
+    }
+    else
+    {
+	warn "Cannot opendir $out_dir\n";
+    }
+
     return $result;
 }
 
@@ -178,6 +217,7 @@ sub default_workflow
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		  # { name => 'call_features_prophage_phispy' },
+	      { name => 'evaluate_genome', failure_is_not_fatal => 1 },
 		     );
     my $workflow = { stages => \@stages };
 
@@ -191,7 +231,10 @@ sub import_workflow
     my @stages = (
 	      { name => 'propagate_genbank_feature_metadata',
 		    propagate_genbank_feature_metadata_parameters => {} },
-	      { name => 'classify_amr', failure_is_not_fatal => 1 },
+	      { name => 'classify_amr',
+		    failure_is_not_fatal => 1,
+		    condition => 'scalar @{$genome->{contigs}} != grep { $_->{replicon_type} eq "plasmid" } @{$genome->{contigs}}'
+		},
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
 	      { name => 'annotate_families_figfam_v1' },
@@ -200,6 +243,7 @@ sub import_workflow
 	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
+	      { name => 'evaluate_genome', failure_is_not_fatal => 1 },
 		 );
     my $workflow = { stages => \@stages };
 
