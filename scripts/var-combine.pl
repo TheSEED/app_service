@@ -64,6 +64,7 @@ for my $k (sort keys %groups) {
 if ($show_html) {
     my @rows;
     for (@snps) {
+    	$_->[14] = '<a href="/view/Feature/' . $_->[14] . '" target="_blank">' . $_->[14] . '</a>';
         my $minor = 1 if $_->[5] < 10 || $_->[6] < 5 || $_->[7] < 0.5;
         my @c = map { DT::span_css($_, 'wrap') }
                 map { $minor ? DT::span_css($_, "opaque") : $_ }
