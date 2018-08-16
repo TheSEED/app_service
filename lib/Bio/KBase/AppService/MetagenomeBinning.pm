@@ -97,8 +97,22 @@ sub process
 
     $self->compute_coverage();
     $self->compute_bins();
-    $self->extract_fasta();
-    $self->submit_annotations();
+    my $n_bins = $self->extract_fasta();
+
+    if ($n_bins == 0)
+    {
+	#
+	# No bins found. Write a simple HTML stating that.
+	#
+	my $report = "<h1>No bins found</h1>\n<p>No bins were foundin this sample.\n";
+	$app->workspace->save_data_to_file($report, {},
+					   "$output_folder/BinningReport.html", 'html', 1, 0, $app->token);
+	
+    }
+    else
+    {
+	$self->submit_annotations();
+    }
 }
 
 #
@@ -373,6 +387,12 @@ sub extract_fasta
     close(SAMPLE);
     close(BINS);
     print Dumper($self->app_params);
+
+    #
+    # Return the number of bins so that we can cleanly terminate the job if no bins
+    # were found.
+    #
+    return scalar @$all_bins;
 }
     
 sub write_db_record
