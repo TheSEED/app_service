@@ -84,4 +84,5 @@ module AppService
 	returns (list<Task>);
 
     funcdef kill_task(task_id id) returns (int killed, string msg);
+    funcdef rerun_task(task_id id) returns (task_id new_task);
 };

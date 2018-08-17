@@ -92,7 +92,7 @@ sub process_rnaseq {
 	    {
 		while (my $filename = readdir($dh))
 		{
-		    if ($filename =~ /\*\.json$/)
+		    if ($filename =~ /\.json$/)
 		    {
 			my $ofile = "$folder/$filename";
 			my $dest = "$path/$filename";

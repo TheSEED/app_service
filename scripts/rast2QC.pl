@@ -140,7 +140,7 @@ sub genomeQuality
 
     my @keys = qw(cds partial_cds rRNA tRNA misc_RNA repeat_region);
     $qc->{feature_summary}->{$_} = 0 foreach @keys;
-    
+
     foreach my $feature ($genomeObj->features())
     {
 	# Feature summary	
@@ -292,25 +292,28 @@ sub genomeQuality
 			if $qc->{hypothetical_cds_ratio} > 0.7;
     push @{$qc->{genome_quality_flags}}, "Too many partial CDS" 
 			if $qc->{partial_cds_ratio} > 0.3;
-    
+   
     # Genome quality flags based on comparison with species stats
 
+	if ($species && $species->{genome_count} > 5){
+
     push @{$qc->{genome_quality_flags}}, "Genome too short"
-	if $species && $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
+	if $qc->{genome_length} < $species->{genome_length_mean} - 3*$species->{genome_length_sd};
     push @{$qc->{genome_quality_flags}}, "Genome too long"
-	if $species && $qc->{genome_length} > $species->{genome_length_mean} + 3*$species->{genome_length_sd};
+	if $qc->{genome_length} > $species->{genome_length_mean} + 3*$species->{genome_length_sd};
     
     push @{$qc->{genome_quality_flags}}, "Low CDS count"
-	if $species && $qc->{feature_summary}->{cds} < $species->{cds_mean} - 3*$species->{cds_sd};
+	if $qc->{feature_summary}->{cds} < $species->{cds_mean} - 3*$species->{cds_sd};
     push @{$qc->{genome_quality_flags}}, "High CDS count"
-	if $species && $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
+	if $qc->{feature_summary}->{cds} > $species->{cds_mean} + 3*$species->{cds_sd};
     
     push @{$qc->{genome_quality_flags}}, "Too many hypothetical CDS" 
-	if $species && $qc->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
+	if $qc->{hypothetical_cds_ratio} > $species->{hypothetical_cds_ratio_mean} + 3*$species->{hypothetical_cds_ratio_sd};
     
     push @{$qc->{genome_quality_flags}}, "Low PLfam CDS ratio" 
-	if $species && $qc->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd} && $qc->{plfam_cds_ratio} < 0.8;
+	if $qc->{plfam_cds_ratio} < $species->{plfam_cds_ratio_mean} - 3*$species->{plfam_cds_ratio_sd} && $qc->{plfam_cds_ratio} < 0.8;
 
+	}
 
     # Overall genome quality 
     if (scalar @{$qc->{genome_quality_flags}}){

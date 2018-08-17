@@ -19,6 +19,8 @@ my($opt, $usage) = describe_options("%c %o gto-file",
 				    ["output-png=s" => "Write output png file here"],
 				    ["truncate-small-contigs" => "If true, truncate display to remove small contigs below L90"],
 				    ["max-contigs=i" => "Maximum number of contigs to render"],
+				    ["truncate-small-contigs-threshold=i" => "If truncate-small-contigs is set, only truncate if we have more than this many contigs", { default => 100 }],
+				    ["truncation-status-file=s" => "If set, data of the form X/Y is written noting that X of the Y contigs are being rendered."],
 				    ["subsystem-colors=s" => "Subsystem superclass color map file"],
 				    ["specialty-genes=s" => "Specialty genes load file (json)"],
 				    ["help|h" => "Show this help message"]);

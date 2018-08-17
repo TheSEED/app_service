@@ -237,7 +237,7 @@ sub _awe_to_task
 	    warn "Task $id: awe shows $astat but exitcode = 0. Setting to completed\n";
 	    $task->{status} = 'completed';
 	}
-	elsif ($rc != 0 && $astat eq 'completed')
+	elsif ($rc != 0 && ($astat eq 'in-progress' || $astat eq 'completed'))
 	{
 	    warn "Task $id: awe shows $astat but exitcode=$rc. Setting to failed\n";
 	    $task->{status} = 'failed';
@@ -499,6 +499,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -527,6 +528,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -700,6 +702,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -726,6 +729,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -1002,6 +1006,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -1029,6 +1034,7 @@ Task is a reference to a hash where the following keys are defined:
 	parameters has a value which is a task_parameters
 	user_id has a value which is a string
 	status has a value which is a task_status
+	awe_status has a value which is a task_status
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
@@ -1193,6 +1199,98 @@ sub kill_task
 	die $msg;
     }
     return($killed, $msg);
+}
+
+
+
+
+=head2 rerun_task
+
+  $new_task = $obj->rerun_task($id)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$id is a task_id
+$new_task is a task_id
+task_id is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$id is a task_id
+$new_task is a task_id
+task_id is a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub rerun_task
+{
+    my $self = shift;
+    my($id) = @_;
+
+    my @_bad_arguments;
+    (!ref($id)) or push(@_bad_arguments, "Invalid type for argument \"id\" (value was \"$id\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to rerun_task:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	die $msg;
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($new_task);
+    #BEGIN rerun_task
+
+    #
+    # Rerun this task. We need to look up the app id, parameters, and workspace from
+    # the AWE database.
+    #
+
+    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
+    my $task = $self->_lookup_task($awe, $id);
+
+    my $app = $task->{app};
+    my $params = $task->{parameters};
+    my $workspace = $task->{workspace};
+
+    my $new_task_info = eval { $self->start_app($app, $params, $workspace); } ;
+
+    if (ref($new_task_info))
+    {
+	$new_task = $new_task_info->{id};
+	print "Started: new_task = $new_task\n";
+	print Dumper($new_task_info);
+    }
+    else
+    {
+	die "Error starting new task: $@\n";
+    }
+    
+    #END rerun_task
+    my @_bad_returns;
+    (!ref($new_task)) or push(@_bad_returns, "Invalid type for return variable \"new_task\" (value was \"$new_task\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to rerun_task:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	die $msg;
+    }
+    return($new_task);
 }
 
 
@@ -1468,6 +1566,7 @@ workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
 user_id has a value which is a string
 status has a value which is a task_status
+awe_status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string
@@ -1487,6 +1586,7 @@ workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
 user_id has a value which is a string
 status has a value which is a task_status
+awe_status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string

@@ -467,21 +467,27 @@ sub process_genome
     $mpath =~ s/\.pm$//;
     
     my $details_tt = "$mpath/details.tt";
-    -f $details_tt or die "Details not found at $details_tt\n";
-    my %role_map;
-    if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
+    if (-f $details_tt)
     {
-	while (<R>)
+	my %role_map;
+	if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
 	{
-	    chomp;
-	    my($abbr, $hash, $role) = split(/\t/);
-	    $role_map{$abbr} = $role;
+	    while (<R>)
+	    {
+		chomp;
+		my($abbr, $hash, $role) = split(/\t/);
+		$role_map{$abbr} = $role;
+	    }
+	    close(R);
 	}
-	close(R);
-    }
 
-    my $html = BinningReports::Detail($params, $bins, $details_tt, $result, \%role_map);
-    $ws->save_data_to_file($html, {}, "$output_folder/GenomeReport.html", "html", 1, 0, $core->token);
+	my $html = BinningReports::Detail($params, $bins, $details_tt, $result, \%role_map);
+	$ws->save_data_to_file($html, {}, "$output_folder/GenomeReport.html", "html", 1, 0, $core->token);
+    }
+    else
+    {
+	warn "Details not found at $details_tt\n";
+    }
     
     #
     # Do last-job processing if needed.

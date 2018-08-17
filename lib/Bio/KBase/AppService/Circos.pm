@@ -158,13 +158,24 @@ sub generate_configuration
 
     my @contigs = @{$gto->contigs};
     my $cutoff = @contigs;
-    if ($opt->truncate_small_contigs && @contigs > 100)
+    if ($opt->truncate_small_contigs && @contigs > $opt->truncate_small_contigs_threshold)
     {
 	$cutoff = $gto->{genome_quality_measure}->{genome_metrics}->{L90};
     }
     if ($opt->max_contigs && $cutoff > $opt->max_contigs)
     {
 	$cutoff = $opt->max_contigs;
+    }
+
+    if ($opt->truncation_status_file)
+    {
+	my $tfh;
+	if (!open($tfh, ">", $opt->truncation_status_file))
+	{
+	    die "Cannot write " . $opt->truncation_status_file . ": $!";
+	}
+	print $tfh "$cutoff/" . scalar(@contigs) . "\n";
+	close($tfh);
     }
 
     $template_vars{chromosome_spacing} = $cutoff > 100 ? "0.001r": "0.005r";
@@ -196,7 +207,7 @@ sub generate_configuration
 
     for my $contig (@contigs)
     {
-	next if $ctg_index++ > $cutoff;
+	next if $ctg_index++ >= $cutoff;
 
 	my($seq, $id) = @$contig{'dna', 'id'};
 	
