@@ -101,7 +101,7 @@ sub run_find_bdbh {
     my @fids;
     my %hits;
 
-    my @ref_fields  = qw(contig gene aa_length patric_id locus_tag gene_name function start end strand);
+    my @ref_fields  = qw(contig gene aa_length patric_id locus_tag gene_name function figfam_id plfam_id pgfam_id start end strand);
     my @comp_fields = qw(hit contig gene aa_length patric_id locus_tag gene_name function percent_identity seq_coverage); # e_value not directly available for Gary's tool
     my @fields      = map { 'ref_genome_'.$_ } @ref_fields;
     my @headers     = (filename_to_genome_name($orgs[0]));
@@ -160,6 +160,9 @@ sub run_find_bdbh {
                                    ref_genome_locus_tag => $feaH->{$id}->{refseq_locus_tag},
                                    ref_genome_gene_name => $feaH->{$id}->{gene},
                                    ref_genome_function  => $feaH->{$id}->{product},
+                                   ref_genome_figfam_id => $feaH->{$id}->{figfam_id},
+                                   ref_genome_plfam_id  => $feaH->{$id}->{plfam_id},
+                                   ref_genome_pgfam_id  => $feaH->{$id}->{pgfam_id},
                                    ref_genome_start     => $feaH->{$id}->{start},
                                    ref_genome_end       => $feaH->{$id}->{end},
                                    ref_genome_strand    => $feaH->{$id}->{strand} };
@@ -462,7 +465,7 @@ sub get_feature_hash {
 sub add_feature_hash_with_genome_ids {
     my ($hash, $gids) = @_;
     for my $gid (@$gids) {
-        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC))&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene,figfam_id,plfam_id,pgfam_id)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
         my $json = curl_json($url);
         for my $fea (@$json) {
             my $id = $fea->{patric_id};
@@ -475,7 +478,7 @@ sub add_feature_hash_with_user_feature_groups {
     my ($hash, $groups) = @_;
     for my $group (@$groups) {
         my $escaped = uri_escape($group);
-        my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene,figfam_id,plfam_id,pgfam_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
         my $json = curl_json($url);
         for my $fea (@$json) {
             my $id = $fea->{patric_id};
