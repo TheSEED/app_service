@@ -403,7 +403,7 @@ sub get_sample_seq_type {
 	my $seq_type = 'undefined';
 	my $num_chars = 5000;
 	my $sample_seq = '';
-    open(SF, "<", $fname) or die "Cannot open $fname for writing: $!";
+    open(SF, "<", $fname) or die "Cannot open $fname for reading: $!";
     while (my($id, $def, $seq) = read_next_fasta(\*SF)) {
 		next if $seq eq '';
 		$sample_seq = $sample_seq . $seq;
