@@ -6,6 +6,7 @@ package Bio::KBase::AppService::GenomeAnnotationCore;
 
 use Data::Dumper;
 use strict;
+use Clone 'clone';
 
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 
@@ -89,7 +90,7 @@ sub user_id
 
 sub run_pipeline
 {
-    my($self, $genome, $workflow_txt, $recipe_id) = @_;
+    my($self, $genome, $workflow_txt, $recipe_id, $workflow_parameter_override) = @_;
 
     my $workflow;
     if ($workflow_txt)
@@ -126,10 +127,32 @@ sub run_pipeline
 	}
     }
     
-
     if (!$workflow)
     {
 	$workflow = $self->default_workflow();
+    }
+
+    #
+    # Clone the workflow document and apply parameter overrides.
+    #
+    if ($workflow_parameter_override)
+    {
+	my $workflow_copy = clone($workflow);
+	for my $ent (@{$workflow_copy->{stages}})
+	{
+	    if (my $ov = $workflow_parameter_override->{$ent->{name}})
+	    {
+		while (my($over_key, $over_hash) = each %$ov)
+		{
+		    while (my($key, $value) = each %$over_hash)
+		    {
+			$ent->{$over_key}->{$key} = $value;
+		    }
+		}
+	    }
+	}
+	$workflow = $workflow_copy;
+	print STDERR "Annotated workflow: " . Dumper($workflow);
     }
 	
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;

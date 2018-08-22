@@ -29,7 +29,7 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
-SEEDTK = /disks/patric-common/seedtk
+SEEDTK = /disks/patric-common/seedtk-2018-0820
 
 REFERENCE_DATA_DIR = /tmp
 
