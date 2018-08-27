@@ -18,6 +18,115 @@ sub new
     return bless $self, $class;
 }
 
+sub start_app
+{
+    my($self, $ctx, $app_id, $task_params, $start_params) = @_;
+
+    if (!$self->submissions_enabled($app_id, $ctx))
+    {
+	die "App service submissions are disabled\n";
+    }
+
+    my $json = JSON::XS->new->ascii->pretty(1);
+
+    #
+    # Create a new workflow for this task.
+    #
+
+    my $app = $self->find_app($app_id);
+
+    if (!$app)
+    {
+	die "Could not find app for id $app_id\n";
+    }
+
+    my $awe = Bio::KBase::AppService::Awe->new($self->impl->{awe_server}, $ctx->token);
+
+    my $param_str = $json->encode($task_params);
+
+    #
+    # Create an identifier we can use to match the Shock nodes we create for this
+    # job with the job itself.
+    #
+
+    my $gen = Data::UUID->new;
+    my $task_file_uuid = $gen->create();
+    my $task_file_id = lc($gen->to_string($task_file_uuid));
+
+    my $userattr = {
+	app_id => $app_id,
+	parameters => $param_str,
+	workspace => $start_params->{workspace},
+	parent_task => $start_params->{parent_id},
+	task_file_id => $task_file_id,
+    };
+
+    my $clientgroup = $self->impl->{awe_clientgroup};
+
+    if ($app_id eq 'MetagenomeBinning' && $task_params->{contigs})
+    {
+	#  Hack to send contigs-only jobs to a different clientgroup
+	$clientgroup .= "-fast";
+	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
+    }
+    if ($task_params->{_clientgroup})
+    {
+	$clientgroup = $task_params->{_clientgroup};
+    }
+	
+    my $job = $awe->create_job_description(pipeline => 'AppService',
+					   name => $app_id,
+					   project => 'AppService',
+					   user => $ctx->user_id,
+					   clientgroups => $clientgroup,
+					   userattr => $userattr,
+					   priority => 2,
+					  );
+
+    my $shock = Bio::KBase::AppService::Shock->new($self->impl->{shock_server}, $ctx->token);
+    $shock->tag_nodes(task_file_id => $task_file_id,
+		      app_id => $app_id);
+    my $params_node_id = $shock->put_file_data($param_str, "params");
+
+    my $app_node_id = $shock->put_file_data($json->encode($app), "app");
+
+    my $app_file = $awe->create_job_file("app", $shock->server, $app_node_id);
+    my $params_file = $awe->create_job_file("params", $shock->server, $params_node_id);
+
+#    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
+#    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
+    
+    my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
+    my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
+
+    my $appserv_info_url = "$self->impl->{service_url}/task_info";
+
+    my $task_userattr = {};
+    my $task_id = $job->add_task($app->{script},
+				 $app->{script},
+				 join(" ",
+				      $appserv_info_url,
+				      $app_file->in_name, $params_file->in_name,
+				      # $stdout_file->name, $stderr_file->name,
+				     ),
+				 [],
+				 [$app_file, $params_file],
+				 [$awe_stdout_file, $awe_stderr_file],
+				 # [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
+				 undef,
+				 undef,
+				 $task_userattr,
+				);
+
+    # print STDERR Dumper($job);
+
+    my $task_id = $awe->submit($job);
+
+    my $task = $self->impl->_lookup_task($awe, $task_id);
+
+    return $task;
+}
+
 sub enumerate_apps
 {
     my($self) = @_;
@@ -101,11 +210,17 @@ sub find_app
 
 sub service_status
 {
-    my($self) = @_;
+    my($self, $ctx) = @_;
     #
     # Status file if it exists is to have the first line containing a numeric status (0 for down
     # 1 for up). Any further lines contain a status message.
     #
+
+    if ($self->token_user_is_admin($ctx->token))
+    {
+	return (1, "");
+    }
+    
     my $sf = $self->impl->{status_file};
     if ($sf && open(my $fh, "<", $sf))
     {
@@ -127,7 +242,8 @@ sub service_status
 #
 sub submissions_enabled
 {
-    my($self, $app_id) = @_;
+    my($self, $app_id, $ctx) = @_;
+
     my($stat, $txt) = $self->service_status();
 
     #
@@ -137,7 +253,12 @@ sub submissions_enabled
     # The status file for services is in the same directory as the overall
     # service status file. (A little hacky but ...)
     #
-    
+
+    if ($self->token_user_is_admin($ctx->token))
+    {
+	return 1;
+    }
+
     if ($stat && defined($app_id) && $self->impl->{status_file})
     {
 	my $app_status_dir = dirname($self->impl->{status_file});
@@ -178,5 +299,18 @@ sub get_task_exitcode
 	return undef;
     }
 }
+
+sub token_user_is_admin
+{
+    my($self, $token) = @_;
+    $token = $token->token if ref($token);
+
+    #
+    # Let admins (Bob for now) submit when the service is down.
+    #
+    my($user_id) = $token =~ /\bun=([^|]+)/;
+    return $user_id eq 'olson@patricbrc.org';
+}
+
 
 1;

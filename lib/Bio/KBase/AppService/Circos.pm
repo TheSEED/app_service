@@ -160,7 +160,7 @@ sub generate_configuration
     my $cutoff = @contigs;
     if ($opt->truncate_small_contigs && @contigs > $opt->truncate_small_contigs_threshold)
     {
-	$cutoff = $gto->{genome_quality_measure}->{genome_metrics}->{L90};
+	$cutoff = $gto->{quality}->{genome_metrics}->{L90};
     }
     if ($opt->max_contigs && $cutoff > $opt->max_contigs)
     {
@@ -197,7 +197,21 @@ sub generate_configuration
 	@contigs = sort { $contig_length{$b->{id}} <=> $contig_length{$a->{id}} } @contigs;
     }
 
-    
+    #
+    # computed smallest contig for which we should try to render tracks.
+    #
+    # Circumference of the outer track at 3000 pixels is circa 10K pixels.
+    # 10K pixels / 360 degrees is circa 30 pixels per degree. That sounds a good cutoff.
+    # The circumference in base pairs is around the total number of base pairs in the genome,
+    # so $size/360 would be 1 degree. 
+    #
+
+    my $dna_size = 0;
+    for my $ctgi (0..$cutoff - 1)
+    {
+	$dna_size += $contig_length{$contigs[$ctgi]->{id}};
+    }
+    my $smallest_contig_to_render = $dna_size / 720;
 
     #
     # We also compute the list of chromosomes (contigs) for which
@@ -219,21 +233,24 @@ sub generate_configuration
 	{
 	    push(@no_tick_labels, $id);
 	}
-	
-	for (my $start = 0; $start < $len; $start += $self->gc_window)
+
+	if ($len > $smallest_contig_to_render)
 	{
-	    my $str = substr($seq, $start, $self->gc_window);
-	    my $gcount = $str =~ tr/Gg//;
-	    my $ccount = $str =~ tr/Cc//;
-	    
-	    my $l = length($str);
-	    my $gpc = $gcount + $ccount;
-	    my $gc = $gpc / $l;
-	    my $skew = ($gpc == 0) ? 0 : ($gcount - $ccount) / $gpc;
-	    
-	    my $end = $start + $l - 1;
-	    print GC "$id $start $end $gc\n";
-	    print SKEW "$id $start $end $skew\n";
+	    for (my $start = 0; $start < $len; $start += $self->gc_window)
+	    {
+		my $str = substr($seq, $start, $self->gc_window);
+		my $gcount = $str =~ tr/Gg//;
+		my $ccount = $str =~ tr/Cc//;
+		
+		my $l = length($str);
+		my $gpc = $gcount + $ccount;
+		my $gc = $gpc / $l;
+		my $skew = ($gpc == 0) ? 0 : ($gcount - $ccount) / $gpc;
+		
+		my $end = $start + $l - 1;
+		print GC "$id $start $end $gc\n";
+		print SKEW "$id $start $end $skew\n";
+	    }
 	}
     }
 
@@ -302,6 +319,11 @@ sub generate_configuration
 	my($min, $max, $ctg, $strand) = feature_bounds($feature);
 	my $fh;
 	my $id = $feature->{id};
+
+	#
+	# Skip this feature if it is on a contig too small to render.
+	#
+	next if $contig_length{$ctg} < $smallest_contig_to_render;
 	
 	my $ss_color;
 	if (my $superclass = $feature_to_classification{$id})
@@ -344,6 +366,8 @@ sub generate_configuration
     close($_) foreach values %hl_fh;
 
     $template_vars{ticks_conf_file} = $self->data_dir . "/ticks.conf";
+
+    $template_vars{max_ideograms} = int($cutoff * 1.1);
 
     return \%template_vars;
 }

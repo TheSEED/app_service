@@ -101,7 +101,7 @@ sub genomeQuality
     }
 
     # Read the existing genome quality data
-    my $qc = $genomeObj->{genome_quality_measure};
+    my $qc = $genomeObj->{quality};
     
     # Compute assembly stats
     foreach my $seqObj (@{$genomeObj->{contigs}})
@@ -323,6 +323,6 @@ sub genomeQuality
     } 
     
     # Update the genome quality measure obj in the GTO
-    $genomeObj->{genome_quality_measure} = $qc;
+    $genomeObj->{quality} = $qc;
 }
 

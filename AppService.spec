@@ -31,6 +31,7 @@ module AppService
 
     typedef structure {
 	task_id id;
+	task_id parent_id;
 	app_id app;
 	workspace_id workspace;
 	task_parameters parameters;
@@ -64,6 +65,13 @@ module AppService
 	returns (list<App>);
 
     funcdef start_app(app_id, task_parameters params, workspace_id workspace)
+	returns (Task task);
+
+    typedef structure {
+        task_id parent_id;
+	workspace_id workspace;
+    } StartParams;
+    funcdef start_app2(app_id, task_parameters params, StartParams start_params)
 	returns (Task task);
 
     funcdef query_tasks(list<task_id> task_ids)

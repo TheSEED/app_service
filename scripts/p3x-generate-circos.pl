@@ -40,10 +40,10 @@ elsif ($file =~ /^\d+\.\d+$/)
     my $api = P3DataAPI->new();
     $from_api = 1;
     $gto = $api->gto_of($file);
-    if (!$gto->{genome_quality_measure}->{genome_metrics})
+    if (!$gto->{quality}->{genome_metrics})
     {
 	my $m = $gto->metrics;
-	$gto->{genome_quality_measure}->{genome_metrics} = $m;
+	$gto->{quality}->{genome_metrics} = $m;
     }
 }
 else

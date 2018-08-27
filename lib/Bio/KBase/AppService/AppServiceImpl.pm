@@ -207,6 +207,7 @@ sub _awe_to_task
 
     my $task = {
 	id => $id,
+	parent_id => $u->{parent_task},
 	app => $u->{app_id},
 	workspace => $u->{workspace},
 	parameters => decode_json($u->{parameters}),
@@ -368,7 +369,7 @@ sub service_status
     my($return);
     #BEGIN service_status
 
-    my($stat, $txt) = $self->{util}->service_status();
+    my($stat, $txt) = $self->{util}->service_status($ctx);
     $return = [$stat, $txt];
 
     #END service_status
@@ -494,6 +495,7 @@ task_parameters is a reference to a hash where the key is a string and the value
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -523,6 +525,7 @@ task_parameters is a reference to a hash where the key is a string and the value
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -568,111 +571,127 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    if (!$self->{util}->submissions_enabled($app_id))
-    {
-	die "App service submissions are disabled\n";
-    }
-
-    my $json = JSON::XS->new->ascii->pretty(1);
-
-    #
-    # Create a new workflow for this task.
-    #
-
-    my $app = $self->{util}->find_app($app_id);
-
-    if (!$app)
-    {
-	die "Could not find app for id $app_id\n";
-    }
-
-    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-
-    my $param_str = $json->encode($params);
-
-    #
-    # Create an identifier we can use to match the Shock nodes we create for this
-    # job with the job itself.
-    #
-
-    my $gen = Data::UUID->new;
-    my $task_file_uuid = $gen->create();
-    my $task_file_id = lc($gen->to_string($task_file_uuid));
-
-    my $userattr = {
-	app_id => $app_id,
-	parameters => $param_str,
-	workspace => $workspace,
-	task_file_id => $task_file_id,
-    };
-
-    my $clientgroup = $self->{awe_clientgroup};
-
-    if ($app_id eq 'MetagenomeBinning' && $params->{contigs})
-    {
-	#  Hack to send contigs-only jobs to a different clientgroup
-	$clientgroup .= "-fast";
-	print STDERR "Redirecting job to fast queue\n" . Dumper($params);
-    }
-    if ($params->{_clientgroup})
-    {
-	$clientgroup = $params->{_clientgroup};
-    }
-	
-    my $job = $awe->create_job_description(pipeline => 'AppService',
-					   name => $app_id,
-					   project => 'AppService',
-					   user => $ctx->user_id,
-					   clientgroups => $clientgroup,
-					   userattr => $userattr,
-					   priority => 2,
-					  );
-
-    my $shock = Bio::KBase::AppService::Shock->new($self->{shock_server}, $ctx->token);
-    $shock->tag_nodes(task_file_id => $task_file_id,
-		      app_id => $app_id);
-    my $params_node_id = $shock->put_file_data($param_str, "params");
-
-    my $app_node_id = $shock->put_file_data($json->encode($app), "app");
-
-    my $app_file = $awe->create_job_file("app", $shock->server, $app_node_id);
-    my $params_file = $awe->create_job_file("params", $shock->server, $params_node_id);
-
-#    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
-#    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
-    
-    my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
-    my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
-
-    my $appserv_info_url = "$self->{service_url}/task_info";
-
-    my $task_userattr = {};
-    my $task_id = $job->add_task($app->{script},
-				 $app->{script},
-				 join(" ",
-				      $appserv_info_url,
-				      $app_file->in_name, $params_file->in_name,
-				      # $stdout_file->name, $stderr_file->name,
-				     ),
-				 [],
-				 [$app_file, $params_file],
-				 [$awe_stdout_file, $awe_stderr_file],
-				 # [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
-				 undef,
-				 undef,
-				 $task_userattr,
-				);
-
-    # print STDERR Dumper($job);
-
-    my $task_id = $awe->submit($job);
-
-    $task = $self->_lookup_task($awe, $task_id);
+    $task = $self->{util}->start_app($ctx, $app_id, $params, { workspace => $workspace });
     #END start_app
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to start_app:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	die $msg;
+    }
+    return($task);
+}
+
+
+
+
+=head2 start_app2
+
+  $task = $obj->start_app2($app_id, $params, $start_params)
+
+=over 4
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$app_id is an app_id
+$params is a task_parameters
+$start_params is a StartParams
+$task is a Task
+app_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+StartParams is a reference to a hash where the following keys are defined:
+	parent_id has a value which is a task_id
+	workspace has a value which is a workspace_id
+task_id is a string
+workspace_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+task_status is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+$app_id is an app_id
+$params is a task_parameters
+$start_params is a StartParams
+$task is a Task
+app_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+StartParams is a reference to a hash where the following keys are defined:
+	parent_id has a value which is a task_id
+	workspace has a value which is a workspace_id
+task_id is a string
+workspace_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+task_status is a string
+
+
+=end text
+
+
+
+=item Description
+
+
+
+=back
+
+=cut
+
+sub start_app2
+{
+    my $self = shift;
+    my($app_id, $params, $start_params) = @_;
+
+    my @_bad_arguments;
+    (!ref($app_id)) or push(@_bad_arguments, "Invalid type for argument \"app_id\" (value was \"$app_id\")");
+    (ref($params) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"params\" (value was \"$params\")");
+    (ref($start_params) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"start_params\" (value was \"$start_params\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to start_app2:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	die $msg;
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($task);
+    #BEGIN start_app2
+    $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
+    #END start_app2
+    my @_bad_returns;
+    (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to start_app2:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	die $msg;
     }
     return($task);
@@ -697,6 +716,7 @@ $tasks is a reference to a hash where the key is a task_id and the value is a Ta
 task_id is a string
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -724,6 +744,7 @@ $tasks is a reference to a hash where the key is a task_id and the value is a Ta
 task_id is a string
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -1001,6 +1022,7 @@ $count is an int
 $return is a reference to a list where each element is a Task
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -1029,6 +1051,7 @@ $count is an int
 $return is a reference to a list where each element is a Task
 Task is a reference to a hash where the following keys are defined:
 	id has a value which is a task_id
+	parent_id has a value which is a task_id
 	app has a value which is an app_id
 	workspace has a value which is a workspace_id
 	parameters has a value which is a task_parameters
@@ -1561,6 +1584,7 @@ a string
 <pre>
 a reference to a hash where the following keys are defined:
 id has a value which is a task_id
+parent_id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
@@ -1581,6 +1605,7 @@ stderr_shock_node has a value which is a string
 
 a reference to a hash where the following keys are defined:
 id has a value which is a task_id
+parent_id has a value which is a task_id
 app has a value which is an app_id
 workspace has a value which is a workspace_id
 parameters has a value which is a task_parameters
@@ -1642,6 +1667,38 @@ output_files has a value which is a reference to a list where each element is a 
 0: (output_path) a string
 1: (output_id) a string
 
+
+
+=end text
+
+=back
+
+
+
+=head2 StartParams
+
+=over 4
+
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+parent_id has a value which is a task_id
+workspace has a value which is a workspace_id
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+parent_id has a value which is a task_id
+workspace has a value which is a workspace_id
 
 
 =end text

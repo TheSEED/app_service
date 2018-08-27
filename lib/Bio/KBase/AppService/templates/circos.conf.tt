@@ -82,3 +82,7 @@ color     = [% plot.background %]
 # Debugging, I/O an dother system parameters
 # Included from Circos distribution.
 <<include etc/housekeeping.conf>>
+
+[% IF max_ideograms %]
+max_ideograms* = [% max_ideograms %]
+[% END %]
