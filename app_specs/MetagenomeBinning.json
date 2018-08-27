@@ -72,6 +72,22 @@
 			"desc":"Name of genome group into whcih the generated genome ids will be placed. ",
 			"type":"string"
 		},
+    {
+      "id": "skip_indexing",
+      "required": 0,
+      "default": false,
+      "label": "Don't index bins",
+      "desc": "If set, don't index the generated bins solr. They will not be available for analysis through the PATRIC site.",
+      "type": "bool"
+    },
+    {
+      "id": "recipe",
+      "label": "Annotation recipe",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a non-default annotation recipe for annotation of bins",
+      "type": "string"
+    },
 		{
 			"id":"output_path",
 			"label":"Output Folder",

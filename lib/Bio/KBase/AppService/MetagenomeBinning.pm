@@ -414,8 +414,10 @@ sub extract_fasta
 	    output_path => $self->output_folder,
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
-	    _parent_job => $self->app->task_id,
+#	    _parent_job => $self->app->task_id,
 	    analyze_quality => 1,
+	    ($self->params->{skip_indexing} ? (skip_indexing => 1) : ()),
+	    recipe => $self->params->{recipe},
 	    (binning_genome_annotation_clientgroup ? (_clientgroup => binning_genome_annotation_clientgroup) : ()),
 	};
 	push(@$app_list, $descr);
@@ -470,13 +472,18 @@ sub submit_annotations
 	exit;
     }
 
+    #
+    # No longer needed with new code that waits for annos.
+    # $self->write_db_record(scalar @{$self->app_params});
 
-    $self->write_db_record(scalar @{$self->app_params});
-
+    my $start_params = {
+	parent_id => $self->app->task_id,
+	workspace => $self->output_folder,
+    };
     my @tasks;
     for my $task (@{$self->app_params})
     {
-	my $submitted = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
+	my $submitted = $client->start_app2("GenomeAnnotation", $task, $start_params);
 	push(@tasks, $submitted);
     }
     return @tasks;
