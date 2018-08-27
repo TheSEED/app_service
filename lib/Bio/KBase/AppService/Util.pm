@@ -99,7 +99,7 @@ sub start_app
     my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
     my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
 
-    my $appserv_info_url = "$self->impl->{service_url}/task_info";
+    my $appserv_info_url = $self->impl->{service_url} . "/task_info";
 
     my $task_userattr = {};
     my $task_id = $job->add_task($app->{script},
