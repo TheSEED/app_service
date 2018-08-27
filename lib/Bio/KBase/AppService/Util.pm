@@ -22,7 +22,7 @@ sub start_app
 {
     my($self, $ctx, $app_id, $task_params, $start_params) = @_;
 
-    if (!$self->submissions_enabled($app_id))
+    if (!$self->submissions_enabled($app_id, $ctx))
     {
 	die "App service submissions are disabled\n";
     }
@@ -42,7 +42,7 @@ sub start_app
 
     my $awe = Bio::KBase::AppService::Awe->new($self->impl->{awe_server}, $ctx->token);
 
-    my $param_str = $json->encode($params);
+    my $param_str = $json->encode($task_params);
 
     #
     # Create an identifier we can use to match the Shock nodes we create for this
@@ -63,15 +63,15 @@ sub start_app
 
     my $clientgroup = $self->impl->{awe_clientgroup};
 
-    if ($app_id eq 'MetagenomeBinning' && $params->{contigs})
+    if ($app_id eq 'MetagenomeBinning' && $task_params->{contigs})
     {
 	#  Hack to send contigs-only jobs to a different clientgroup
 	$clientgroup .= "-fast";
-	print STDERR "Redirecting job to fast queue\n" . Dumper($params);
+	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
     }
-    if ($params->{_clientgroup})
+    if ($task_params->{_clientgroup})
     {
-	$clientgroup = $params->{_clientgroup};
+	$clientgroup = $task_params->{_clientgroup};
     }
 	
     my $job = $awe->create_job_description(pipeline => 'AppService',
@@ -122,7 +122,7 @@ sub start_app
 
     my $task_id = $awe->submit($job);
 
-    $task = $self->impl->_lookup_task($awe, $task_id);
+    my $task = $self->impl->_lookup_task($awe, $task_id);
 
     return $task;
 }
@@ -216,11 +216,7 @@ sub service_status
     # 1 for up). Any further lines contain a status message.
     #
 
-    #
-    # Let admins (Bob for now) submit when the service is down.
-    #
-    my($user_id) = $ctx->token =~ /\bun=([^|]+)/;
-    if ($user_id eq 'olson@patricbrc.org')
+    if ($self->token_user_is_admin($ctx->token))
     {
 	return (1, "");
     }
@@ -246,7 +242,8 @@ sub service_status
 #
 sub submissions_enabled
 {
-    my($self, $app_id) = @_;
+    my($self, $app_id, $ctx) = @_;
+
     my($stat, $txt) = $self->service_status();
 
     #
@@ -256,7 +253,12 @@ sub submissions_enabled
     # The status file for services is in the same directory as the overall
     # service status file. (A little hacky but ...)
     #
-    
+
+    if ($self->token_user_is_admin($ctx->token))
+    {
+	return 1;
+    }
+
     if ($stat && defined($app_id) && $self->impl->{status_file})
     {
 	my $app_status_dir = dirname($self->impl->{status_file});
@@ -297,5 +299,18 @@ sub get_task_exitcode
 	return undef;
     }
 }
+
+sub token_user_is_admin
+{
+    my($self, $token) = @_;
+    $token = $token->token if ref($token);
+
+    #
+    # Let admins (Bob for now) submit when the service is down.
+    #
+    my($user_id) = $token =~ /\bun=([^|]+)/;
+    return $user_id eq 'olson@patricbrc.org';
+}
+
 
 1;
