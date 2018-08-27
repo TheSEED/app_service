@@ -210,11 +210,21 @@ sub find_app
 
 sub service_status
 {
-    my($self) = @_;
+    my($self, $ctx) = @_;
     #
     # Status file if it exists is to have the first line containing a numeric status (0 for down
     # 1 for up). Any further lines contain a status message.
     #
+
+    #
+    # Let admins (Bob for now) submit when the service is down.
+    #
+    my($user_id) = $ctx->token =~ /\bun=([^|]+)/;
+    if ($user_id eq 'olson@patricbrc.org')
+    {
+	return (1, "");
+    }
+    
     my $sf = $self->impl->{status_file};
     if ($sf && open(my $fh, "<", $sf))
     {

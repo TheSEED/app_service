@@ -369,7 +369,7 @@ sub service_status
     my($return);
     #BEGIN service_status
 
-    my($stat, $txt) = $self->{util}->service_status();
+    my($stat, $txt) = $self->{util}->service_status($ctx);
     $return = [$stat, $txt];
 
     #END service_status
