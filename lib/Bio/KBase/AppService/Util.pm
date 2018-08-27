@@ -3,6 +3,7 @@ use strict;
 use File::Slurp;
 use JSON::XS;
 use File::Basename;
+use Data::Dumper;
 
 use base 'Class::Accessor';
 
