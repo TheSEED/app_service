@@ -216,7 +216,7 @@ sub service_status
     # 1 for up). Any further lines contain a status message.
     #
 
-    if ($self->token_user_is_admin($ctx->token))
+    if ($self->token_user_is_admin($ctx->{token}))
     {
 	return (1, "");
     }
@@ -244,7 +244,7 @@ sub submissions_enabled
 {
     my($self, $app_id, $ctx) = @_;
 
-    my($stat, $txt) = $self->service_status();
+    my($stat, $txt) = $self->service_status($ctx);
 
     #
     # If an app id was submitted, check to see if that particular service
