@@ -255,7 +255,7 @@ sub getGenomeQuality {
 
 	print "Getting genome quality ...\n";
 
-	my $qc = $genomeObj->{genome_quality_measure}; 
+	my $qc = $genomeObj->{quality}; 
 
 	$genome->{chromosomes} = $qc->{chromosomes};
 	$genome->{plasmids} = $qc->{plasmids};
