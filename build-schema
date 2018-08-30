@@ -1,0 +1,15 @@
+use strict;
+
+use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_user sched_db_pass sched_db_name);
+
+my $dsn = 'dbi:mysql:' . sched_db_name . ";host=" . sched_db_host;
+
+my @cmd = ('dbicdump',
+           "-o", "dump_directory=lib",
+           "-o", "preserve_case=1",
+           "-o", 'components=["InflateColumn::DateTime"]',
+	   'Bio::KBase::AppService::Schema',
+	   $dsn, sched_db_user, sched_db_pass);
+
+print "@cmd\n";
+system(@cmd);

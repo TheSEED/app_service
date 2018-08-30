@@ -15,9 +15,16 @@ use constant	    mash_reference_sketch => '[% mash_reference_sketch %]';
 use constant	    binning_spades_threads => '[% binning_spades_threads %]';
 use constant	    binning_spades_ram => '[% binning_spades_ram %]';
 
+use constant	    sched_db_host => '[% sched_db_host %]';
+use constant	    sched_db_user => '[% sched_db_user %]';
+use constant	    sched_db_pass => '[% sched_db_pass %]';
+use constant	    sched_db_name => '[% sched_db_name %]';
+
 use base 'Exporter';
 our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name github_issue_token
-		    db_host db_user db_pass db_name seedtk reference_data_dir
+		    db_host db_user db_pass db_name
+		    seedtk reference_data_dir
+		    sched_db_host sched_db_user sched_db_pass sched_db_name
 		    binning_spades_threads binning_spades_ram
 		    binning_genome_annotation_clientgroup mash_reference_sketch);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);

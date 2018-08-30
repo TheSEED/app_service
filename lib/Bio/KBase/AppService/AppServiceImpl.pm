@@ -22,7 +22,7 @@ use Data::Dumper;
 use Bio::KBase::AppService::Awe;
 use Bio::KBase::AppService::Shock;
 use Bio::KBase::AppService::Util;
-use Bio::KBase::DeploymentConfig;
+use Bio::P3::DeploymentConfig;
 use File::Slurp;
 use Data::UUID;
 use Plack::Request;
@@ -288,7 +288,7 @@ sub new
     bless $self, $class;
     #BEGIN_CONSTRUCTOR
 
-    my $cfg = Bio::KBase::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
+    my $cfg = Bio::P3::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
     my $awe_server = $cfg->setting("awe-server");
     $self->{awe_server} = $awe_server;
     my $shock_server = $cfg->setting("shock-server");
