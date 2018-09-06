@@ -150,7 +150,7 @@ sub run_var_annotate {
     my $fna = "$tmpdir/$ref_id/$ref_id.fna";
     my $gff = "$tmpdir/$ref_id/$ref_id.gff";
     my $dir = "$tmpdir/$lib";
-    my @cmd = split(' ', "$annotate --header $fna $gff $dir/var.vcf");
+    my @cmd = split(' ', "$annotate --header $fna $gff $dir/var.snpEff.raw.vcf");
     my ($out) = run_cmd(\@cmd, 0);
     write_output($out, "$dir/var.annotated.raw.tsv");
 }
