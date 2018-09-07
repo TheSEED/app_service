@@ -1,5 +1,6 @@
 #
 # The Genome Annotation application.
+# temp copy that rips out the checkm/eval code
 #
 
 use Bio::KBase::AppService::AppScript;
@@ -21,9 +22,6 @@ use IO::File;
 use Module::Metadata;
 use GenomeTypeObject;
 
-push @INC, seedtk . "/modules/kernel/lib";
-require BinningReports;
-
 my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
 
 my $rc = $script->run(\@ARGV);
@@ -37,6 +35,16 @@ sub process_genome
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
     my $json = JSON::XS->new->pretty(1)->canonical(1);
+
+    #
+    # Do some sanity checking on params.
+    #
+    # Both recipe and workflow may not be specified.
+    #
+    if ($params->{workflow} && $params->{recipe})
+    {
+	die "Both a workflow document and a recipe may not be supplied to an annotation request";
+    }
 
     my $core = Bio::KBase::AppService::GenomeAnnotationCore->new(app => $app,
 								 app_def => $app_def,
@@ -127,50 +135,6 @@ sub process_genome
     }
 
 
-    #
-    # Checkm analysis.
-    #
-    # Ideally this would be handled by a fork-and-join syntax in the workflow
-    # specification but that is a larger project. Here we will simply fork
-    # off the checkm analysis to run in parallel. When the main annotation
-    # completes, wait for checkm to complete and use the merge_checkm_analysis
-    # method to integrate the output into the genome object.
-    #
-    # We will also copy the output directory from checkm into the genome
-    # annotation output for future reference in the event it becomes useful.
-    #
-    # We capture all output from checkm in output files which will also
-    # be saved to the workspace.
-    #
-
-    my $checkm_dir;
-    my $checkm_handle;
-    my $checkm_out;
-    if ($params->{analyze_quality})
-    {
-	$checkm_dir = File::Temp->newdir();
-	my $checkm_bins = "$checkm_dir/bins";
-	$checkm_out = "$checkm_dir/checkm.out";
-	my $checkm_tmp = "$checkm_dir/tmp";
-	mkdir($checkm_bins) or die "Cannot mkdir $checkm_bins: $!";
-	mkdir($checkm_out) or die "Cannot mkdir $checkm_out: $!";
-	mkdir($checkm_tmp) or die "Cannot mkdir $checkm_tmp: $!";
-	symlink($temp, "$checkm_bins/contigs.fna") or die "Cannot symlink $temp to $checkm_bins/contigs.fna: $!";
-	my @cmd = ("checkm", "lineage_wf",
-		   "--alignment_file", "$checkm_dir/multi-copy.aln",
-		   "--file", "$checkm_out/checkm_out.txt",
-		   "--tab_table",
-		   "--tmpdir", $checkm_tmp,
-		   $checkm_bins,
-		   $checkm_out);
-	print "Start checkm: @cmd\n";
-	$checkm_handle = IPC::Run::start(\@cmd,
-					 ">", "$checkm_dir/checkm.stdout",
-					 "2>", "$checkm_dir/checkm.stderr");
-	$checkm_handle or die "Error starting checkm command @cmd: $!\n";
-    }
-    
-
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
     my $result;
     #
@@ -179,157 +143,34 @@ sub process_genome
     #
     eval {
 
-	$result = $core->run_pipeline($genome, $params->{workflow});
-
-	#
-	# Compute scikit-based consistency measure.
-	#
-	
-	if ($params->{analyze_quality})
+	my $override;
+	if (my $ref = $params->{reference_genome_id})
 	{
-	    my $tmpdir = File::Temp->newdir(CLEANUP => 1);
-	    print "SCIKIT run to $tmpdir\n";
-	    
-	    my $out = "$tmpdir/scikit.out";
-	    mkdir($out) or die "mkdir $out failed: $!";
-	    my $g = "$tmpdir/genome.gto";
-	    if (open(my $fh, ">", $g))
-	    {
-		print $fh $json->encode($result);
-		close($fh);
-	    }
-	    else
-	    {
-		die "Cannot write temp genome $g for scikit analysis: $!";
-	    }
-	    
-	    run_seedtk_cmd("gto_consistency", $g, $out,
-			   seedtk . "/data/FunctionPredictors",
-			   seedtk . "/data/roles.in.subsystems",
-			   seedtk . "/data/roles.to.use");
-
-	    #
-	    # Read quality measures.
-	    #
-
-	    open(my $qh, "<$out/evaluate.log") || die "Could not open $out/evaluate.log: $!";
-
-	    while (! eof $qh) {
-		my $line = <$qh>;
-		if ($line =~ /Coarse_Consistency=\s+(\d+(?:\.\d+)?)%/) {
-		    $result->{genome_quality_measure}->{coarse_consistency} = 0 + $1;
-		} elsif ($line =~ /Fine_Consistency=\s+(\d+(?:\.\d+)?)%/) {
-		    $result->{genome_quality_measure}->{fine_consistency} = 0 + $1;
+	    $override = {
+		evaluate_genome => {
+		    evaluate_genome_parameters => { reference_genome_id => $ref },
 		}
-	    }
-	    close($qh);
-
-	    #
-	    # Internalize the role mapping and evaluation data.
-	    #
-	    if (open(RMAP, "<", "$out/roles.mapped"))
-	    {
-		if (open(EVAL, "<", "$out/evaluate.out"))
-		{
-		    my %role_map;
-		    my %role_fids;
-		    while (<RMAP>)
-		    {
-			chomp;
-			my($role, $abbr, $fid) = split(/\t/);
-			$role_map{$abbr} = $role;
-			push(@{$role_fids{$abbr}}, $fid);
-		    }
-		    close(RMAP);
-		    
-		    my %role_ok;
-		    my %role_ppr;
-		    while (<EVAL>)
-		    {
-			chomp;
-			my($abbr, $predicted, $actual) = split(/\t/);
-			$predicted = int($predicted);
-			$actual = int($actual);
-			if ($predicted == $actual)
-			{
-			    if (1 || $predicted)
-			    {
-				$role_ok{$abbr} = [$predicted, $actual];
-			    }
-			}
-			else
-			{
-			    $role_ppr{$abbr} = [$predicted, $actual];
-			}
-		    }
-		    close(EVAL);
-		    $result->{genome_quality_measure}->{problematic_roles_report} = {
-			roles => \%role_map,
-			role_fids => \%role_fids,
-			role_ok => \%role_ok,
-			role_problematic => \%role_ppr,
-		    };
-		}
-		else
-		{
-		    close(RMAP);
-		    warn "Cannot open $out/evaluate.out: $!";
-		}
-	    }
-	    else
-	    {
-		warn "Cannot open $out/roles.mapped: $!";
-	    }
+	    };
 	}
+	
+	$result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
 
 	#
 	# Use the GenomeTypeObject code to compute overall genome metrics.
 	#
 
 	my $metrics = GenomeTypeObject::metrics($result);
-	%{$result->{genome_quality_measure}->{genome_metrics}} = %$metrics;
+	%{$result->{quality}->{genome_metrics}} = %$metrics;
     };
     if ($@)
     {
 	my $err = $@;
-	if ($checkm_handle)
-	{
-	    warn "Killing checkm due to pipeline error\n";
-	    $checkm_handle->kill_kill();
-	}
 	die $err;
     }
 
-    if ($checkm_handle)
     {
-	print STDERR "Awaiting completion of checkm\n";
-	my $ok = $checkm_handle->finish();
-	if (!$ok)
-	{
-	    die "Error running checkm: $?\n";
-	}
-
-	#
-	# Integrate results with genome object.
-	#
-
-	if (open(my $fh, "<", "$checkm_out/checkm_out.txt"))
-	{
-	    my $hdrs = <$fh>;
-	    my $data = <$fh>;
-	    chomp $hdrs;
-	    chomp $data;
-	    my @hdrs = split(/\t/, $hdrs);
-	    my @data = split(/\t/, $data);
-	    for my $i (0..$#hdrs)
-	    {
-		$result->{genome_quality_measure}->{checkm_data}->{$hdrs[$i]} = $data[$i];
-	    }
-	    close($fh);
-	}
-	system("cp", "$checkm_dir/checkm.stdout", "$checkm_dir/checkm.stderr", "$checkm_dir/multi-copy.aln", $checkm_out);
-	$ok = IPC::Run::run(["p3-cp", "-m", "stdout=txt", "-m", "stderr=txt", "-R", $checkm_out, "ws:$output_folder"]);
-	$ok or warn "p3-cp $checkm_out to ws:$output_folder failed\n";
+	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
+	$result = $core->impl->compute_genome_quality_control($result);
     }
 
     my $gto_path = $core->write_output($genome, $result, {}, undef,
@@ -342,7 +183,7 @@ sub process_genome
     # quality summarization.
     #
 
-    $ws->save_data_to_file($json->encode($result->{genome_quality_measure}),
+    $ws->save_data_to_file($json->encode($result->{quality}),
 		           {}, "$output_folder/quality.json", "json", 1, 0, $core->token);
 
     #
@@ -431,42 +272,6 @@ sub process_genome
 	}
     }
 
-    #
-    # Write the details report for this genome.
-    #
-
-    my $bins;
-    if ($parent_output_folder)
-    {
-	eval {
-	    print "Trying to load bins from $parent_output_folder/bins.json";
-	    $bins = $ws->download_json("$parent_output_folder/bins.json", $core->token);
-	};
-	if ($@)
-	{
-	    warn "Could not load bins from $parent_output_folder/bins.json: $@\n";
-	}
-    }
-
-    my $mpath = Module::Metadata->find_module_by_name("BinningReports");
-    $mpath =~ s/\.pm$//;
-    
-    my $details_tt = "$mpath/details.tt";
-    -f $details_tt or die "Details not found at $details_tt\n";
-    my %role_map;
-    if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
-    {
-	while (<R>)
-	{
-	    chomp;
-	    my($abbr, $hash, $role) = split(/\t/);
-	    $role_map{$abbr} = $role;
-	}
-	close(R);
-    }
-
-    my $html = BinningReports::Detail($params, $bins, $details_tt, $result, \%role_map);
-    $ws->save_data_to_file($html, {}, "$output_folder/GenomeReport.html", "html", 1, 0, $core->token);
     
     #
     # Do last-job processing if needed.

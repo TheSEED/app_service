@@ -14,12 +14,19 @@ use Data::Dumper;
 use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
-use Bio::KBase::AppService::Client;
+use Module::Metadata;
+use Bio::KBase::AppService::ClientExt;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name
+					 binning_spades_threads binning_spades_ram
 					 seedtk binning_genome_annotation_clientgroup);
 use DBI;
+use File::Slurp;
 
-__PACKAGE__->mk_accessors(qw(app app_def params token
+push @INC, seedtk . "/modules/RASTtk/lib";
+require BinningReports;
+require GEO;
+
+__PACKAGE__->mk_accessors(qw(app app_def params token task_id
 			     work_dir assembly_dir stage_dir
 			     output_base output_folder 
 			     assembly_params spades
@@ -45,6 +52,7 @@ sub process
     $self->app_def($app_def);
     $self->params($params);
     $self->token($app->token);
+    $self->task_id($app->task_id);
 
     print "Process metagenome binning run ", Dumper($app_def, $raw_params, $params);
 
@@ -96,8 +104,56 @@ sub process
 
     $self->compute_coverage();
     $self->compute_bins();
-    $self->extract_fasta();
-    $self->submit_annotations();
+    my $all_bins = $self->extract_fasta();
+
+    my $n_bins = @$all_bins;
+    if ($n_bins == 0)
+    {
+	#
+	# No bins found. Write a simple HTML stating that.
+	#
+	my $report = "<h1>No bins found</h1>\n<p>No bins were found in this sample.\n";
+	$app->workspace->save_data_to_file($report, {},
+					   "$output_folder/BinningReport.html", 'html', 1, 0, $app->token);
+	return;
+    }
+
+    my $app_service = Bio::KBase::AppService::ClientExt->new();
+
+    my @tasks;
+    if ($ENV{BINNING_TEST})
+    {
+	@tasks = qw(0da446f2-8274-45f1-856b-2b06c0d4154e
+		    5ea8d032-1119-4713-836d-088e13848e2f
+		    15f43bdf-e1dc-45a8-8a1c-0b4561324d68);
+    }
+    else
+    {
+	@tasks = $self->submit_annotations($app_service);
+    } 
+    print STDERR "Awaiting completion of $n_bins annotations\n";
+    my $results = $app_service->await_task_completion(\@tasks, 10, 0);
+    print STDERR "Tasks completed\n";
+
+    #
+    # Examine task output to ensure all succeeded
+    #
+    my $fail = 0;
+    for my $res (@$results)
+    {
+	if ($res->{status} ne 'completed')
+	{
+	    warn "Task $res->{id} resulted with unsuccessful status $res->{status}\n" . Dumper($res);
+	    $fail++;
+	}
+    }
+    die "Annotation failed on $fail bins\n" if $fail;
+
+    #
+    # Annotations are complete. Pull data and write the summary report.
+    #
+
+    $self->write_summary_report($results, $all_bins, $self->app->workspace, $self->token);
 }
 
 #
@@ -192,6 +248,16 @@ sub assemble
     push(@$params,
 	 "--meta",
 	 "-o", $self->assembly_dir);
+
+    if (binning_spades_threads)
+    {
+	push(@$params, "--threads", binning_spades_threads);
+    }
+    if (binning_spades_ram)
+    {
+	push(@$params, "--memory", binning_spades_ram);
+    }
+    
     my @cmd = ($self->spades, @$params);
     my $rc = system(@cmd);
     #my $rc = 0;
@@ -237,7 +303,6 @@ sub compute_bins
     local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_generate",
-	       "--species",
 	       "--statistics-file", "bins.stats.txt",
 	       $self->work_dir);
     my $rc = system(@cmd);
@@ -280,7 +345,7 @@ sub extract_fasta
 
     my $app_list = $self->app_params;
 
-    my $api = P3DataAPI->new();
+    my $api = P3DataAPI->new(data_api_url);
 
     my $idx = 1;
 
@@ -345,11 +410,14 @@ sub extract_fasta
 	    domain => $domain,
 	    scientific_name=> $bin->{name},
 	    taxonomy_id => $taxon_id,
+	    reference_genome_id => $bin->{refGenomes}->[0],
 	    output_path => $self->output_folder,
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
-	    _parent_job => $self->app->task_id,
+#	    _parent_job => $self->app->task_id,
 	    analyze_quality => 1,
+	    ($self->params->{skip_indexing} ? (skip_indexing => 1) : ()),
+	    recipe => $self->params->{recipe},
 	    (binning_genome_annotation_clientgroup ? (_clientgroup => binning_genome_annotation_clientgroup) : ()),
 	};
 	push(@$app_list, $descr);
@@ -362,6 +430,12 @@ sub extract_fasta
     close(SAMPLE);
     close(BINS);
     print Dumper($self->app_params);
+
+    #
+    # Return the bins so that we can cleanly terminate the job if no bins
+    # were found. Also used later for reporting.
+    #
+    return $all_bins;
 }
     
 sub write_db_record
@@ -382,17 +456,176 @@ sub write_db_record
 
 sub submit_annotations
 {
-    my($self) = @_;
+    my($self, $client) = @_;
 
-    $self->write_db_record(scalar @{$self->app_params});
-    
-    my $client = Bio::KBase::AppService::Client->new();
+    if ($ENV{BINNING_PRINT_SUBS})
+    {
+	my $json = JSON::XS->new->pretty(1)->canonical(1);
+	my $i = 1;
+	for my $task (@{$self->app_params})
+	{
+	    open(OUT, ">", "binning.job.$i") or die;
+	    print OUT $json->encode($task);
+	    close(OUT);
+	    $i++;
+	}
+	exit;
+    }
+
+    #
+    # No longer needed with new code that waits for annos.
+    # $self->write_db_record(scalar @{$self->app_params});
+
+    my $start_params = {
+	parent_id => $self->app->task_id,
+	workspace => $self->output_folder,
+    };
+    my @tasks;
     for my $task (@{$self->app_params})
     {
-	my $submitted = $client->start_app("GenomeAnnotation", $task, $self->output_folder);
-	print Dumper($task, $submitted);
+	my $submitted = $client->start_app2("GenomeAnnotation", $task, $start_params);
+	push(@tasks, $submitted);
     }
+    return @tasks;
 }
     
+
+#
+# Write the summary. $tasks is the list of annotation tasks from the app service; included therein
+# are the parameters to the annotation runs which includes the output locations. Use those to
+# pull the genome objects.
+#
+sub write_summary_report
+{
+    my($self, $tasks, $bins_report, $ws, $token) = @_;
+
+    my @genomes;
+    my @geos;
+    my %report_url_map;
+
+    my %geo_opts = (
+	detail => 2,
+	p3 => P3DataAPI->new(data_api_url, $token->token),
+    );
+    
+    local $FIG_Config::global = seedtk . "/data";
+    for my $task (@$tasks)
+    {
+	my $params = $task->{parameters};
+	my $name = $params->{output_file};
+	my $genome_path = $params->{output_path} . "/.$name";
+	my $gto_path = "$genome_path/$name.genome";
+
+	#
+	# we need to convert to GEOs for the binning reports.
+	#
+	my $temp = File::Temp->new(UNLINK => 1);
+	my $qual_temp = File::Temp->new(UNLINK => 1);
+
+	print "$genome_path/genome_quality_details.txt\n";
+	$ws->copy_files_to_handles(1, $token,
+				   [[$gto_path, $temp],
+				    ["$genome_path/genome_quality_details.txt", $qual_temp],
+				    ]);
+	close($temp);
+	close($qual_temp);
+	my $gret = GEO->CreateFromGtoFiles(["$temp"], %geo_opts);
+	my($geo) = values %$gret;
+
+	$geo->AddQuality("$qual_temp");
+	write_file("$name.geo", Dumper($geo));
+	push(@geos, $geo);
+
+	my $genome_id = $geo->id;
+	print "$genome_id: $geo->{name}\n";
+	push(@genomes, $genome_id);
+
+	#
+	# We assume the report URL is available in the same workspace
+	# directory as the genome.
+	#
+	my $report_path = $genome_path . "/GenomeReport.html";
+	my $report_url = "https://www.patricbrc.org/workspace$report_path";
+	$report_url_map{$genome_id} = $report_url;
+    }
+
+    #
+    # Write the genome group
+    #
+
+    my $params = $self->params;
+
+    my $group_path;
+    if (my $group = $params->{genome_group})
+    {
+	my $home;
+	if ($token->token =~ /(^|\|)un=([^|]+)/)
+	{
+	    my $un = $2;
+	    $home = "/$un/home";
+	}
+
+	if ($home)
+	{
+	    $group_path = "$home/Genome Groups/$group";
+	    
+	    my $group_data = { id_list => { genome_id => \@genomes } };
+	    my $group_txt = encode_json($group_data);
+	    
+	    my $res = $ws->create({
+		objects => [[$group_path, "genome_group", {}, $group_txt]],
+		permission => "w",
+		overwrite => 1,
+	    });
+	    print Dumper(group_create => $res);
+	}
+	else
+	{
+	    warn "Cannot find home path '$home'\n";
+	}
+    }
+    #
+    # Generate the binning report. We need to load the various reports into memory to do this.
+    #
+    eval {
+
+	#
+	# Find template.
+	#
+	
+	my $mpath = Module::Metadata->find_module_by_name("BinningReports");
+	$mpath =~ s/\.pm$//;
+	
+	my $summary_tt = "$mpath/summary.tt";
+	-f $summary_tt or die "Summary not found at $summary_tt\n";
+
+	#
+	# Read SEEDtk role map.
+	#
+	my %role_map;
+	if (open(R, "<", seedtk . "/data/roles.in.subsystems"))
+	{
+	    while (<R>)
+	    {
+		chomp;
+		my($abbr, $hash, $role) = split(/\t/);
+		$role_map{$abbr} = $role;
+	    }
+	    close(R);
+	}
+
+	my $html = BinningReports::Summary($self->task_id, $params, $bins_report, $summary_tt,
+					   $group_path, \@geos, \%report_url_map);
+
+	my $output_path = $params->{output_path} . "/." . $params->{output_file};
+	$ws->save_data_to_file($html, {},
+			       "$output_path/BinningReport.html", 'html', 1, 0, $token);
+    };
+    if ($@)
+    {
+	warn "Error creating final report: $@";
+    }
+
+}
 
 1;

@@ -30,6 +30,16 @@ sub process_genome
 
     print "Proc genome ", Dumper($app_def, $raw_params, $params);
 
+    #
+    # Do some sanity checking on params.
+    #
+    # Both recipe and workflow may not be specified.
+    #
+    if ($params->{workflow} && $params->{recipe})
+    {
+	die "Both a workflow document and a recipe may not be supplied to an annotation request";
+    }
+
     my $core = Bio::KBase::AppService::GenomeAnnotationCore->new(app => $app,
 								 app_def => $app_def,
 								 params => $params);
@@ -187,7 +197,14 @@ sub process_genome
 	}
 	$workflow = JSON::XS->new->pretty(1)->encode($core->import_workflow());
     }
-    my $result = $core->run_pipeline($genome, $workflow);
+
+
+    my $result = $core->run_pipeline($genome, $workflow, $params->{recipe});
+    
+    {
+	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
+	$result = $core->impl->compute_genome_quality_control($result);
+    }
 
     #
     # TODO fill in metadata?

@@ -31,11 +31,14 @@ module AppService
 
     typedef structure {
 	task_id id;
+	task_id parent_id;
 	app_id app;
 	workspace_id workspace;
 	task_parameters parameters;
+	string user_id;
 
 	task_status status;
+	task_status awe_status;
 	string submit_time;
 	string start_time;
 	string completed_time;
@@ -64,6 +67,13 @@ module AppService
     funcdef start_app(app_id, task_parameters params, workspace_id workspace)
 	returns (Task task);
 
+    typedef structure {
+        task_id parent_id;
+	workspace_id workspace;
+    } StartParams;
+    funcdef start_app2(app_id, task_parameters params, StartParams start_params)
+	returns (Task task);
+
     funcdef query_tasks(list<task_id> task_ids)
 	returns (mapping<task_id, Task task> tasks);
 
@@ -82,4 +92,5 @@ module AppService
 	returns (list<Task>);
 
     funcdef kill_task(task_id id) returns (int killed, string msg);
+    funcdef rerun_task(task_id id) returns (task_id new_task);
 };

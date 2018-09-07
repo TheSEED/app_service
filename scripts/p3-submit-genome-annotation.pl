@@ -24,10 +24,12 @@ Submit a genome to the PATRIC genome annotation service.
     					 we will not continue the service submission.
     	   --genbank-file FILE		 A genbank file to be annotated.
 	   --contigs FILE		 A file of DNA contigs to be annotated.
+           --phage			 Set annotation defaults for phage annotation.
+           --recipe NAME		 Use the given annotation recipe for this genome.
            --reference-genome GID	 The PATRIC identifier of a reference genome
 	   		      		 whose annotations will be propagated as
 					 part of this annotation.
-
+    
     	The following options describe the genome to be annotated. In each case
 	where the value for the specified option may be drawn from a submitted
 	genbank file it is optional to supply the value. If a value is supplied,
@@ -84,7 +86,10 @@ my $app_service = Bio::KBase::AppService::Client->new();
 
 my($opt, $usage) =
     describe_options("%c %o output-path output-name",
-		     ["help|h", "Show this help message"],
+		     ["Submit an annotation job with output written to output-path and named output-name."],
+		     ["The output-path parameter is a PATRIC workspace path."],
+		     ["The output-name parameter is a name that will describe this annotation in the workspace."],
+		     ["It may not contain slash (/) characters."],
 		     [],
 		     ["The following options describe the inputs to the annotation."],
 		     [],
@@ -93,6 +98,8 @@ my($opt, $usage) =
 		     ["overwrite|f", "If a file to be uploaded already exists in the workspace, overwrite it on upload. Otherwise we will not continue the service submission."],
 		     ["genbank-file=s", "A genbank file to be annotated."],
 		     ["contigs-file=s", "A file of DNA contigs to be annotated."],
+		     ["phage", "Set defaults for phage annotation."],
+		     ["recipe=s", "Use the given non-default recipe for this annotation"],
 		     ["reference-genome=s", "The PATRIC identifier of a reference genome whose annotations will be propagated as part of this annotation."],
 		     [],
 		     ["The following options describe the genome to be annotated."],
@@ -112,6 +119,8 @@ my($opt, $usage) =
 		     ["index-nowait", "Do not wait for indexing to complete before the job is marked as complete."],
 		     ["no-index", "Do not index this genome. If this option is selected the genome will not be visible on the PATRIC website."],
 		     ["dry-run", "Dry run. Upload files and validate input but do not submit annotation"],
+		     [],
+		     ["help|h", "Show this help message"],
 		    );
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) if @ARGV != 2;
@@ -124,6 +133,11 @@ my $output_name = shift;
 # support in Getopt::Long::Descriptive but the error messages it emits
 # are really not user-friendly.
 #
+
+if ($output_name =~ m,/,)
+{
+    die "The output path may not contain a slash character\n";
+}
 
 my($input_file, $input_mode, $app_name);
 
@@ -152,14 +166,32 @@ if ($opt->workflow_file && $opt->import_only)
 {
     die "A custom workflow may not be supplied when using --import-only\n";
 }
+if ($opt->workflow_file && $opt->recipe)
+{
+    die "A custom workflow may not be supplied when using --recipe\n";
+}
+
+#
+# Set up some defaults.
+#
+my $default_domain = "B";
+my $default_taxon_id = 6666666;
+my $default_scientific_name = "Unknown sp.";
+my $default_genetic_code = 11;
+
+if ($opt->phage)
+{
+    $opt->{recipe} = "phage" unless $opt->recipe;
+    $default_domain = "V";
+}
 
 #
 # we assume output is in workspace, so just clip the prefix.
 #
 $output_path = strip_ws_prefix($output_path);
 $output_path = expand_workspace_path($output_path);
-$output_path =~ s,/$,, if $output_path ne '/';
-print Dumper($output_path, $opt);
+$output_path =~ s,/+$,, if $output_path ne '/';
+#print Dumper($output_path, $opt);
 $opt->{workspace_upload_path} = $output_path unless $opt->workspace_upload_path;
 
 $output_path =~ s,/+$,,;
@@ -231,6 +263,7 @@ my $params = {
     output_path => $output_path,
     output_file => $output_name,
     queue_nowait => ($opt->index_nowait ? 1 : 0),
+    ($opt->recipe ? (recipe => $opt->recipe) : ()),
     (defined($workflow) ? (workflow => $workflow_txt) : ()),
     ($opt->no_index ? (skip_indexing => 1) : ()),
 };
@@ -298,6 +331,13 @@ else
 	    $params->{scientific_name} = $opt->scientific_name;
 	}
 	$params->{taxonomy_id} = $taxon_id;
+    }
+    else
+    {
+	$params->{taxonomy_id} = $default_taxon_id;
+	$params->{domain} //= $default_domain;
+	$params->{code} //= $default_genetic_code;
+	$params->{scientific_name} //= $default_scientific_name;
     }
 }
    
@@ -384,7 +424,7 @@ sub process_filename
 	my $stat = $ws->stat($wspath);
 	if (!$stat || !S_ISREG($stat->mode))
 	{
-	    die "Workspace path $wspath not found\n";
+	    die "Workspace path $wspath not found for file $path\n";
 	}
     }
     else
@@ -412,14 +452,17 @@ sub process_filename
 
 sub expand_workspace_path
 {
-    my($wspath) = @_;
-    if ($wspath !~ m,^/,)
+    my($wspath_in) = @_;
+    my $wspath = $wspath_in;
+    if ($wspath_in !~ m,^/,)
     {
 	if (!$opt->workspace_path_prefix)
 	{
 	    die "Cannot process $wspath: no workspace path prefix set (--workspace-path-prefix parameter)\n";
 	}
-	$wspath = $opt->workspace_path_prefix . "/" . $wspath;
+	$wspath = $opt->workspace_path_prefix ;
+	$wspath =~ s,/+$,,;
+	$wspath .= "/" . $wspath_in;
     }
     return $wspath;
 }

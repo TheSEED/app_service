@@ -6,12 +6,13 @@ use strict;
 use Carp;
 use Data::Dumper;
 use File::Temp;
+use File::Slurp;
 use File::Basename;
 use IPC::Run 'run';
 use JSON;
-
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
+use Cwd;
 
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_url = "http://www.alpha.patricbrc.org/api";
@@ -27,6 +28,8 @@ exit $rc;
 our $global_ws;
 our $global_token;
 
+our $shock_cutoff = 10_000;
+
 sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
 
@@ -41,8 +44,8 @@ sub process_rnaseq {
 
     my $recipe = $params->{recipe};
 
-    my $tmpdir = File::Temp->newdir();
-    # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
+    # my $tmpdir = File::Temp->newdir();
+    my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/RNApubref";
     # my $tmpdir = "/tmp/RNAuser";
     system("chmod 755 $tmpdir");
@@ -66,31 +69,108 @@ sub process_rnaseq {
     }
 
     print STDERR '\@outputs = '. Dumper(\@outputs);
-    for (@outputs) {
-	my ($ofile, $type) = @$_;
-	if (-f "$ofile") {
-            my $filename = basename($ofile);
-            print STDERR "Output folder = $output_folder\n";
-            print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
-	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
-					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       # (-s "$ofile" > 20_000_000 ? 1 : 0), # use shock for larger files
-					       $global_token);
-	} else {
-	    warn "Missing desired output file $ofile\n";
+
+    #
+    # Create folders first.
+    #
+    for my $fent (grep { $_->[1] eq 'folder' } @outputs)
+    {
+	my $folder = $fent->[0];
+	my $file = basename($folder);
+	my $path = "$output_folder/$file";
+	eval {
+	    $app->workspace->create( { objects => [[$path, 'folder']] } );
+	};
+	if ($@)
+	{
+	    warn "error creating $path: $@";
+	}
+	else
+	{
+	    my $type ="txt";
+	    if (opendir(my $dh, $folder))
+	    {
+		while (my $filename = readdir($dh))
+		{
+		    if ($filename =~ /\.json$/)
+		    {
+			my $ofile = "$folder/$filename";
+			my $dest = "$path/$filename";
+			print STDERR "Output folder = $folder\n";
+			print STDERR "Saving $ofile => $dest ...\n";
+			$app->workspace->save_file_to_file($ofile, {}, $dest, $type, 1,
+							   (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
+							   $global_token);
+		    }
+		}
+	    }
+	    else
+	    {
+		warn "Cannot open output folder $folder: $!";
+	    }
 	}
     }
+    for my $output (@outputs)
+    {
+	my($ofile, $type) = @$output;
+	next if $type eq 'folder';
 
+	if (! -f $ofile)
+	{
+	    warn "Output file '$ofile' of type '$type' does not exist\n";
+	    next;
+	}
+	
+	if ($type eq 'job_result')
+	{
+            my $filename = basename($ofile);
+            print STDERR "Output folder = $output_folder\n";
+            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
+            $app->workspace->save_file_to_file("$ofile", {},"$output_folder/$filename", $type, 1);
+	}
+	else
+	{
+	    my $filename = basename($ofile);
+	    print STDERR "Output folder = $output_folder\n";
+	    print STDERR "Saving $ofile => $output_folder/$prefix\_$filename ...\n";
+	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$prefix\_$filename", $type, 1,
+					       (-s "$ofile" > $shock_cutoff ? 1 : 0), # use shock for larger files
+					       $global_token);
+	}
+    }
     my $time2 = `date`;
     write_output("Start: $time1"."End:   $time2", "$tmpdir/DONE");
 }
 
 sub run_rna_rocket {
     my ($params, $tmpdir, $host) = @_;
+    
+    my $cwd = getcwd();
+
+    my $json = JSON::XS->new->pretty(1);
+    #
+    # Write job description.
+    #
+    my $jdesc = "$cwd/jobdesc.json";
+    write_file($jdesc, $json->encode($params));
+
+    my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
+    my $dat = { data_api => "$data_api/genome_feature" };
+    #
+    # no pretty, ensure it's on one line
+    #
+    my $sstring = encode_json($dat);
+
+    my $outdir = "$tmpdir/Rocket";
 
     my $exps     = params_to_exps($params);
     my $labels   = $params->{experimental_conditions};
     my $ref_id   = $params->{reference_genome_id} or die "Reference genome is required for RNA-Rocket\n";
+    my $output_name = $params->{output_file} or die "Output name is required for RNA-Rocket\n";
+    my $dsuffix = "_diffexp";
+    my $diffexp_name = ".$output_name$dsuffix";
+    my $diffexp_folder = "$outdir/.$output_name$dsuffix";
+    my $diffexp_file = "$outdir/$output_name$dsuffix";
     my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir, $host);
 
     print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
@@ -99,40 +179,92 @@ sub run_rna_rocket {
     my $rocket = "prok_tuxedo.py";
     verify_cmd($rocket);
 
-    my $outdir = "$tmpdir/Rocket";
-
     my @cmd = ($rocket);
     if ($host) {
         push @cmd, ("--index");
     }
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir);
-    push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
-    push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
+    push @cmd, ("-d", $diffexp_name);
+    push @cmd, ("--jfile", $jdesc);
+    push @cmd, ("--sstring", $sstring);
+
+    #push @cmd, ("-L", join(",", map { s/^\W+//; s/\W+$//; s/\W+/_/g; $_ } @$labels)) if $labels && @$labels;
+    #push @cmd, map { my @s = @$_; join(",", map { join("%", @$_) } @s) } @$exps;
 
     print STDERR "cmd = ", join(" ", @cmd) . "\n\n";
 
-    my ($rc, $out, $err) = run_cmd(\@cmd);
-    print STDERR "STDOUT:\n$out\n";
-    print STDERR "STDERR:\n$err\n";
+    #
+    # Run directly with IPC::Run so that stdout/stderr can flow in realtime to the
+    # output collection infrastructure.
+    #
+    my $ok = run(\@cmd);
+    if (!$ok)
+    {
+	die "Error $? running @cmd\n";
+    }
+
+#    my ($rc, $out, $err) = run_cmd(\@cmd);
+#    print STDERR "STDOUT:\n$out\n";
+#    print STDERR "STDERR:\n$err\n";
+    
+
 
     run("echo $outdir && ls -ltr $outdir");
 
-    my @files = glob("$outdir/$ref_id/*diff $outdir/$ref_id/*/replicate*/*_tracking $outdir/$ref_id/*/replicate*/*.gtf $outdir/$ref_id/*/replicate*/*.bam $outdir/$ref_id/*/replicate*/*.bai");
-    print STDERR '\@files = '. Dumper(\@files);
-    my @new_files;
-    for (@files) {
-        if (m|/\S*?/replicate\d/|) {
-            my $fname = $_; $fname =~ s|/(\S*?)/(replicate\d)/|/$1\_$2\_|;
-            run_cmd(["mv", $_, $fname]);
-            push @new_files, $fname;
-        } else {
-            push @new_files, $_;
-        }
+    #
+    # Collect output and assign types.
+    #
+    my @outputs;
+
+    #
+    # BAM/BAI/GTF files are in the replicate folders.
+    # We flatten the file structure in replicate folders for the
+    # files we are saving.
+    #
+    my @sets = map { basename($_) } glob("$outdir/$ref_id/*");
+    for my $set (@sets)
+    {
+	my @reps = map { basename($_) } glob("$outdir/$ref_id/$set/replicate*");
+	
+	for my $rep (@reps)
+	{
+	    my $path = "$outdir/$ref_id/$set/$rep";
+	    #
+	    # Suffix/type list for output
+	    #
+	    my @types = (['.bam', 'bam'], ['.bai', 'bai'], ['.gtf', 'gff'], ['.html', 'html'], ['_tracking', 'txt']);
+	    for my $t (@types)
+	    {
+		my($suffix, $type) = @$t;
+		for my $f (glob("$path/*$suffix"))
+		{
+		    my $base = basename($f);
+		    my $nf = "$outdir/${ref_id}/${set}_${rep}_${base}";
+		    if (rename($f, $nf))
+		    {
+			push(@outputs, [$nf, $type]);
+		    }
+		    else
+		    {
+			warn "Error renaming $f to $nf\n";
+		    }
+		}
+	    }
+	}
     }
-    my @outputs = map { /\.bam$/ ? [ $_, 'bam' ] : /\.gtf$/ ? [ $_, 'gff' ] : [ $_, 'txt' ] } @new_files;
+
+    #
+    # Remaining files are loaded as plain text.
+    #
+    for my $txt (glob("$outdir/$ref_id/*diff"))
+    {
+	push(@outputs, [$txt, 'txt']);
+    }
 
     push @outputs, [ "$outdir/$ref_id/gene_exp.gmx", 'diffexp_input_data' ] if -s "$outdir/$ref_id/gene_exp.gmx";
+    push @outputs, [ $diffexp_file, 'job_result' ] if -s $diffexp_file;
+    push @outputs, [ $diffexp_folder, 'folder' ] if -e $diffexp_folder and -d $diffexp_folder;
 
     return @outputs;
 }

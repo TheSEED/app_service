@@ -6,6 +6,7 @@ package Bio::KBase::AppService::GenomeAnnotationCore;
 
 use Data::Dumper;
 use strict;
+use Clone 'clone';
 
 use Bio::KBase::AppService::AppConfig 'data_api_url';
 
@@ -19,6 +20,7 @@ use SolrAPI;
 use IPC::Run 'run';
 use IO::File;
 use JSON::XS;
+use Cwd;
 
 my $get_time = sub { time, 0 };
 eval {
@@ -88,7 +90,7 @@ sub user_id
 
 sub run_pipeline
 {
-    my($self, $genome, $workflow_txt) = @_;
+    my($self, $genome, $workflow_txt, $recipe_id, $workflow_parameter_override) = @_;
 
     my $workflow;
     if ($workflow_txt)
@@ -96,8 +98,6 @@ sub run_pipeline
 	#
 	# Workflow is to be a json document that we parse here and format-check.
 	#
-
-	
 	eval {
 	    $workflow = $self->json->decode($workflow_txt);
 	};
@@ -113,20 +113,92 @@ sub run_pipeline
 	    die "Invalid workflow document (must be a object containing a stage list)";
 	}
     }
-
+    elsif ($recipe_id)
+    {
+	my $recipe = $self->impl->find_recipe($recipe_id);
+	if ($recipe->{workflow})
+	{
+	    $workflow = $recipe->{workflow};
+	    print STDERR "Using workflow id $recipe_id: $recipe->{name}\n";
+	}
+	else
+	{
+	    die "Recipe $recipe_id not found\n";
+	}
+    }
     
-
     if (!$workflow)
     {
 	$workflow = $self->default_workflow();
+    }
+
+    #
+    # Clone the workflow document and apply parameter overrides.
+    #
+    if ($workflow_parameter_override)
+    {
+	my $workflow_copy = clone($workflow);
+	for my $ent (@{$workflow_copy->{stages}})
+	{
+	    if (my $ov = $workflow_parameter_override->{$ent->{name}})
+	    {
+		while (my($over_key, $over_hash) = each %$ov)
+		{
+		    while (my($key, $value) = each %$over_hash)
+		    {
+			$ent->{$over_key}->{$key} = $value;
+		    }
+		}
+	    }
+	}
+	$workflow = $workflow_copy;
+	print STDERR "Annotated workflow: " . Dumper($workflow);
     }
 	
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $self->ctx;
     
     print STDERR "Running pipeline on host " . `hostname`. "\n";
+
+    #
+    # We create an output folder for the pipeline and arrange
+    # for the current directory to be placed there; any output written to
+    # that folder by the pipeline will be copied to the output folder
+    # in the workspace.
+    #
+
+    my $out_dir = File::Temp->newdir(CLEANUP => 0);
+    my $here = getcwd();
+    chdir($out_dir);
     
     my $result = $self->impl->run_pipeline($genome, $workflow);
     
+    chdir($here);
+    my $output_folder = $self->app->result_folder();
+
+    my %skip_files = map { $_ => 1 } qw(formatdb.log error.log);
+    
+    if (opendir(DH, $out_dir))
+    {
+	while (my $f = readdir(DH))
+	{
+	    next if $f =~ /^\./;
+	    next if $skip_files{$f};
+	    print STDERR "Copy $out_dir/$f to $output_folder\n";
+	    my $ok = IPC::Run::run(['p3-cp',
+				    "-r",
+				    '-m', 'txt=txt',
+				    '-m', 'html=html',
+				    "$out_dir/$f",
+				    "ws:$output_folder"]);
+	    $ok or warn "Error copying $out_dir/$f to $output_folder\n";
+	}
+	closedir(DH);
+    }
+    else
+    {
+	warn "Cannot opendir $out_dir\n";
+    }
+
     return $result;
 }
 
@@ -155,15 +227,23 @@ sub default_workflow
 	      { name => 'propagate_genbank_feature_metadata',
 		    propagate_genbank_feature_metadata_parameters => {} },
 	      { name => 'resolve_overlapping_features', resolve_overlapping_features_parameters => {} },
-	      { name => 'classify_amr', failure_is_not_fatal => 1 },
+	      { name => 'classify_amr',
+		    failure_is_not_fatal => 1,
+		    condition => 'scalar @{$genome->{contigs}} != grep { $_->{replicon_type} eq "plasmid" } @{$genome->{contigs}}'
+		},
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
 	      { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
+	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		  # { name => 'call_features_prophage_phispy' },
+	      { name => 'evaluate_genome',
+		    failure_is_not_fatal => 1,
+		    evaluate_genome_parameters => {},
+		},
 		     );
     my $workflow = { stages => \@stages };
 
@@ -177,14 +257,19 @@ sub import_workflow
     my @stages = (
 	      { name => 'propagate_genbank_feature_metadata',
 		    propagate_genbank_feature_metadata_parameters => {} },
-	      { name => 'classify_amr', failure_is_not_fatal => 1 },
+	      { name => 'classify_amr',
+		    failure_is_not_fatal => 1,
+		    condition => 'scalar @{$genome->{contigs}} != grep { $_->{replicon_type} eq "plasmid" } @{$genome->{contigs}}'
+		},
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
 	      { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
+	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
+	      { name => 'evaluate_genome', failure_is_not_fatal => 1 },
 		 );
     my $workflow = { stages => \@stages };
 
@@ -325,6 +410,7 @@ sub submit_load_files
 		 [genome_amr => "genome_amr.json"],
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
+		 [subsystem => "subsystem.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     

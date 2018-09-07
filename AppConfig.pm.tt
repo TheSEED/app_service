@@ -11,11 +11,15 @@ use constant	    github_issue_repo_name => '[% github_issue_repo_name %]';
 use constant	    github_issue_token => '[% github_issue_token %]';
 use constant	    reference_data_dir => '[% reference_data_dir %]';
 use constant	    binning_genome_annotation_clientgroup => '[% binning_genome_annotation_clientgroup %]';
+use constant	    mash_reference_sketch => '[% mash_reference_sketch %]';
+use constant	    binning_spades_threads => '[% binning_spades_threads %]';
+use constant	    binning_spades_ram => '[% binning_spades_ram %]';
 
 use base 'Exporter';
 our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name github_issue_token
 		    db_host db_user db_pass db_name seedtk reference_data_dir
-		    binning_genome_annotation_clientgroup);
+		    binning_spades_threads binning_spades_ram
+		    binning_genome_annotation_clientgroup mash_reference_sketch);
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 1;
 

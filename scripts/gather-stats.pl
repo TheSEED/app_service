@@ -44,7 +44,7 @@ my @q = (state => 'completed');
 #@q = ();
 
 #my $begin = DateTime->new(year => 2015, month => 10, day => 1)->set_time_zone( 'America/Chicago' );
-my $end = DateTime->new(year => 2018, month => 2, day => 1)->set_time_zone( 'America/Chicago' );
+my $end = DateTime->new(year => 2018, month => 4, day => 1)->set_time_zone( 'America/Chicago' );
 my $begin = DateTime->new(year => 2013, month => 1, day => 1)->set_time_zone( 'America/Chicago' );
 my @end;
 @end = ('$lt' => $end );
@@ -110,7 +110,7 @@ if (0)
 #exit;
 #die Dumper(\%allusers);
 
-my @applist = qw(GenomeAssembly GenomeAnnotation GenomeAnnotationGenbank GenomeComparison RunProbModelSEEDJob ModelReconstruction GapfillModel RNASeq DifferentialExpression Variation TnSeq PhylogeneticTree);
+my @applist = qw(GenomeAssembly GenomeAnnotation GenomeAnnotationGenbank GenomeComparison RunProbModelSEEDJob ModelReconstruction GapfillModel RNASeq DifferentialExpression Variation TnSeq PhylogeneticTree MetagenomeBinning);
 for my $app (@applist)
 {
     print "$app\t$total_by_app{$app}\n";
@@ -123,7 +123,7 @@ my @users = sort { $a cmp $b } keys %user;
 
 my %apps_for_collab = (GenomeAnnotation => 1, GenomeAssembly => 1);
 
-my @users1 = qw(GenomeAssembly GenomeAnnotationGenbank GenomeAnnotation GenomeComparison ModelReconstruction GapfillModel RNASeq DifferentialExpression RunProbModelSEEDJob Variation TnSeq PhylogeneticTree);
+my @users1 = qw(GenomeAssembly GenomeAnnotationGenbank GenomeAnnotation GenomeComparison ModelReconstruction GapfillModel RNASeq DifferentialExpression RunProbModelSEEDJob Variation TnSeq PhylogeneticTree MetagenomeBinning);
 
 my @users = map { $_, ($apps_for_collab{$_} ? "$_-collab" : ()) } @users1;
 

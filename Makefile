@@ -29,9 +29,11 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
-SEEDTK = /disks/patric-common/seedtk
+SEEDTK = /disks/patric-common/seedtk-2018-0820
 
 REFERENCE_DATA_DIR = /tmp
+
+MASH_REFERENCE_SKETCH = /vol/patric3/production/data/trees/listOfRepRefGenomeFnaFiles.txt.msh 
 
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
@@ -66,6 +68,9 @@ TPAGE_ARGS = \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
 	--define reference_data_dir=$(REFERENCE_DATA_DIR) \
 	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
+	--define binning_spades_threads=$(BINNING_SPADES_THREADS) \
+	--define binning_spades_ram=$(BINNING_SPADES_RAM) \
+	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 

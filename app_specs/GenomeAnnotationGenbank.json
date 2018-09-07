@@ -62,6 +62,14 @@
       "type": "string"
     },
     {
+      "id": "recipe",
+      "label": "Annotation recipe",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a non-default annotation recipe",
+      "type": "string"
+    },
+    {
       "id": "scientific_name",
       "label": "Scientific Name",
       "required": 0,
