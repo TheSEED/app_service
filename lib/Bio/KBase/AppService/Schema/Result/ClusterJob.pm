@@ -41,12 +41,6 @@ __PACKAGE__->table("ClusterJob");
   is_auto_increment: 1
   is_nullable: 0
 
-=head2 task_id
-
-  data_type: 'integer'
-  is_foreign_key: 1
-  is_nullable: 1
-
 =head2 cluster_id
 
   data_type: 'varchar'
@@ -88,8 +82,6 @@ __PACKAGE__->table("ClusterJob");
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
-  "task_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "cluster_id",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "job_id",
@@ -138,30 +130,26 @@ __PACKAGE__->belongs_to(
   },
 );
 
-=head2 task
+=head2 task_executions
 
-Type: belongs_to
+Type: has_many
 
-Related object: L<Bio::KBase::AppService::Schema::Result::Task>
+Related object: L<Bio::KBase::AppService::Schema::Result::TaskExecution>
 
 =cut
 
-__PACKAGE__->belongs_to(
-  "task",
-  "Bio::KBase::AppService::Schema::Result::Task",
-  { id => "task_id" },
-  {
-    is_deferrable => 1,
-    join_type     => "LEFT",
-    on_delete     => "RESTRICT",
-    on_update     => "RESTRICT",
-  },
+__PACKAGE__->has_many(
+  "task_executions",
+  "Bio::KBase::AppService::Schema::Result::TaskExecution",
+  { "foreign.cluster_job_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-17 16:42:46
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pJASKXNju3qZGdfGmTlrjg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 11:23:56
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:xpg2G3eZqSTTXEGRluMvdw
 
+__PACKAGE__->many_to_many(tasks => 'task_executions', 'task');
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

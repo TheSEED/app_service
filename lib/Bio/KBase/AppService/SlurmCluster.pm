@@ -85,10 +85,29 @@ We have the following account hierarchy defined:
        +-- user3@rast.nmpdr.org
        +- ...
 
-=HEAD1 Miscellany
-    
+=head1 MISCELLANY
+
 We force the setting of TZ=UCT before running Slurm commands so that we can consistently
 log times reported in UCT.
+
+=head2 METHODS
+
+=over 4
+
+=item B<new>
+
+    $cluster = Bio::KBase::AppService::SlurmCluster->new($id, schema => $schema, %opts)
+
+=over 4
+
+=item Arguments: $id, L<$schema|Bio::KBase::AppService::Schema>
+
+=item Return Value: L<$cluster|Bio::KBase::AppService::SlurmCluster>
+
+=back
+
+Create a new SlurmCluster object. The given C<$id> must exist in the database. C<$schema> is a 
+pointer to the DBIx::Class schema for the database.
 
 =cut
 
@@ -99,10 +118,33 @@ sub new
     #
     # Find sacctmgr in our path to use as the default for the wrapper.
     #
-    my $sacctmgr = searchpath('sacctmgr');
-    if (!$sacctmgr)
+
+    my $schema = $opts{schema};
+    $schema or die "SlurmCluster: schema parameter is required";
+
+    my $cobj = $schema->resultset("Cluster")->find($id);
+    $cobj or die "Cannot find cluster $id in database";
+
+    #
+    # Set up accountmgr features if we don't have a fixed account
+    # to use for this cluster.
+    #
+    my $sacctmgr;
+    if (!$cobj->account)
     {
-	warn "Could not find sacctmgr in path";
+	my $path = $cobj->scheduler_install_path;
+	if ($path)
+	{
+	    $sacctmgr = "$path/$sacctmgr";
+	}
+	else
+	{
+	    $sacctmgr = searchpath('sacctmgr');
+	}
+	if (!$sacctmgr && ! -x $sacctmgr)
+	{
+	    warn "Could not find sacctmgr '$sacctmgr' in path";
+	}
     }
 
     my $self = {
@@ -112,14 +154,13 @@ sub new
 	%opts,
     };
 
-    $self->{sacctmgr} = Slurm::Sacctmgr->new(sacctmgr => $self->{sacctmgr_path});
-
+    if ($sacctmgr)
+    {
+	$self->{sacctmgr} = Slurm::Sacctmgr->new(sacctmgr => $self->{sacctmgr_path});
+    }
+    
     return bless $self, $class;
 }
-
-=head2 Methods
-
-=over 4
 
 =item B<configure_user>
 
@@ -140,6 +181,8 @@ sub configure_user
     my($self, $user) = @_;
 
     my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
+
+    return if $cinfo->account;
 
     #
     # See if SLURM has this user already.
@@ -173,22 +216,33 @@ sub configure_user
     }
 }
 
-=item B<submit_task>
+=item B<submit_tasks>
 
-    $ok = $cluster->submit_task($task)
+    $ok = $cluster->submit_tasks($tasks, $resources)
 
 =over 4
 
-=item Arguments: L<$task|Bio::KBase::AppService::Schema::Result::Task>
+=item Arguments: L<\@tasks|Bio::KBase::AppService::Schema::Result::Task>, \@resources
 
 =item Return value: $status
     
 =back
 
-Submit a task to the cluster.  Returns true if the task was submitted. As a side effect
+Submit a set of tasks to the cluster.  Returns true if the tasks were submitted. As a side effect
 create the L<ClusterJob|Bio::KBase::AppService::Schema::Result::ClusterJob> record for
 this task.
-    
+
+All tasks are created in the same cluster job. This logic enables sharing of a single
+cluster submission for multiple pieces of work where there is a disconnect between the size
+of the smallest possible resource request at the cluster and the maximum amount of CPU
+a task can utilize.
+
+If multiple tasks are submitted, we do not use the memory/cpu requirements from
+the task; rather we rely on the C<$resources> list which includes the 
+sbatch request options required for this submission. (Yes, we are punting here.
+This is mostly for the special case of submitting set of tasks to a single node
+on a large cluster, where we have cluster-specific options for requesting such a node).
+
 For the submission, we create a batch script with the following options
 
 =over 4
@@ -230,20 +284,50 @@ appropriate environment setup.
     
 =cut
 
-sub submit_task
+sub submit_tasks
 {
-    my($self, $task) = @_;
+    my($self, $tasks, $resources) = @_;
 
+    return if @$tasks == 0;
+    
     my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
 
-    my $app = $task->application;
-    say "Submitting application  " . $app->id;
-    my $account = $task->owner->id;
-    my $task_id = $task->id;
-    my $name = "as-" . $task->id;
-    my $script = $app->script;
-    my $ram = $app->default_memory // "1M";
-    my $cpu = $app->default_cpu // 1;
+    my $name = join(",", map { $_->application->id } @$tasks);
+
+    #
+    # Ensure all of the tasks have the same owner, if we
+    # are submitting to a cluster where we don't use a single account.
+    #
+    my $account = $cinfo->account;
+    if (!$account)
+    {
+	$account = $tasks->[0]->owner->id;
+	for my $task (@$tasks[1..$#$tasks])
+	{
+	    if ($account ne $task->owner->id)
+	    {
+		die "submit_tasks: Tasks in a set must all have the same owner on this cluster";
+	    }
+	}
+
+    }
+
+    my $resource_request;
+    if (@$tasks > 1 || $resources)
+    {
+	$resource_request = join("\n", map { "#SBATCH $_" } @$resources);
+    }
+    else
+    {
+	my $app = $tasks->[0]->application;
+	my $ram = $app->default_memory // "1M";
+	my $cpu = $app->default_cpu // 1;
+	$resource_request = <<EREQ
+#SBATCH --mem $ram
+#SBATCH --ntasks $cpu --cpus-per-task 1
+EREQ
+    }
+    
     my $out_dir = $cinfo->temp_path;
     my $out = "$out_dir/slurm-%j.out";
     my $err = "$out_dir/slurm-%j.err";
@@ -252,19 +336,11 @@ sub submit_task
     my $rt = $cinfo->p3_runtime_path;
     my $temp = $cinfo->temp_path;
 
-    my $spec = $task->app_spec;
-    my $params = $task->params;
-    # use the token with the longest expiration
-    my $token = $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single();
-
-    my $monitor_url = $task->monitor_url;
-
     my $batch = <<END;
 #!/bin/sh
 #SBATCH --account $account
 #SBATCH --job-name $name
-#SBATCH --mem $ram
-#SBATCH --ntasks $cpu --cpus-per-task 1
+$resource_request
 #SBATCH --output $out
 #SBATCH --err $err
 
@@ -272,7 +348,6 @@ export KB_TOP=$top
 export KB_RUNTIME=$rt
 export PATH=\$KB_TOP/bin:\$KB_RUNTIME/bin:\$PATH
 export PERL5LIB=\$KB_TOP/lib
-export KB_SERVICE_DIR=\$KB_TOP/services/awe_service
 export KB_DEPLOYMENT_CONFIG=\$KB_TOP/deployment.cfg
 export R_LIBS=\$KB_TOP/lib
 
@@ -284,11 +359,29 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 export TEMPDIR=$temp
 export TMPDIR=$temp
 
+END
+
+    for my $task (@$tasks)
+    {
+        my $task_id = $task->id;
+	my $app = $task->application;
+	my $script = $app->script;
+	my $spec = $task->app_spec;
+	my $params = $task->params;
+	# use the token with the longest expiration
+	my $token = $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single()->token;
+	
+	my $monitor_url = $task->monitor_url;
+
+	$batch .= <<END
+
+# Run task $task_id - $script
+
+export P3_AUTH_TOKEN="$token"
+
 export WORKDIR=$temp/task-$task_id
 mkdir \$WORKDIR
 cd \$WORKDIR
-
-export P3_AUTH_TOKEN="$token"
 
 cat > app_spec <<'EOSPEC'
 $spec
@@ -299,33 +392,70 @@ $params
 EOPARAMS
 
 echo "Running script $script"
-$script $monitor_url app_spec params
-rc=\$?
-echo "Script $script finishes with exit code \$rc"
+$script $monitor_url app_spec params &
+pid_$task_id=\$!
+echo "Task $task_id has pid \$pid_$task_id"
 
-exit \$rc
-    
 END
+    }
+
+    #
+    # Now generate the waits.
+    #
+
+    for my $task (@$tasks)
+    {
+	my $task_id = $task->id;
+	
+	$batch .= <<END;
+echo "Wait for task $task_id \$pid_$task_id"
+wait \$pid_$task_id
+rc_$task_id=\$?
+echo "Task $task_id exited with \$rc_$task_id"
+END
+    }
+
+    #
+    # If we have multiple tasks, return success. Otherwise return
+    # status of the one task.
+    #
+    if (@$tasks == 1)
+    {
+	my $task_id = $tasks->[0]->id;
+	$batch .= "exit \$rc_$task_id\n";
+    }
+    else
+    {
+	$batch .= "exit 0\n";
+    }
+    print $batch;
 
     my $id;
-    my $ok = run(["sbatch", "--parsable"], "<", \$batch, ">", \$id,
+    my $ok = run($self->setup_cluster_command(["sbatch", "--parsable"]), "<", \$batch, ">", \$id,
 		 init => sub { $ENV{TZ} = 'UCT'; });
     if ($ok)
     {
 	chomp $id;
 	print "Batch submitted with id $id\n";
-	$task->update({state_code => 'S'});
-	$task->create_related("cluster_jobs",
-			  {
-			      cluster_id => $self->id,
-			      job_id => $id,
-			  });
+	for my $task (@$tasks)
+	{
+	    $task->update({state_code => 'S'});
+	    $task->add_to_cluster_jobs(
+				   {
+				       cluster_id => $self->id,
+				       job_id => $id,
+				   });
+	}
     }
     else
     {
 	print "Failed to submit batch: $?\n";
-	$task->update({state_code => 'F'});
+	for my $task (@$tasks)
+	{
+	    $task->update({state_code => 'F'});
+	}
     }
+    return $ok;
 }
 
 =item B<queue_check>
@@ -340,7 +470,24 @@ sub queue_check
 {
     my($self) = @_;
 
-    my @jobs = $self->schema->resultset("ClusterJob")->search({ cluster_id => $self->id, 'task.state_code' => 'S'}, { join => 'task' });
+    #
+    # We need to find the jobs on the cluster for which the state
+    # of the associated tasks(s) is S (Submitted to cluster). There may
+    # be multiples because the scheduler may have run multiple tasks
+    # in a single job in order to share resources.
+    #
+    # Query distinct here to get the set of cluster jobs. We will
+    # update state on all associated tasks. (This may obscure
+    # reporting of real execution times for the tasks, but we cannot
+    # know that here. Such reporting must be done at either the
+    # level of the app-wrapping scripts or the submitted
+    # scheduler batch script).
+    #
+
+    my @jobs = $self->schema->resultset("ClusterJob")->search({
+	cluster_id => $self->id,
+	'task.state_code' => 'S',
+    }, { join => { task_executions => 'task' }, distinct => 1});
 
     if (@jobs == 0)
     {
@@ -363,7 +510,7 @@ sub queue_check
 	       '--units', 'M',
 	       '--parsable', '--noheader');
     my $fh = IO::Handle->new;
-    my $h = IPC::Run::start(\@cmd, '>pipe', $fh,
+    my $h = IPC::Run::start($self->setup_cluster_command(\@cmd), '>pipe', $fh,
 			    init => sub { $ENV{TZ} = 'UCT'; });
     if (!$h)
     {
@@ -429,11 +576,18 @@ sub queue_check
 		($vals->{NodeList} ne '' ? (nodelist => $vals->{NodeList}) : ()),
 	    });
 
-	    $cj->task->update({
-		state_code => $code,
-		start_time => $vals->{Start},
-		finish_time => $vals->{End},
-	    });
+
+	    #
+	    # Update the associated tasks.
+	    #
+	    for my $task ($cj->tasks)
+	    {
+		$task->update({
+		    state_code => $code,
+		    start_time => $vals->{Start},
+		    finish_time => $vals->{End},
+		});
+	    }
 	}
 	else
 	{
@@ -448,6 +602,45 @@ sub queue_check
 	    }
 	}
     }
+}
+
+=item B<setup_cluster_command>
+
+=over 4
+
+=item Arguments: \@cmd
+
+=item Return Value: \@modified_command
+
+=back
+
+If we are executing on a remote cluster, modify the given
+command to be one that does a ssh to the cluster.
+
+=cut
+
+sub setup_cluster_command
+{
+    my($self, $cmd) = @_;
+
+    my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
+
+    if ($cinfo->remote_host)
+    {
+	my $new = ["ssh",
+		   "-l", $cinfo->remote_user,
+		   "-i", $cinfo->remote_keyfile,
+		   $cinfo->remote_host,
+		   join(" ", map { "'$_'" } @$cmd),
+		   ];
+	print "@$new\n";
+	return $new;
+    }
+    else
+    {
+	return $cmd;
+    }
+	 
 }
 
 =back

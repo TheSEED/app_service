@@ -1,4 +1,5 @@
 SET default_storage_engine=INNODB;
+drop table if exists TaskExecution;
 drop table if exists ClusterJob;
 drop table if exists Cluster;
 drop table if exists ClusterType;
@@ -20,15 +21,23 @@ CREATE TABLE Cluster
 	id varchar(255) PRIMARY KEY,
 	type varchar(255),
 	name varchar(255),
+	account varchar(255),
+	remote_host varchar(255),
+	remote_user varchar(255),
+	remote_keyfile varchar(255),
 	scheduler_install_path text,
 	temp_path text,
 	p3_runtime_path text,
 	p3_deployment_path text,
 	FOREIGN KEY (type) REFERENCES ClusterType(type)
 ) ;
-INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path) VALUES 
-       ('P3AWE', 'AWE', 'PATRIC AWE Cluster', \N, '/disks/tmp', '/disks/patric-common/runtime', '/disks/p3/deployment'),
-       ('TSlurm', 'Slurm', 'Test SLURM Cluster', '/disks/patric-common/slurm', '/disks/tmp', '/disks/patric-common/runtime', '/home/olson/P3/dev-slurm/dev_container');
+INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path, 
+       remote_host, remote_account, remote_user, remote_keyfile) VALUES 
+       ('P3AWE', 'AWE', 'PATRIC AWE Cluster', \N, '/disks/tmp', '/disks/patric-common/runtime', '/disks/p3/deployment', \N, \N, \N, \N),
+       ('TSlurm', 'Slurm', 'Test SLURM Cluster', '/disks/patric-common/slurm', '/disks/tmp', 
+       		  '/disks/patric-common/runtime', '/home/olson/P3/dev-slurm/dev_container', \N, \N, \N, \N),
+       ('Bebop', 'Slurm', 'Bebop', '/usr/bin', '/scratch', '/home/olson/P3/bebop/runtime', '/home/olson/P3/bebop/dev_container',
+       		 'bebop.lcrc.anl.gov', 'PATRIC', 'olson', '/homes/olson/P3/dev-slurm/dev_container/bebop.key');
 
 
 CREATE TABLE TaskState
@@ -95,7 +104,6 @@ CREATE TABLE Task
 CREATE TABLE ClusterJob
 (
 	id INTEGER AUTO_INCREMENT PRIMARY KEY,
-	task_id INTEGER,
 	cluster_id VARCHAR(255),
 	job_id VARCHAR(255),
 	job_status VARCHAR(255),
@@ -103,9 +111,16 @@ CREATE TABLE ClusterJob
 	nodelist TEXT,
 	exitcode VARCHAR(255),
 	INDEX (job_id),
-	FOREIGN KEY(cluster_id) REFERENCES Cluster(id),
-	FOREIGN KEY(task_id) REFERENCES Task(id)
+	FOREIGN KEY(cluster_id) REFERENCES Cluster(id)
 ) ;
+
+CREATE TABLE TaskExecution
+(
+	task_id INTEGER,
+	cluster_job_id INTEGER,
+	FOREIGN KEY(task_id) REFERENCES Task(id),
+	FOREIGN KEY(cluster_job_id) REFERENCES ClusterJob(id)
+);
 
 CREATE TABLE TaskToken
 (

@@ -16,7 +16,10 @@ my $token = new_ok('P3AuthToken');
 my $specs = new_ok('Bio::KBase::AppService::AppSpecs', [$dir]);
 
 my $sched = new_ok('Bio::KBase::AppService::Scheduler', [specs => $specs]);
-my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['TSlurm', schema => $sched->schema]);
+
+my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['Bebop', schema => $sched->schema]);
+#my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['TSlurm', schema => $sched->schema]);
+
 $sched->default_cluster($cluster);
 
 my $code = $sched->schema->resultset('TaskState')->find({description => 'Submitted to cluster'});

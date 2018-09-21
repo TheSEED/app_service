@@ -54,6 +54,30 @@ __PACKAGE__->table("Cluster");
   is_nullable: 1
   size: 255
 
+=head2 remote_host
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 account
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 remote_user
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 remote_keyfile
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =head2 scheduler_install_path
 
   data_type: 'text'
@@ -82,6 +106,14 @@ __PACKAGE__->add_columns(
   "type",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "name",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "remote_host",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "account",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "remote_user",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "remote_keyfile",
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "scheduler_install_path",
   { data_type => "text", is_nullable => 1 },
@@ -143,8 +175,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 13:49:13
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:78+OT5PYGzA76ys6DfZBKQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 13:14:12
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:tPmB1XzAk82+e46iP0eQ0Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

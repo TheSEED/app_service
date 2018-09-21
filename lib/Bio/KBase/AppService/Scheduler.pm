@@ -19,7 +19,7 @@ use DateTime::TimeZone;
 __PACKAGE__->mk_accessors(qw(schema specs json
 			     task_start_timer task_start_interval
 			     queue_check_timer queue_check_interval
-			     default_cluster
+			     default_cluster policies
 			     time_zone
 			    ));
 
@@ -37,6 +37,7 @@ sub new
 	task_start_interval => 15,
 	queue_check_interval => 5,
 	time_zone => DateTime::TimeZone->new(name => 'UTC'),
+	policies => [],
 	%opts,
     };
 
@@ -252,6 +253,19 @@ sub task_start_check
     my($self) = @_;
     print "Task start check\n";
 
+    #
+    # Allow any configured policies to have first stab at the queue.
+    #
+
+    for my $policy (@{$self->policies})
+    {
+	if ($policy->can("start_tasks"))
+	{
+	    $policy->start_tasks($self);
+	}
+    }
+    
+
     my $rs = $self->schema->resultset("Task")->search(
 						  { state_code => 'Q' },
 						  { order_by => { -asc => 'submit_time' } });
@@ -269,7 +283,7 @@ sub task_start_check
 
 	for my $cluster (@clusters)
 	{
-	    if ($cluster->submit_task($cand))
+	    if ($cluster->submit_tasks([$cand], ["-p bdwall", "-N 1", "--ntasks-per-node 1", "--time 1:00:00"]))
 	    {
 		say "Submitted";
 		last;

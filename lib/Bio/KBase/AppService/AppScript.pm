@@ -87,7 +87,7 @@ sub run
 
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
-    $rest->setHost($self->appservice_url . "/" . $self->task_id);
+    $rest->setHost($self->app_service_url . "/" . $self->task_id);
     $self->{rest} = $rest;
 
     my $sel = IO::Select->new();

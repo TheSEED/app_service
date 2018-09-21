@@ -181,21 +181,6 @@ __PACKAGE__->belongs_to(
   },
 );
 
-=head2 cluster_jobs
-
-Type: has_many
-
-Related object: L<Bio::KBase::AppService::Schema::Result::ClusterJob>
-
-=cut
-
-__PACKAGE__->has_many(
-  "cluster_jobs",
-  "Bio::KBase::AppService::Schema::Result::ClusterJob",
-  { "foreign.task_id" => "self.id" },
-  { cascade_copy => 0, cascade_delete => 0 },
-);
-
 =head2 owner
 
 Type: belongs_to
@@ -256,6 +241,21 @@ __PACKAGE__->belongs_to(
   },
 );
 
+=head2 task_executions
+
+Type: has_many
+
+Related object: L<Bio::KBase::AppService::Schema::Result::TaskExecution>
+
+=cut
+
+__PACKAGE__->has_many(
+  "task_executions",
+  "Bio::KBase::AppService::Schema::Result::TaskExecution",
+  { "foreign.task_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 task_tokens
 
 Type: has_many
@@ -287,8 +287,10 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 17:24:44
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:aTfdT2yq2NmGWRf1ZdOcig
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 11:23:56
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:tH3cRz5/QgFRxN6+A8SJFA
+
+__PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
