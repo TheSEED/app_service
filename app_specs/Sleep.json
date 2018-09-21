@@ -12,5 +12,7 @@
 		"desc": "Time to sleep, in seconds.",
 		"type": "int"
 	    }
-	]
+	],
+	"default_ram": "1M",
+	"default_cpu": 1
 }

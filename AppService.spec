@@ -70,7 +70,7 @@ module AppService
     typedef structure {
         task_id parent_id;
 	workspace_id workspace;
-    } start_params;
+    } StartParams;
     funcdef start_app2(app_id, task_parameters params, StartParams start_params)
 	returns (Task task);
 

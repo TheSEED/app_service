@@ -1,12 +1,12 @@
 use utf8;
-package Bio::KBase::AppService::Schema::Result::Application;
+package Bio::KBase::AppService::Schema::Result::Project;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
 
 =head1 NAME
 
-Bio::KBase::AppService::Schema::Result::Application
+Bio::KBase::AppService::Schema::Result::Project
 
 =cut
 
@@ -27,11 +27,11 @@ use base 'DBIx::Class::Core';
 
 __PACKAGE__->load_components("InflateColumn::DateTime");
 
-=head1 TABLE: C<Application>
+=head1 TABLE: C<Project>
 
 =cut
 
-__PACKAGE__->table("Application");
+__PACKAGE__->table("Project");
 
 =head1 ACCESSORS
 
@@ -41,41 +41,19 @@ __PACKAGE__->table("Application");
   is_nullable: 0
   size: 255
 
-=head2 script
+=head2 userid_domain
 
   data_type: 'varchar'
   is_nullable: 1
   size: 255
-
-=head2 spec
-
-  data_type: 'text'
-  is_nullable: 1
-
-=head2 default_memory
-
-  data_type: 'varchar'
-  is_nullable: 1
-  size: 255
-
-=head2 default_cpu
-
-  data_type: 'integer'
-  is_nullable: 1
 
 =cut
 
 __PACKAGE__->add_columns(
   "id",
   { data_type => "varchar", is_nullable => 0, size => 255 },
-  "script",
+  "userid_domain",
   { data_type => "varchar", is_nullable => 1, size => 255 },
-  "spec",
-  { data_type => "text", is_nullable => 1 },
-  "default_memory",
-  { data_type => "varchar", is_nullable => 1, size => 255 },
-  "default_cpu",
-  { data_type => "integer", is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -92,24 +70,24 @@ __PACKAGE__->set_primary_key("id");
 
 =head1 RELATIONS
 
-=head2 tasks
+=head2 service_users
 
 Type: has_many
 
-Related object: L<Bio::KBase::AppService::Schema::Result::Task>
+Related object: L<Bio::KBase::AppService::Schema::Result::ServiceUser>
 
 =cut
 
 __PACKAGE__->has_many(
-  "tasks",
-  "Bio::KBase::AppService::Schema::Result::Task",
-  { "foreign.application_id" => "self.id" },
+  "service_users",
+  "Bio::KBase::AppService::Schema::Result::ServiceUser",
+  { "foreign.project_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 12:12:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:khy20IMXRDxg5fQbEgpZPg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-10 16:59:02
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:R9j0kD4bPlUjdTmqZIEnvw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

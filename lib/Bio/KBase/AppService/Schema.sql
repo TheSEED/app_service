@@ -4,6 +4,8 @@ drop table if exists Cluster;
 drop table if exists ClusterType;
 drop table if exists TaskToken;
 drop table if exists Task;
+drop table if exists ServiceUser;
+drop table if exists Project;
 drop table if exists TaskState;
 drop table if exists Application;
 
@@ -18,21 +20,16 @@ CREATE TABLE Cluster
 	id varchar(255) PRIMARY KEY,
 	type varchar(255),
 	name varchar(255),
+	scheduler_install_path text,
+	temp_path text,
+	p3_runtime_path text,
+	p3_deployment_path text,
 	FOREIGN KEY (type) REFERENCES ClusterType(type)
 ) ;
-INSERT INTO Cluster VALUES 
-       ('P3AWE', 'AWE', 'PATRIC AWE Cluster'),
-       ('TSlurm', 'Slurm', 'Test SLURM Cluster');
+INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path) VALUES 
+       ('P3AWE', 'AWE', 'PATRIC AWE Cluster', \N, '/disks/tmp', '/disks/patric-common/runtime', '/disks/p3/deployment'),
+       ('TSlurm', 'Slurm', 'Test SLURM Cluster', '/disks/patric-common/slurm', '/disks/tmp', '/disks/patric-common/runtime', '/home/olson/P3/dev-slurm/dev_container');
 
-CREATE TABLE ClusterJob
-(
-	id INTEGER AUTO_INCREMENT PRIMARY KEY,
-	task_id INTEGER,
-	cluster_id VARCHAR(255),
-	job_id VARCHAR(255),
-	INDEX (job_id),
-	FOREIGN KEY(cluster_id) REFERENCES Cluster(id)
-) ;
 
 CREATE TABLE TaskState
 (
@@ -42,9 +39,7 @@ CREATE TABLE TaskState
 
 INSERT INTO TaskState VALUES
        ('Q', 'Queued'),
-       ('S', 'Submitted'),
-       ('QC', 'Queued on cluster'),
-       ('R', 'Running'),
+       ('S', 'Submitted to cluster'),
        ('C', 'Completed'),
        ('F', 'Failed'),
        ('D', 'Deleted');
@@ -53,30 +48,68 @@ CREATE TABLE Application
 (
 	id VARCHAR(255) PRIMARY KEY,
 	script VARCHAR(255),
-	default_memory INTEGER,
+	spec TEXT,
+	default_memory VARCHAR(255),
 	default_cpu INTEGER
+);
+
+CREATE TABLE Project
+(
+	id VARCHAR(255) PRIMARY KEY,
+	userid_domain VARCHAR(255)
+);
+INSERT INTO Project VALUES 
+       ('PATRIC', 'patricbrc.org'), 
+       ('RAST', 'rast.nmpdr.org');
+
+CREATE TABLE ServiceUser
+(     
+	id VARCHAR(255) PRIMARY KEY,
+	project_id VARCHAR(255),
+	first_name VARCHAR(255),
+	last_name VARCHAR(255),
+	email VARCHAR(255),
+	affiliation VARCHAR(255),
+	FOREIGN KEY (project_id) REFERENCES Project(id)
 );
 
 CREATE TABLE Task
 (
 	id INTEGER AUTO_INCREMENT PRIMARY KEY,
+	owner VARCHAR(255),
 	parent_task INTEGER,
 	state_code VARCHAR(10),
 	application_id VARCHAR(255),
-	username VARCHAR(255),
 	submit_time TIMESTAMP DEFAULT 0,
 	start_time TIMESTAMP DEFAULT 0,
 	finish_time TIMESTAMP DEFAULT 0,
+	monitor_url VARCHAR(255),
 	params TEXT,
 	app_spec TEXT,
+	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
 	FOREIGN KEY (state_code) REFERENCES TaskState(code),
 	FOREIGN KEY (application_id) REFERENCES Application(id),
 	FOREIGN KEY (parent_task) REFERENCES Task(id)
 );
 
+CREATE TABLE ClusterJob
+(
+	id INTEGER AUTO_INCREMENT PRIMARY KEY,
+	task_id INTEGER,
+	cluster_id VARCHAR(255),
+	job_id VARCHAR(255),
+	job_status VARCHAR(255),
+	maxrss INT UNSIGNED,
+	nodelist TEXT,
+	exitcode VARCHAR(255),
+	INDEX (job_id),
+	FOREIGN KEY(cluster_id) REFERENCES Cluster(id),
+	FOREIGN KEY(task_id) REFERENCES Task(id)
+) ;
+
 CREATE TABLE TaskToken
 (
-	task_id INTEGER PRIMARY KEY,
+	task_id INTEGER,
 	token TEXT,
 	expiration TIMESTAMP DEFAULT 0,
 	FOREIGN KEY (task_id) REFERENCES Task(id)

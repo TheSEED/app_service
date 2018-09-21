@@ -54,6 +54,26 @@ __PACKAGE__->table("Cluster");
   is_nullable: 1
   size: 255
 
+=head2 scheduler_install_path
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 temp_path
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 p3_runtime_path
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 p3_deployment_path
+
+  data_type: 'text'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -63,6 +83,14 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "name",
   { data_type => "varchar", is_nullable => 1, size => 255 },
+  "scheduler_install_path",
+  { data_type => "text", is_nullable => 1 },
+  "temp_path",
+  { data_type => "text", is_nullable => 1 },
+  "p3_runtime_path",
+  { data_type => "text", is_nullable => 1 },
+  "p3_deployment_path",
+  { data_type => "text", is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -115,8 +143,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-08-29 13:04:51
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:43865B6O6Kkf9R8fuDV7+Q
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 13:49:13
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:78+OT5PYGzA76ys6DfZBKQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

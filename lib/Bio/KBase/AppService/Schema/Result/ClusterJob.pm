@@ -44,6 +44,7 @@ __PACKAGE__->table("ClusterJob");
 =head2 task_id
 
   data_type: 'integer'
+  is_foreign_key: 1
   is_nullable: 1
 
 =head2 cluster_id
@@ -59,16 +60,47 @@ __PACKAGE__->table("ClusterJob");
   is_nullable: 1
   size: 255
 
+=head2 job_status
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 maxrss
+
+  data_type: 'integer'
+  extra: {unsigned => 1}
+  is_nullable: 1
+
+=head2 nodelist
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 exitcode
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
   "task_id",
-  { data_type => "integer", is_nullable => 1 },
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "cluster_id",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "job_id",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "job_status",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "maxrss",
+  { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 1 },
+  "nodelist",
+  { data_type => "text", is_nullable => 1 },
+  "exitcode",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
@@ -106,9 +138,29 @@ __PACKAGE__->belongs_to(
   },
 );
 
+=head2 task
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-08-29 13:04:51
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:NdOs99OdorzDM+VZO3oI7w
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::Task>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "task",
+  "Bio::KBase::AppService::Schema::Result::Task",
+  { id => "task_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-17 16:42:46
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:pJASKXNju3qZGdfGmTlrjg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

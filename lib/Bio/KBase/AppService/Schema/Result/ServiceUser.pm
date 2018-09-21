@@ -1,12 +1,12 @@
 use utf8;
-package Bio::KBase::AppService::Schema::Result::Application;
+package Bio::KBase::AppService::Schema::Result::ServiceUser;
 
 # Created by DBIx::Class::Schema::Loader
 # DO NOT MODIFY THE FIRST PART OF THIS FILE
 
 =head1 NAME
 
-Bio::KBase::AppService::Schema::Result::Application
+Bio::KBase::AppService::Schema::Result::ServiceUser
 
 =cut
 
@@ -27,11 +27,11 @@ use base 'DBIx::Class::Core';
 
 __PACKAGE__->load_components("InflateColumn::DateTime");
 
-=head1 TABLE: C<Application>
+=head1 TABLE: C<ServiceUser>
 
 =cut
 
-__PACKAGE__->table("Application");
+__PACKAGE__->table("ServiceUser");
 
 =head1 ACCESSORS
 
@@ -41,41 +41,52 @@ __PACKAGE__->table("Application");
   is_nullable: 0
   size: 255
 
-=head2 script
+=head2 project_id
+
+  data_type: 'varchar'
+  is_foreign_key: 1
+  is_nullable: 1
+  size: 255
+
+=head2 first_name
 
   data_type: 'varchar'
   is_nullable: 1
   size: 255
 
-=head2 spec
-
-  data_type: 'text'
-  is_nullable: 1
-
-=head2 default_memory
+=head2 last_name
 
   data_type: 'varchar'
   is_nullable: 1
   size: 255
 
-=head2 default_cpu
+=head2 email
 
-  data_type: 'integer'
+  data_type: 'varchar'
   is_nullable: 1
+  size: 255
+
+=head2 affiliation
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
 
 =cut
 
 __PACKAGE__->add_columns(
   "id",
   { data_type => "varchar", is_nullable => 0, size => 255 },
-  "script",
+  "project_id",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
+  "first_name",
   { data_type => "varchar", is_nullable => 1, size => 255 },
-  "spec",
-  { data_type => "text", is_nullable => 1 },
-  "default_memory",
+  "last_name",
   { data_type => "varchar", is_nullable => 1, size => 255 },
-  "default_cpu",
-  { data_type => "integer", is_nullable => 1 },
+  "email",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "affiliation",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -92,6 +103,26 @@ __PACKAGE__->set_primary_key("id");
 
 =head1 RELATIONS
 
+=head2 project
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::Project>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "project",
+  "Bio::KBase::AppService::Schema::Result::Project",
+  { id => "project_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
 =head2 tasks
 
 Type: has_many
@@ -103,13 +134,13 @@ Related object: L<Bio::KBase::AppService::Schema::Result::Task>
 __PACKAGE__->has_many(
   "tasks",
   "Bio::KBase::AppService::Schema::Result::Task",
-  { "foreign.application_id" => "self.id" },
+  { "foreign.owner" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 12:12:09
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:khy20IMXRDxg5fQbEgpZPg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-12 15:51:03
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0l2uhC15unJrCeoYnnnCWQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

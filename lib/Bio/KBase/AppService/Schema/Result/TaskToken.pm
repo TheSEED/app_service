@@ -39,7 +39,7 @@ __PACKAGE__->table("TaskToken");
 
   data_type: 'integer'
   is_foreign_key: 1
-  is_nullable: 0
+  is_nullable: 1
 
 =head2 token
 
@@ -57,7 +57,7 @@ __PACKAGE__->table("TaskToken");
 
 __PACKAGE__->add_columns(
   "task_id",
-  { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
+  { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "token",
   { data_type => "text", is_nullable => 1 },
   "expiration",
@@ -68,18 +68,6 @@ __PACKAGE__->add_columns(
     is_nullable => 0,
   },
 );
-
-=head1 PRIMARY KEY
-
-=over 4
-
-=item * L</task_id>
-
-=back
-
-=cut
-
-__PACKAGE__->set_primary_key("task_id");
 
 =head1 RELATIONS
 
@@ -95,12 +83,17 @@ __PACKAGE__->belongs_to(
   "task",
   "Bio::KBase::AppService::Schema::Result::Task",
   { id => "task_id" },
-  { is_deferrable => 1, on_delete => "RESTRICT", on_update => "RESTRICT" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-08-29 13:04:51
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:GLk3DjOsaG8jK16XPj69aQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-12 16:57:19
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:oHINYQWK99OxanrUJ5Xtwg
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

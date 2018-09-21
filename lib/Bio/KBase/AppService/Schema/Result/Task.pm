@@ -41,6 +41,13 @@ __PACKAGE__->table("Task");
   is_auto_increment: 1
   is_nullable: 0
 
+=head2 owner
+
+  data_type: 'varchar'
+  is_foreign_key: 1
+  is_nullable: 1
+  size: 255
+
 =head2 parent_task
 
   data_type: 'integer'
@@ -58,12 +65,6 @@ __PACKAGE__->table("Task");
 
   data_type: 'varchar'
   is_foreign_key: 1
-  is_nullable: 1
-  size: 255
-
-=head2 username
-
-  data_type: 'varchar'
   is_nullable: 1
   size: 255
 
@@ -88,6 +89,12 @@ __PACKAGE__->table("Task");
   default_value: '0000-00-00 00:00:00'
   is_nullable: 0
 
+=head2 monitor_url
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =head2 params
 
   data_type: 'text'
@@ -103,14 +110,14 @@ __PACKAGE__->table("Task");
 __PACKAGE__->add_columns(
   "id",
   { data_type => "integer", is_auto_increment => 1, is_nullable => 0 },
+  "owner",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "parent_task",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "state_code",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 10 },
   "application_id",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
-  "username",
-  { data_type => "varchar", is_nullable => 1, size => 255 },
   "submit_time",
   {
     data_type => "timestamp",
@@ -132,6 +139,8 @@ __PACKAGE__->add_columns(
     default_value => "0000-00-00 00:00:00",
     is_nullable => 0,
   },
+  "monitor_url",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
   "params",
   { data_type => "text", is_nullable => 1 },
   "app_spec",
@@ -164,6 +173,41 @@ __PACKAGE__->belongs_to(
   "application",
   "Bio::KBase::AppService::Schema::Result::Application",
   { id => "application_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+=head2 cluster_jobs
+
+Type: has_many
+
+Related object: L<Bio::KBase::AppService::Schema::Result::ClusterJob>
+
+=cut
+
+__PACKAGE__->has_many(
+  "cluster_jobs",
+  "Bio::KBase::AppService::Schema::Result::ClusterJob",
+  { "foreign.task_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
+=head2 owner
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::ServiceUser>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "owner",
+  "Bio::KBase::AppService::Schema::Result::ServiceUser",
+  { id => "owner" },
   {
     is_deferrable => 1,
     join_type     => "LEFT",
@@ -212,16 +256,16 @@ __PACKAGE__->belongs_to(
   },
 );
 
-=head2 task_token
+=head2 task_tokens
 
-Type: might_have
+Type: has_many
 
 Related object: L<Bio::KBase::AppService::Schema::Result::TaskToken>
 
 =cut
 
-__PACKAGE__->might_have(
-  "task_token",
+__PACKAGE__->has_many(
+  "task_tokens",
   "Bio::KBase::AppService::Schema::Result::TaskToken",
   { "foreign.task_id" => "self.id" },
   { cascade_copy => 0, cascade_delete => 0 },
@@ -243,8 +287,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-08-30 16:49:46
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:OGWMsW0DZaB/HBhJFCbQVA
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-14 17:24:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:aTfdT2yq2NmGWRf1ZdOcig
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

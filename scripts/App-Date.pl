@@ -12,9 +12,15 @@ use File::Basename;
 use LWP::UserAgent;
 use JSON::XS;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&date);
+my $script = Bio::KBase::AppService::AppScript->new(\&date, \&preflight);
 
 $script->run(\@ARGV);
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+    print $app->json->encode({ cpu => 1, ram => '1G', runtime => 60 });
+}
 
 sub date
 {
