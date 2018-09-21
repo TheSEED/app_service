@@ -24,7 +24,7 @@ use base 'Class::Accessor';
 use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw(execute_callback preflight_callback donot_create_job_result donot_create_result_folder
-			     workspace_url workspace params app_definition result_folder
+			     workspace_url workspace params result_folder
 			     app_def params proc_params stdout_file stderr_file
 			     hostname json
 			     task_id app_service_url));
@@ -335,7 +335,7 @@ sub subproc_run
 	my $job_obj = {
 	    id => $task_id,
 	    app => $self->app_def,
-	    parameters => $self->roc_params,
+	    parameters => $self->proc_params,
 	    start_time => $start_time,
 	    end_time => $end_time,
 	    elapsed_time => $elap,
@@ -362,7 +362,7 @@ sub create_result_folder
 	my $base_folder = $params->{output_path};
 	my $result_folder = $base_folder . "/." . $params->{output_file};
 	$self->result_folder($result_folder);
-	$self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+	$self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_def->{id}}]]});
     }
 }
 
