@@ -116,7 +116,7 @@ sub run_pipeline
     #
     # minor hack; "default" here means to use the default specified in this module, not the default RASTtk pipeline.
     #
-    elsif ($recipe_id ne 'default')
+    elsif ($recipe_id ne '' && $recipe_id ne 'default')
     {
 	my $recipe = $self->impl->find_recipe($recipe_id);
 	if ($recipe->{workflow})
