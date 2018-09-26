@@ -341,8 +341,8 @@ sub submit_tasks
 	$alloc_env = <<EAL;
 mem_total=`free -b | grep Mem | awk '{print \$2}'`
 proc_total=`nproc`
-export P3_ALLOCATED_MEMORY=`expr \$mem_total / $ntasks
-export P3_ALLOCATED_CPU=`expr \$proc_total / $ntasks
+export P3_ALLOCATED_MEMORY=`expr \$mem_total / $ntasks`
+export P3_ALLOCATED_CPU=`expr \$proc_total / $ntasks`
 EAL
     }
     else
