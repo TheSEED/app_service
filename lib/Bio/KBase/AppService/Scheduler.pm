@@ -70,7 +70,9 @@ sub start_timers
 
 =item B<start_app>
 
-    $sched->start_app($token, $app_id, $monitor_url, $task_parameters, $start_parameters)
+    $sched->start_app($token, $app_id, $monitor_url, $task_parameters, $start_parameters, $preflight)
+
+=over 4
 
 L<$token> is a P3AuthToken instance.
 
@@ -81,7 +83,7 @@ for it, in state Submitted. Registers an idle event for a task-start check.
 
 sub start_app
 {
-    my($self, $token, $app_id, $monitor_url, $task_parameters, $start_parameters) = @_;
+    my($self, $token, $app_id, $monitor_url, $task_parameters, $start_parameters, $preflight) = @_;
 
     my $app = $self->find_app($app_id);
     my $user = $self->find_user($token->user_id, $token);
@@ -92,6 +94,8 @@ sub start_app
 
     my $code = $self->schema->resultset('TaskState')->find({description => 'Queued'});
     
+    my $policy_data;
+    
     my $task = $self->schema->resultset('Task')->create({
 	owner => $user->id,
 	parent_task => $start_parameters->{parent_id},
@@ -101,6 +105,10 @@ sub start_app
 	params => $self->json->encode($task_parameters),
 	app_spec => $app->spec,
 	monitor_url => $monitor_url,
+	req_memory => $preflight->{memory},
+	req_cpu => $preflight->{cpu},
+	req_runtime => $preflight->{runtime},
+	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
     });
 
     my $tt = $self->schema->resultset('TaskToken')->create({
@@ -283,7 +291,7 @@ sub task_start_check
 
 	for my $cluster (@clusters)
 	{
-	    if ($cluster->submit_tasks([$cand], ["-p bdwall", "-N 1", "--ntasks-per-node 1", "--time 1:00:00"]))
+	    if ($cluster->submit_tasks([$cand]))
 	    {
 		say "Submitted";
 		last;

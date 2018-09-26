@@ -3,6 +3,8 @@ package Bio::KBase::AppService::ReadSet;
 use strict;
 use base 'Class::Accessor';
 use File::Basename;
+use File::Slurp;
+use JSON::XS;
 
 use Data::Dumper;
 
@@ -46,6 +48,10 @@ sub create_from_asssembly_params
     {
 	my($read, $platform) = @$se{qw(read platform)};
 	push(@libs, SingleEndLibrary->new($read, $platform));
+    }
+    for my $srr (@{$params->{srr_ids}})
+    {
+	push(@libs, SRRLibrary->new($srr));
     }
 
     my $self = {
@@ -159,8 +165,32 @@ sub validate
 
     my @errs;
 
+    my $total_comp_size;
+    my $total_uncomp_size;
+
     for my $lib (@{$self->libraries})
     {
+	#
+	# SRR is a special case; we will need to pull metadata.
+	#
+
+	if ($lib->isa('SRRLibrary'))
+	{
+	    my $tmp = File::Temp->new();
+	    close($tmp);
+	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $lib->{id});
+	    if ($rc != 0)
+	    {
+		die "p3-sra failed: $rc\n";
+	    }
+	    my $mtxt = read_file("$tmp");
+	    my $meta = eval { decode_json($mtxt); };
+	    $meta or die "Error loading or evaluating json metadata: $mtxt";
+	    my($me) = grep { $_->{run_id} eq $lib->{id} } @$meta;
+	    $total_comp_size += $me->{size};
+	}
+	    
+
 	my @files = $lib->files();
 	for my $f (@files)
 	{
@@ -174,10 +204,19 @@ sub validate
 	    {
 		push(@errs, "File $f has zero size");
 	    }
+	    else
+	    {
+		if ($ws->file_is_gzipped($f))
+		{
+		    $total_comp_size += $s->size;
+		} else {
+		    $total_uncomp_size += $s->size;
+		}
+	    }
 	}
 
     }
-    return(@errs == 0, \@errs);
+    return(@errs == 0, \@errs, $total_comp_size, $total_uncomp_size);
 }
 
 =item B<stage_in>
@@ -432,6 +471,31 @@ sub format_paths
 {
     my($self) = @_;
     return $self->{read_path};
+}
+
+package SRRLibrary;
+
+use base 'ReadLibrary';
+use strict;
+
+sub new
+{
+    my($class, $id) = @_;
+
+    my $self = {
+	id => $id,
+    };
+    return bless $self, $class;
+}
+
+sub file_keys
+{
+    
+}
+
+sub format_paths
+{
+
 }
 
 1;

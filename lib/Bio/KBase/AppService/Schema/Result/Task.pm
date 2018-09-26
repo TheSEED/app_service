@@ -105,6 +105,27 @@ __PACKAGE__->table("Task");
   data_type: 'text'
   is_nullable: 1
 
+=head2 req_memory
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 req_cpu
+
+  data_type: 'integer'
+  is_nullable: 1
+
+=head2 req_runtime
+
+  data_type: 'integer'
+  is_nullable: 1
+
+=head2 req_policy_data
+
+  data_type: 'text'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -144,6 +165,14 @@ __PACKAGE__->add_columns(
   "params",
   { data_type => "text", is_nullable => 1 },
   "app_spec",
+  { data_type => "text", is_nullable => 1 },
+  "req_memory",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "req_cpu",
+  { data_type => "integer", is_nullable => 1 },
+  "req_runtime",
+  { data_type => "integer", is_nullable => 1 },
+  "req_policy_data",
   { data_type => "text", is_nullable => 1 },
 );
 
@@ -287,8 +316,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 11:23:56
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:tH3cRz5/QgFRxN6+A8SJFA
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-26 15:37:48
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4mTv4htCP77A3yeJERVmZQ
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

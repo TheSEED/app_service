@@ -17,7 +17,13 @@ my $specs = new_ok('Bio::KBase::AppService::AppSpecs', [$dir]);
 
 my $sched = new_ok('Bio::KBase::AppService::Scheduler', [specs => $specs]);
 
-my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['Bebop', schema => $sched->schema]);
+my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['Bebop',
+							      schema => $sched->schema,
+							      resources => ["-p bdws",
+									    "-N 1",
+									    "--ntasks-per-node 1",
+									    "--time 1:00:00"],
+							      ]);
 #my $cluster = new_ok('Bio::KBase::AppService::SlurmCluster', ['TSlurm', schema => $sched->schema]);
 
 $sched->default_cluster($cluster);

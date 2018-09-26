@@ -14,5 +14,7 @@
 	    }
 	],
 	"default_ram": "1M",
-	"default_cpu": 1
+	"default_memory": 1,
+	"default_runtime": 60
+
 }

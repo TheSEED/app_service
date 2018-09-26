@@ -19,7 +19,7 @@ $script->run(\@ARGV);
 sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
-    print $app->json->encode({ cpu => 1, ram => '1G', runtime => 60 });
+    print $app->json->encode({ cpu => 1, memory => '1G', runtime => 60 });
 }
 
 sub date

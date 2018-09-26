@@ -64,6 +64,14 @@ my $toyC = {
 my %base = (output_file => "t1",
 	    output_path => '/olson@patricbrc.org/home/test');
 
+my $rs = Bio::KBase::AppService::ReadSet->create_from_asssembly_params({ %base, srr_ids => [ "SRR3584989" ] });
+isa_ok($rs, 'Bio::KBase::AppService::ReadSet');
+
+my($ok, $errs, $comp_size, $uncomp_size) = $rs->validate($ws);
+
+ok($ok);
+is($comp_size, 281045854);
+
 my $rs = Bio::KBase::AppService::ReadSet->create_from_asssembly_params({ %base, paired_end_libs => [$toyA, $toyB], single_end_libs => [$toyC]});
 isa_ok($rs, 'Bio::KBase::AppService::ReadSet');
 my($ok, $errs) = $rs->validate($ws);

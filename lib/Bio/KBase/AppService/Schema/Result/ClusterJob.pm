@@ -62,8 +62,7 @@ __PACKAGE__->table("ClusterJob");
 
 =head2 maxrss
 
-  data_type: 'integer'
-  extra: {unsigned => 1}
+  data_type: 'float'
   is_nullable: 1
 
 =head2 nodelist
@@ -89,7 +88,7 @@ __PACKAGE__->add_columns(
   "job_status",
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "maxrss",
-  { data_type => "integer", extra => { unsigned => 1 }, is_nullable => 1 },
+  { data_type => "float", is_nullable => 1 },
   "nodelist",
   { data_type => "text", is_nullable => 1 },
   "exitcode",
@@ -146,8 +145,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 11:23:56
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:xpg2G3eZqSTTXEGRluMvdw
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-26 15:37:48
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:1F5D5Riw/2vjYLy1pVKh6A
 
 __PACKAGE__->many_to_many(tasks => 'task_executions', 'task');
 

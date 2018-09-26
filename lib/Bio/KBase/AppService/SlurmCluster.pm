@@ -276,17 +276,30 @@ Slurm doesn't set any policy for us and will notably drop the job
 into the working directory of the invoking script or into a
 directory defined by the --chdir flag.
 
-We use the p3_deployment_path field on the Cluster from the database to find
-the deployment to use.  For now we will inline in the startup script the
-appropriate environment setup. 
-
 =back
     
+=head2 ENVIRONMENT SETUP
+
+We use the p3_deployment_path field on the Cluster from the database to find
+the deployment to use.  For now we will inline in the startup script the
+appropriate environment setup.
+
+We must define for the invoked application the CPU and memory allocation
+provided for it. In some cases this comes from the Slurm allocation, in others
+(e.g. Bebop) it is a defined fraction of the node resources. In the
+latter case we must compute that available resource by querying the node.
+
+In that case, we use C<nproc> to determine processor count and a parse
+of the C<free> command to determine available memory.
+
+These parameters are passed to the application by the P3_ALLOCATED_CPU and 
+P3_ALLOCATED_MEMORY environment variables.
+
 =cut
 
 sub submit_tasks
 {
-    my($self, $tasks, $resources) = @_;
+    my($self, $tasks) = @_;
 
     return if @$tasks == 0;
     
@@ -312,16 +325,39 @@ sub submit_tasks
 
     }
 
+    #
+    # compute resource request information.
+    # $alloc_env sets the allocation environment vars for the batch
+    #
+
+    my $alloc_env;
     my $resource_request;
+    my $resources = $self->{resources};
     if (@$tasks > 1 || $resources)
     {
 	$resource_request = join("\n", map { "#SBATCH $_" } @$resources);
+
+	my $ntasks = @$tasks;
+	$alloc_env = <<EAL;
+mem_total=`free -b | grep Mem | awk '{print \$2}'`
+proc_total=`nproc`
+export P3_ALLOCATED_MEMORY=`expr \$mem_total / $ntasks
+export P3_ALLOCATED_CPU=`expr \$proc_total / $ntasks
+EAL
     }
     else
     {
-	my $app = $tasks->[0]->application;
-	my $ram = $app->default_memory // "1M";
-	my $cpu = $app->default_cpu // 1;
+	my $task = $tasks->[0];
+	my $app = $task->application;
+
+	my $ram = $task->req_memory // $app->default_memory // "1M";
+	my $cpu = $task->req_cpu // $app->default_cpu // 1;
+
+	$alloc_env = <<EAL;
+export P3_ALLOCATED_MEMORY="\${SLURM_JOB_CPUS_PER_NODE}M"
+export P3_ALLOCATED_CPU=\$SLURM_JOB_CPUS_PER_NODE
+EAL
+	
 	$resource_request = <<EREQ
 #SBATCH --mem $ram
 #SBATCH --ntasks $cpu --cpus-per-task 1
@@ -331,6 +367,11 @@ EREQ
     my $out_dir = $cinfo->temp_path;
     my $out = "$out_dir/slurm-%j.out";
     my $err = "$out_dir/slurm-%j.err";
+    if ($cinfo->remote_host)
+    {
+	$out = "slurm-%j.out";
+	$err = "slurm-%j.err";
+    }
 
     my $top = $cinfo->p3_deployment_path;
     my $rt = $cinfo->p3_runtime_path;
@@ -359,6 +400,7 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 export TEMPDIR=$temp
 export TMPDIR=$temp
 
+$alloc_env
 END
 
     for my $task (@$tasks)
@@ -631,7 +673,7 @@ sub setup_cluster_command
 		   "-l", $cinfo->remote_user,
 		   "-i", $cinfo->remote_keyfile,
 		   $cinfo->remote_host,
-		   join(" ", map { "'$_'" } @$cmd),
+		   join(" ", map { "'$_'" } "env", "TZ=UCT", @$cmd),
 		   ];
 	print "@$new\n";
 	return $new;
