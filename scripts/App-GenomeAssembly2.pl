@@ -144,7 +144,7 @@ sub assemble
 	    $bytes = $mem;
 	}
 	$mem = int($bytes / (1024*1024*1024));
-	push(@params, "-m", "$mem);
+	push(@params, "-m", $mem);
     }
 
     push(@params, "-t", $cpu) if $cpu;
