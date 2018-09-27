@@ -298,8 +298,9 @@ sub build_p3_assembly_arguments
 
     my @illumina = $self->libraries_of_type('illumina');
     my @iontorrent = $self->libraries_of_type('iontorrent');
+    my @sra = $self->libraries_of_type('sra');
 
-print Dumper($self, \@illumina, \@iontorrent);
+print Dumper($self, \@illumina, \@iontorrent, \@sra);
 
     if (@illumina && @iontorrent)
     {
@@ -307,6 +308,7 @@ print Dumper($self, \@illumina, \@iontorrent);
     }
     push(@cmd, "--illumina", map { $_->format_paths() } @illumina) if @illumina;
     push(@cmd, "--iontorrent", map { $_->format_paths() } @iontorrent) if @iontorrent;
+    push(@cmd, "--sra", map { $_->{id} } @sra) if @sra;
 
     for my $pair (["anonymous", "--anonymous_reads"],
 		  ["pacbio", "--pacbio"],
@@ -486,6 +488,12 @@ sub new
 	id => $id,
     };
     return bless $self, $class;
+}
+
+sub p3_assembly_library_type
+{
+    my($self) = @_;
+    return 'sra';
 }
 
 sub file_keys

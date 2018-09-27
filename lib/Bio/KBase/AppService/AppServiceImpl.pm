@@ -461,6 +461,12 @@ sub enumerate_apps
     $return = [];
 
     push(@$return, $self->{util}->enumerate_apps());
+
+    return sub {
+	my($cb) = @_;
+	print "Got cb=$cb\n";
+	$cb->($return);
+    };
     
     #END enumerate_apps
     my @_bad_returns;
@@ -571,7 +577,10 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    $task = $self->{util}->start_app($ctx, $app_id, $params, { workspace => $workspace });
+    print STDERR "start_app\n";
+    my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, { workspace => $workspace });
+    return $cb;
+    
     #END start_app
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
@@ -686,7 +695,11 @@ sub start_app2
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($task);
     #BEGIN start_app2
-    $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
+    print STDERR "start_app2\n";
+    # $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
+    my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, $start_params);
+    return $cb;
+
     #END start_app2
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");

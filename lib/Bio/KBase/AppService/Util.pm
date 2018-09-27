@@ -4,10 +4,12 @@ use File::Slurp;
 use JSON::XS;
 use File::Basename;
 use Data::Dumper;
+use AnyEvent;
+use AnyEvent::Run;
 
 use base 'Class::Accessor';
 
-__PACKAGE__->mk_accessors(qw(impl));
+__PACKAGE__->mk_accessors(qw(impl scheduler));
 
 sub new
 {
@@ -126,6 +128,106 @@ sub start_app
     my $task = $self->impl->_lookup_task($awe, $task_id);
 
     return $task;
+}
+
+sub start_app_with_preflight
+{
+    my($self, $ctx, $app_id, $task_params, $start_params) = @_;
+
+    if (!$self->submissions_enabled($app_id, $ctx))
+    {
+	die "App service submissions are disabled\n";
+    }
+
+    my $json = JSON::XS->new->ascii->pretty(1);
+
+    #
+    # Create a new workflow for this task.
+    #
+
+    my $app = $self->find_app($app_id);
+    if (!$app)
+    {
+	die "Could not find app for id $app_id\n";
+    }
+
+    my $appserv_info_url = $self->impl->{service_url} . "/task_info";
+
+    my $app_tmp = File::Temp->new();
+    print $app_tmp $json->encode($app);
+    close($app_tmp);
+
+    my $params_tmp = File::Temp->new();
+    print $params_tmp $json->encode($task_params);
+    close($params_tmp);
+
+    my $preflight_tmp = File::Temp->new();
+    close($preflight_tmp);
+
+    return sub {
+	my($cb) = @_;
+	print STDERR "got cb=$cb\n";
+
+	my $cmd = [$app->{script}, "--preflight", "$preflight_tmp", $appserv_info_url, "$app_tmp", "$params_tmp"];
+	print STDERR "cmd: @$cmd\n";
+
+	my $handle;
+	$handle = AnyEvent::Run->new(cmd => $cmd,
+					on_read => sub {
+					    my $rh = shift;
+					    print STDERR "GOT $rh->{rbuf}\n";
+					    $rh->{rbuf} = '';
+					},
+					on_error => sub {
+					    my($rh, $fatal, $message) = @_;
+					    print STDERR "Error on preflight read: $message\n";
+					    if ($fatal)
+					    {
+						$cb->({message => "preflight error: $message"});
+						undef $handle;
+					    }
+					},
+					on_eof => sub {
+					    print STDERR "Preflight EOF $handle\n";
+					    my @temps = ($params_tmp, $app_tmp, $preflight_tmp);
+					    system("cat", $preflight_tmp);
+
+					    eval {
+						$self->continue_submit($ctx, $cb, $appserv_info_url, $preflight_tmp, $app, $task_params, $start_params);
+					    };
+					    if ($@)
+					    {
+						print STDERR "Submit error: $@";
+						$cb->({message => "error submitting: $@"});
+					    }
+					    undef $handle;
+					}
+				    );
+    };
+}
+
+=item B<continue_submit>
+
+Preflight has successfully completed. Continue submission.
+
+=cut
+
+sub continue_submit
+{
+    my($self, $ctx, $cb, $info_url, $preflight_file, $app, $task_params, $start_params) = @_;
+    my $txt = read_file("$preflight_file");
+    my $preflight = $txt ? decode_json($txt) : {};
+    my $task = $self->scheduler->start_app(P3AuthToken->new(token => $ctx->token),
+					   $app->{id}, $info_url, $task_params, $preflight);
+    my $ret_task  = {
+	id => $task->id,
+	parent_id => $start_params->{parent_id},
+	parameters => $task_params,
+	user_id => $ctx->user_id,
+	status => $task->state_code->code,
+    };
+    print Dumper($ret_task);
+    $cb->([$ret_task]);
 }
 
 sub enumerate_apps

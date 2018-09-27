@@ -196,10 +196,11 @@ sub run
     do {
 	local @ARGV = @$args;
 	($opt, my $usage) = describe_options("%c %o app-service-url app-definition.json param-values.json [stdout-file stderr-file]",
-					     ["preflight", "Run the app in preflight mode. Print a JSON object representing the expected runtime, requested CPU count, and memory use for this application invocation."],
+					     ["preflight=s", "Run the app in preflight mode. Write a JSON object to the file specified representing the expected runtime, requested CPU count, and memory use for this application invocation."],
+					     
 					     ["help|h", "Show this help message."]);
 	print($usage->text), exit(0) if $opt->help;
-	die($usage->text) unless @ARGV == 3 or @ARGV == 5;
+	die($usage->text) if @ARGV != 3 && @ARGV != 5;
 	
 	my $appserv_url = shift @ARGV;
 	$self->app_service_url($appserv_url);
@@ -213,12 +214,14 @@ sub run
 
     if ($opt->preflight)
     {
+	open(my $fh, ">", $opt->preflight) or die "Cannot write preflight to " . $opt->preflight . ": $!";
 	my $data = $self->run_preflight();
 	print Dumper($data);
 	if (ref($data) eq 'HASH')
 	{
-	    print $self->json->encode($data);
+	    print $fh $self->json->encode($data);
 	}
+	close($fh) or die "Cannot close preflight fh for file " . $opt->preflight . ": $!";
 	return;
     }
 
