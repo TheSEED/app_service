@@ -465,7 +465,7 @@ sub get_feature_group_faa {
     # my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,product,aa_sequence,genome_name,genome_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
 	my $url = "$data_api/genome_feature/?in(feature_id,FeatureGroup($escaped))&sort(+accession,+start)&http_accept=application/protein+fasta&limit(25000)";
     my $out = curl_text($url);
-	print STDERR Dumper($out);
+	# print STDERR Dumper($out);
     my $fg_name = $group; $fg_name =~ s/.*\///; $fg_name =~ s/\W+/\_/g;
     my $ofile = "$outdir/$fg_name.faa";
     write_output($out, $ofile);
