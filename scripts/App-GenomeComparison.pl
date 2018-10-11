@@ -462,17 +462,13 @@ sub get_patric_genome_faa {
 sub get_feature_group_faa {
     my ($outdir, $group) = @_;
     my $escaped = uri_escape($group);
-    my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,product,aa_sequence,genome_name,genome_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
-    my $data = curl_json($url);
-    # print STDERR Dumper($data);
+    # my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,product,aa_sequence,genome_name,genome_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+	my $url = "$data_api/genome_feature/?in(feature_id,FeatureGroup($escaped))&sort(+accession,+start)&http_accept=application/protein+fasta&limit(25000)";
+    my $out = curl_text($url);
+	print STDERR Dumper($out);
     my $fg_name = $group; $fg_name =~ s/.*\///; $fg_name =~ s/\W+/\_/g;
     my $ofile = "$outdir/$fg_name.faa";
-    open(FAA, ">$ofile") or die "Could not open $ofile";
-    for (@$data) {
-        print FAA ">$_->{patric_id}   $_->{product}   [$_->{genome_name} | $_->{genome_id}]\n";
-        print FAA "$_->{aa_sequence}\n";
-    }
-    close(FAA);
+    write_output($out, $ofile);
     return $ofile;
 }
 
