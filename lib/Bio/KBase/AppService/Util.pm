@@ -217,8 +217,10 @@ sub continue_submit
     my($self, $ctx, $cb, $info_url, $preflight_file, $app, $task_params, $start_params) = @_;
     my $txt = read_file("$preflight_file");
     my $preflight = $txt ? decode_json($txt) : {};
+    print STDERR Dumper(PREFLIGHT => $preflight);
+    print STDERR "'$txt'\n";
     my $task = $self->scheduler->start_app(P3AuthToken->new(token => $ctx->token),
-					   $app->{id}, $info_url, $task_params, $preflight);
+					   $app->{id}, $info_url, $task_params, $start_params, $preflight);
     my $ret_task  = {
 	id => $task->id,
 	parent_id => $start_params->{parent_id},

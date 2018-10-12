@@ -46,7 +46,6 @@ my $script = Bio::KBase::AppService::AppScript->new(\&assemble, \&preflight);
 
 my $download_path;
 
-$script->donot_create_result_folder(1);
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
@@ -148,7 +147,9 @@ sub assemble
     }
 
     push(@params, "-t", $cpu) if $cpu;
-
+    my $details = "$tmpdir/run_details.json";
+    push(@params, "--run-details", $details);
+    
     my @cmd = ("p3x-assembly",
 	       "--logfile", $log,
 	       "-o", $asm_out,
@@ -161,22 +162,21 @@ sub assemble
 	die "Assembler failed with rc=$rc";
     }
 
-    return;
     my $output_folder = $app->result_folder();
 
-    my @outputs;
-for (@outputs) {
-	my ($ofile, $type) = @$_;
-	if (-f "$ofile") {
-            my $filename = basename($ofile);
-            print STDERR "Output folder = $output_folder\n";
-            print STDERR "Saving $ofile => $output_folder/$filename ...\n";
-	    $app->workspace->save_file_to_file("$ofile", {}, "$output_folder/$filename", $type, 1,
-					       (-s "$ofile" > 10_000 ? 1 : 0), # use shock for larger files
-					       $token);
-	} else {
-	    warn "Missing desired output file $ofile\n";
-	}
-    }
-
+    print "Upload $asm_out/. to '$output_folder'\n";
+    $ws->upload_folder("$asm_out/.", "$output_folder/spades",
+		   {
+		       type_map => {
+			   html => "html",
+			   fasta => "contigs",
+		       },
+		       exclude => [qr/^(corrected|misc|tmp|mismatch_corrector|before_rr\.fasta)$/,
+				   qr/^K\d+$/,
+				   ],
+		   });
+    $ws->save_file_to_file("$asm_out/contigs.fasta", {},
+			   "$output_folder/contigs.fasta", 'contigs', 1, 1);
+    $ws->save_file_to_file("$asm_out/scaffolds.fasta", {},
+			   "$output_folder/scaffolds.fasta", 'contigs', 1, 1);
 }

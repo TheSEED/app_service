@@ -17,6 +17,7 @@ use File::SearchPath qw(searchpath);
 use File::Path qw(make_path);
 use IPC::Run qw(run);
 use IO::Handle;
+use List::Util qw(max);
 
 __PACKAGE__->mk_accessors(qw(id schema json sacctmgr sacctmgr_path
 			    ));
@@ -352,6 +353,7 @@ EAL
 
 	my $ram = $task->req_memory // $app->default_memory // "1M";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
+	# database has requested time in seconds
 
 	$alloc_env = <<EAL;
 export P3_ALLOCATED_MEMORY="\${SLURM_JOB_CPUS_PER_NODE}M"
@@ -364,6 +366,8 @@ EAL
 EREQ
     }
     
+    my $time = max map { int($_->req_runtime / 60) } @$tasks;
+
     my $out_dir = $cinfo->temp_path;
     my $out = "$out_dir/slurm-%j.out";
     my $err = "$out_dir/slurm-%j.err";
@@ -384,6 +388,7 @@ EREQ
 $resource_request
 #SBATCH --output $out
 #SBATCH --err $err
+#SBATCH --time $time
 
 export KB_TOP=$top
 export KB_RUNTIME=$rt
@@ -402,6 +407,11 @@ export TMPDIR=$temp
 
 $alloc_env
 END
+
+    if ($self->{environment_config})
+    {
+	$batch .= "$_\n" foreach @{$self->{environment_config}};
+    }
 
     for my $task (@$tasks)
     {
@@ -486,6 +496,9 @@ END
 				   {
 				       cluster_id => $self->id,
 				       job_id => $id,
+				   },
+				   {
+				       active => 1,
 				   });
 	}
     }
@@ -529,6 +542,7 @@ sub queue_check
     my @jobs = $self->schema->resultset("ClusterJob")->search({
 	cluster_id => $self->id,
 	'task.state_code' => 'S',
+	'task_executions.active' => 1,
     }, { join => { task_executions => 'task' }, distinct => 1});
 
     if (@jobs == 0)
@@ -603,8 +617,10 @@ sub queue_check
 	#
 	# Code is true if the new job state is a terminal state.
 	# Pull final results.
+	# Use the first word of the state since we have 'CANCELLED by 424'
 	#
-	my $code = $job_states{$vals->{State}};
+	my ($s1) = $vals->{State} =~ /^(\S+)/;
+	my $code = $job_states{$s1};
 	if ($code)
 	{
 	    my($rss) = $vals->{MaxRSS} =~ /(.*)M$/;
@@ -669,11 +685,17 @@ sub setup_cluster_command
 
     if ($cinfo->remote_host)
     {
+	#
+	# Need to invoke with bash -l to get login environment
+	# configured, which gets the full setup required for e.g.
+	# module command to work to manipulate environment.
+	#
+	my $shcmd = join(" ", map { "'$_'" } "env", "TZ=UCT", @$cmd);
 	my $new = ["ssh",
 		   "-l", $cinfo->remote_user,
 		   "-i", $cinfo->remote_keyfile,
 		   $cinfo->remote_host,
-		   join(" ", map { "'$_'" } "env", "TZ=UCT", @$cmd),
+		   "bash -l -c \"$shcmd\"",
 		   ];
 	print "@$new\n";
 	return $new;

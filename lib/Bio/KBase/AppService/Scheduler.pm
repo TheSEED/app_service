@@ -118,6 +118,8 @@ sub start_app
     }); 
 
     say "Created task " . $task->id;
+    my $idle;
+    $idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
     return $task;
 }
 

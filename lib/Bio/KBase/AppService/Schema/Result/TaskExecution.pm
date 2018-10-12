@@ -47,6 +47,11 @@ __PACKAGE__->table("TaskExecution");
   is_foreign_key: 1
   is_nullable: 1
 
+=head2 active
+
+  data_type: 'tinyint'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -54,6 +59,8 @@ __PACKAGE__->add_columns(
   { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
   "cluster_job_id",
   { data_type => "integer", is_foreign_key => 1, is_nullable => 1 },
+  "active",
+  { data_type => "tinyint", is_nullable => 1 },
 );
 
 =head1 RELATIONS
@@ -99,8 +106,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-21 11:23:56
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Ja5KnJz5II9ruja1zwefsg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-28 13:01:28
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:hwU8HYdhTRNUWKAXVzTe8w
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

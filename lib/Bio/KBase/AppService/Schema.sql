@@ -122,6 +122,7 @@ CREATE TABLE TaskExecution
 (
 	task_id INTEGER,
 	cluster_job_id INTEGER,
+	active BOOLEAN,
 	FOREIGN KEY(task_id) REFERENCES Task(id),
 	FOREIGN KEY(cluster_job_id) REFERENCES ClusterJob(id)
 );
