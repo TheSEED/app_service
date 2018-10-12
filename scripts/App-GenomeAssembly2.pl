@@ -173,6 +173,8 @@ sub assemble
 		       },
 		       exclude => [qr/^(corrected|misc|tmp|mismatch_corrector|before_rr\.fasta)$/,
 				   qr/^K\d+$/,
+				   qr/\.fastq/,
+				   qr/\.fq/,
 				   ],
 		   });
     $ws->save_file_to_file("$asm_out/contigs.fasta", {},

@@ -35,7 +35,7 @@ sub new
 	schema => $schema,
 	json => JSON::XS->new->pretty(1)->canonical(1),
 	task_start_interval => 15,
-	queue_check_interval => 5,
+	queue_check_interval => 60,
 	time_zone => DateTime::TimeZone->new(name => 'UTC'),
 	policies => [],
 	%opts,
