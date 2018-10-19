@@ -5,6 +5,8 @@
 
 package Bio::KBase::AppService::ComprehensiveGenomeAnalysis;
 
+use Carp::Always;
+
 use Bio::KBase::AppService::AssemblyParams;
 use Bio::KBase::AppService::Client;
 
@@ -74,10 +76,15 @@ sub run
     {
 	$self->process_genbank();
     }
+    elsif ($params->{input_type} eq 'gto')
+    {
+	$self->process_gto();
+    }
 
     #
     # We have our base annotation completed. Run our report.
     #
+    print "Generate report\n";
     $self->generate_report();
 }
 
@@ -288,6 +295,27 @@ sub process_contigs
     }
 }
     
+sub process_gto
+{
+    my($self) = @_;
+
+    #
+    # Extract the annotation-related parameters, and set the desired
+    # output location.
+    #
+
+    my $params = $self->params;
+
+    my $gto_ws = $params->{gto};
+
+    print "Create " . $self->output_folder . "/.annotation\n";
+    eval { $self->app->workspace->create({ objects => [[$self->output_folder . "/.annotation", 'folder' ]]}); };
+    print STDERR "Copy $gto_ws to " .  $self->output_folder . "/.annotation/annotation.genome\n";
+    $self->app->workspace->copy({ objects => [[$gto_ws, $self->output_folder . "/.annotation/annotation.genome"]]});
+    print STDERR "copy done\n";
+    $self->annotation_statistics({});
+}
+    
 sub generate_report
 {
     my($self) = @_;
@@ -318,7 +346,9 @@ sub generate_report
     # For the circular viewer, we need the sp_gene load file.
     #
     my $sp_genes = "sp_gene.json";
-    $self->app->workspace->download_file("$anno_folder/load_files/$sp_genes", $sp_genes, 1, $self->token->token);
+    eval {
+	$self->app->workspace->download_file("$anno_folder/load_files/$sp_genes", $sp_genes, 1, $self->token->token);
+    };
 
     #
     # Create the subsystem color map used in both the circular viewer and the report itself.
@@ -342,7 +372,7 @@ sub generate_report
 	       "--max-contigs", 500,
 	       "--truncation-status-file", "$stat_tmp",
 	       "--subsystem-colors", $ss_colors,
-	       "--specialty-genes", $sp_genes,
+	       (-s $sp_genes ? ("--specialty-genes", $sp_genes) : ()),
 	       "--output-png", "circos.png",
 	       "--output-svg", "circos.svg",
 	       $annotated_file);
@@ -377,7 +407,7 @@ sub generate_report
     my($tree_svg, @trees_to_upload) = compute_tree($annotated_file, $tree_dir, $tree_ingroup_size);
 
     my @tree_param;
-    if ($tree_svg)
+    if (-s $tree_svg)
     {
 	@tree_param = ("-t", $tree_svg);
     }
@@ -490,11 +520,11 @@ sub compute_tree
 	    "--maxAllowedDups", $max_allowed_dups,
 	    "--maxGenomesMissing", $max_genomes_missing,
 	    "--bootstrapReps", $bootstrap_reps,
-	    "--raxmlNumThreads", $n_threads,
+	    "--threads", $n_threads,
 	    "--outputDirectory", $tree_dir,
 	    "--raxmlExecutable", $exe,
 	    "--genomeObjectFile", $annotated_file,
-	    $ingroup_file);
+	    "--genomeIdsFile", $ingroup_file);
     print "@cmd\n";
     my $rc = system(@cmd);
     if ($rc != 0)

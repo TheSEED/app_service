@@ -151,6 +151,15 @@
          "default" : null
       },
       {
+         "label" : "Preannotated genome object",
+         "wstype" : "Genome",
+         "type" : "wstype",
+         "id" : "gto",
+         "required" : 0,
+         "desc" : "Preannotated genome object",
+         "default" : null
+      },
+      {
          "type" : "enum",
          "id" : "recipe",
          "label" : "Assembly recipe",
