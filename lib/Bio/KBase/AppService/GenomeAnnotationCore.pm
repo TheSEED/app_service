@@ -113,7 +113,10 @@ sub run_pipeline
 	    die "Invalid workflow document (must be a object containing a stage list)";
 	}
     }
-    elsif ($recipe_id)
+    #
+    # minor hack; "default" here means to use the default specified in this module, not the default RASTtk pipeline.
+    #
+    elsif ($recipe_id ne '' && $recipe_id ne 'default')
     {
 	my $recipe = $self->impl->find_recipe($recipe_id);
 	if ($recipe->{workflow})
@@ -411,6 +414,7 @@ sub submit_load_files
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
 		 [subsystem => "subsystem.json"],
+		 [feature_sequence => "feature_sequence.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     
