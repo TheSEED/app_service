@@ -414,6 +414,7 @@ sub submit_load_files
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
 		 [subsystem => "subsystem.json"],
+		 [feature_sequence => "feature_sequence.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     
