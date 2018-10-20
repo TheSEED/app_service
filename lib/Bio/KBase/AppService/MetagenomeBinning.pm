@@ -102,6 +102,15 @@ sub process
     {
 	if ($self->bebop)
 	{
+	    #
+	    # Check for new form
+	    #
+	    
+	    if (@$val == 2 && !ref($val->[0]) && !ref($val->[1]))
+	    {
+		$val = [{ read1 => $val->[0], read2 => $val->[1] }];
+	    }
+	    
 	    if (@$val != 1)
 	    {
 		die "MetagenomeBinning:: only one paired end library may be provided";
