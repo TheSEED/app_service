@@ -170,7 +170,8 @@ ENDBATCH
     while (1)
     {
 	my $res = $self->run_sacct([$job]);
-	my $state = $job_states{$res->{$job}->{State}};
+	my($sword) = $res->{$job}->{State} =~ /^(\S+)/;
+	my $state = $job_states{$sword};
 	print Dumper($state, $res);
 	if ($state)
 	{
