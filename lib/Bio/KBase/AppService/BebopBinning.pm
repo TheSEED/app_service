@@ -92,7 +92,7 @@ sub assemble_paired_end_libs
     my $est_time = int($est_comp < 1500 ? (10 * $est_comp) : (4 * $est_comp));
 
     $est_time *= 10;
-    $est_time_min = int($est_time / 60);
+    my $est_time_min = int($est_time / 60);
 
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
     my $est_storage = int(1.3e6 * $est_comp / 0.75);
