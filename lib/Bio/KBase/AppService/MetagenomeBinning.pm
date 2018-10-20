@@ -454,6 +454,7 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 #	    _parent_job => $self->app->task_id,
+	    queue_nowait => 1,
 	    analyze_quality => 1,
 	    ($self->params->{skip_indexing} ? (skip_indexing => 1) : ()),
 	    recipe => $self->params->{recipe},
