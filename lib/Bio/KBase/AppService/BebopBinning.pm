@@ -42,8 +42,8 @@ sub new
 
     my $self = {
 	json => JSON::XS->new->pretty(1),
-#	host => 'bebop.lcrc.anl.gov',
-	host => 'beboplogin1.lcrc.anl.gov',
+	host => 'bebop.lcrc.anl.gov',
+#	host => 'beboplogin1.lcrc.anl.gov',
 	%opts,
     };
     return bless $self, $class;
@@ -51,7 +51,7 @@ sub new
 
 sub assemble_paired_end_libs
 {
-    my($self, $ws_path, $libs) = @_;
+    my($self, $ws_path, $libs, $task_id) = @_;
 
     my $ws = Bio::P3::Workspace::WorkspaceClientExt->new;
 
@@ -115,7 +115,7 @@ sub assemble_paired_end_libs
 
     my $batch = <<ENDBATCH;
 #!/bin/sh
-#SBATCH --job-name=Binning
+#SBATCH --job-name=$task_id
 #SBATCH -N 1
 #SBATCH -p $partition
 #SBATCH -A PATRIC
@@ -136,7 +136,7 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 
 export KB_AUTH_TOKEN="$token_txt"
 
-p3x-run-spades-for-binning --threads 36 --memory 128 $ws_path <<'ENDINP'
+p3x-run-spades-for-binning --threads 36 --memory 128 "$ws_path" <<'ENDINP'
 $input
 ENDINP
 ENDBATCH

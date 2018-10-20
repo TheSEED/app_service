@@ -115,7 +115,7 @@ sub process
 	    {
 		die "MetagenomeBinning:: only one paired end library may be provided";
 	    }
-	    $self->bebop->assemble_paired_end_libs($output_folder, $val->[0]);
+	    $self->bebop->assemble_paired_end_libs($output_folder, $val->[0], $self->app->task_id);
 	    my $local_contigs = "$assembly_dir/contigs.fasta";
 	    $self->contigs($local_contigs);
 	    print "Copy from " . $self->output_folder . "/contigs.fasta to $local_contigs\n";
