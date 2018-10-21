@@ -93,6 +93,7 @@ sub assemble_paired_end_libs
 
     $est_time *= 10;
     my $est_time_min = int($est_time / 60);
+    $est_time_min = 1440 if $est_time_min > 1440;
 
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
     my $est_storage = int(1.3e6 * $est_comp / 0.75);
@@ -101,7 +102,7 @@ sub assemble_paired_end_libs
     
     my $partition = "bdwall";
 
-    if ($est_storage > 10e9)
+    if ($est_storage > 3e9)
     {
 	$partition = "bdwd";
     }
