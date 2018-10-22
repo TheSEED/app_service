@@ -236,7 +236,7 @@ sub default_workflow
 		},
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
-	      { name => 'annotate_families_figfam_v1' },
+	      # { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
 	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
