@@ -437,7 +437,7 @@ sub get_patric_genome_faa_seed {
     my ($outdir, $gid) = @_;
     my $path = "$outdir/$gid.faa";
     open(my $fh, ">", $path) or die "Cannot write $path: $!";
-    $data_api_module->retrieve_protein_features_in_genome_in_export_format($gid, $fh);
+    $data_api_module->retrieve_protein_features_in_genome_in_export_format($gid, $fh, 1);
     close($fh);
     return $path
 }
