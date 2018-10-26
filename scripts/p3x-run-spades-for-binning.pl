@@ -40,7 +40,7 @@ if ($doc->{read1})
 }
 print "reads: $read1 $read2\n";
 
-my(@cmd) = ("p3x-assembly"
+my(@cmd) = ("p3x-assembly",
 	    "--anon", $read1, $read2,
 	    "--meta",
 	    "--runTrimmomatic",
