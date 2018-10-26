@@ -137,7 +137,9 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 
 export KB_AUTH_TOKEN="$token_txt"
 
+module add jdk
 p3x-run-spades-for-binning --threads 36 --memory 128 "$ws_path" <<'ENDINP'
+
 $input
 ENDINP
 ENDBATCH
