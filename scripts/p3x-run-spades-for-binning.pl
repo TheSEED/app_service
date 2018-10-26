@@ -40,9 +40,10 @@ if ($doc->{read1})
 }
 print "reads: $read1 $read2\n";
 
-my(@cmd) = ("spades.py",
-	    "-1", $read1, "-2", $read2,
+my(@cmd) = ("p3x-assembly"
+	    "--anon", $read1, $read2,
 	    "--meta",
+	    "--runTrimmomatic",
 	    "-o", $workdir,
 	    "--threads", $opt->threads,
 	    "--memory", $opt->memory,
