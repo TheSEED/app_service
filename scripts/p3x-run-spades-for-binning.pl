@@ -63,7 +63,7 @@ if ($rc != 0)
 #
 
 my @map = ("-m", "fasta=contigs", "-m", "log=txt");
-my @files = qw(contigs.fasta spades.log params.txt);
+my @files = qw(contigs.fasta spades.log params.txt p3x-assembly.log);
 for my $f (@files)
 {
     if (-f "$workdir/$f")
