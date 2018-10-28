@@ -143,6 +143,13 @@ p3x-run-spades-for-binning --threads 36 --memory 128 "$ws_path" <<'ENDINP'
 $input
 ENDINP
 ENDBATCH
+
+    if (1)
+    {
+	my $dbatch = $batch;
+	$dbatch =~ s/sig=[a-z0-9]+/sig=XXX/g;
+	print STDERR "Submitting:\n$dbatch\n";
+    }
     
     my $out;
     my($fh, $handle) = $self->run(["sbatch", "--parsable"], $batch, \$out);
@@ -182,7 +189,7 @@ ENDBATCH
 	    $final_res = $res->{$job};
 	    last;
 	}
-	sleep 30;
+	sleep 120;
     }
 
     if ($final_state eq 'C')
@@ -285,7 +292,7 @@ sub run
 	@out = (">pipe", $fh);
     }
 	
-    print Dumper($new, \@inp, \@out);
+    # print Dumper($new, \@inp, \@out);
     my $h = IPC::Run::start($new, @inp, @out);
     if (!$h)
     {
