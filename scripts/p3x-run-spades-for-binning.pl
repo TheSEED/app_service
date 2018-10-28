@@ -68,7 +68,11 @@ for my $f (@files)
 {
     if (-f "$workdir/$f")
     {
-	run("p3-cp", @map, "$workdir/$f", "ws:$output_ws/$f");
+	my $rc = system("p3-cp", @map, "$workdir/$f", "ws:$output_ws/$f");
+	if ($rc != 0)
+	{
+	    warn "Error $rc copying $workdir/$f to $output_ws/$f\n";
+	}
     }
 }
 
