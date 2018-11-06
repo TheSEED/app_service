@@ -1,167 +1,167 @@
 {
-    "script": "App-SequenceTaxonomicClassification"
-    "description": "Compute taxonomic classification for read data", 
-    "id": "SequenceTaxonomicClassification", 
-    "label": "classify reads", 
-    "parameters": [
+  "id": "SequenceTaxonomicClassification",
+  "script": "App-SequenceTaxonomicClassification",
+  "label": "classify reads",
+  "description": "Compute taxonomic classification for read data",
+  "parameters": [
+    {
+      "desc": "Input type (reads / contigs)",
+      "required": 1,
+      "default": null,
+      "label": "Input Type",
+      "type": "enum",
+      "enum": [
+        "reads",
+        "contigs"
+      ],
+      "id": "input_type"
+    },
+    {
+      "label": "Contig file",
+      "wstype": "Contigs",
+      "type": "wstype",
+      "id": "reference_assembly",
+      "required": 0,
+      "desc": "Assembled DNA contigs",
+      "default": null
+    },
+    {
+      "id": "paired_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
         {
-            "default": null, 
-            "desc": "Input type (reads / contigs)", 
-            "enum": [
-                "reads", 
-                "contigs"
-            ], 
-            "id": "input_type", 
-            "label": "Input Type", 
-            "required": 1, 
-            "type": "enum"
-        }, 
+          "id": "read1",
+          "required": 1,
+          "label": "Read file 1",
+          "desc": "FASTQ or FASTA file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
         {
-            "default": null, 
-            "desc": "Assembled DNA contigs", 
-            "id": "reference_assembly", 
-            "label": "Contig file", 
-            "required": 0, 
-            "type": "wstype", 
-            "wstype": "Contigs"
-        }, 
+          "id": "read2",
+          "required": 0,
+          "label": "Read file 2",
+          "desc": "FASTQ or FASTA file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
         {
-            "allow_multiple": true, 
-            "default": null, 
-            "group": [
-                {
-                    "desc": "FASTQ or FASTA file of reads", 
-                    "id": "read1", 
-                    "label": "Read file 1", 
-                    "required": 1, 
-                    "type": "wstype", 
-                    "wstype": "ReadFile"
-                }, 
-                {
-                    "desc": "FASTQ or FASTA file of reads", 
-                    "id": "read2", 
-                    "label": "Read file 2", 
-                    "required": 0, 
-                    "type": "wstype", 
-                    "wstype": "ReadFile"
-                }, 
-                {
-                    "default": "infer", 
-                    "desc": "Sequencing platform used to generate the read library", 
-                    "enum": [
-                        "infer", 
-                        "illumina", 
-                        "pacbio", 
-                        "nanopore"
-                    ], 
-                    "id": "platform", 
-                    "label": "Sequencing Platform", 
-                    "required": 0, 
-                    "type": "enum"
-                }, 
-                {
-                    "default": false, 
-                    "id": "interleaved", 
-                    "label": "Are the paired end reads interleaved?", 
-                    "required": 0, 
-                    "type": "bool"
-                }, 
-                {
-                    "default": false, 
-                    "id": "read_orientation_outward", 
-                    "label": "Do the two reads in each pair face outward?", 
-                    "required": 0, 
-                    "type": "bool"
-                }, 
-                {
-                    "default": null, 
-                    "id": "insert_size_mean", 
-                    "label": "Average insert size", 
-                    "required": 0, 
-                    "type": "int"
-                }, 
-                {
-                    "default": null, 
-                    "id": "insert_size_stdev", 
-                    "label": "Average insert standard deviation", 
-                    "required": 0, 
-                    "type": "float"
-                }
-            ], 
-            "id": "paired_end_libs", 
-            "required": 0, 
-            "type": "group"
-        }, 
+          "id": "platform",
+          "label": "Sequencing Platform",
+          "required": 0,
+          "default": "infer",
+          "desc": "Sequencing platform used to generate the read library",
+          "type": "enum",
+          "enum": [
+            "infer",
+            "illumina",
+            "pacbio",
+            "nanopore"
+          ]
+        },
         {
-            "allow_multiple": true, 
-            "default": null, 
-            "group": [
-                {
-                    "desc": "FASTQ, FASTA or H5 file of reads", 
-                    "id": "read", 
-                    "label": "Read file", 
-                    "required": 1, 
-                    "type": "wstype", 
-                    "wstype": "ReadFile"
-                }, 
-                {
-                    "default": "infer", 
-                    "desc": "Sequencing platform used to generate the read library", 
-                    "enum": [
-                        "infer", 
-                        "illumina", 
-                        "pacbio", 
-                        "nanopore"
-                    ], 
-                    "id": "platform", 
-                    "label": "Sequencing Platform", 
-                    "required": 0, 
-                    "type": "enum"
-                }
-            ], 
-            "id": "single_end_libs", 
-            "required": 0, 
-            "type": "group"
-        }, 
+          "id": "interleaved",
+          "label": "Are the paired end reads interleaved?",
+          "required": 0,
+          "default": false,
+          "type": "bool"
+        },
         {
-            "default": "Kraken", 
-            "desc": "Classification algorithm", 
-            "enum": [
-                "Kraken", 
-                "Centrifuge"
-            ], 
-            "id": "algorithm", 
-            "label": "Algorithm", 
-            "required": 1, 
-            "type": "enum"
-        }, 
+          "id": "read_orientation_outward",
+          "label": "Do the two reads in each pair face outward?",
+          "required": 0,
+          "default": false,
+          "type": "bool"
+        },
         {
-            "default": "Default NT", 
-            "desc": "Classification algorithm", 
-            "enum": [
-                "Default NT", 
-                "Protein"
-            ], 
-            "id": "database", 
-            "label": "Database", 
-            "required": 1, 
-            "type": "enum"
-        }, 
+          "id": "insert_size_mean",
+          "label": "Average insert size",
+          "required": 0,
+          "default": null,
+          "type": "int"
+        },
         {
-            "default": null, 
-            "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ", 
-            "id": "output_path", 
-            "label": "Output Folder", 
-            "required": 1, 
-            "type": "folder"
-        }, 
-        {
-            "default": null, 
-            "desc": "Basename for the generated output files. Defaults to the basename of the input data.", 
-            "id": "output_file", 
-            "label": "File Basename", 
-            "required": 1, 
-            "type": "wsid"
+          "id": "insert_size_stdev",
+          "label": "Average insert standard deviation",
+          "required": 0,
+          "default": null,
+          "type": "float"
         }
-    ], 
+      ]
+    },
+    {
+      "id": "single_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "read",
+          "required": 1,
+          "label": "Read file",
+          "desc": "FASTQ, FASTA or H5 file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
+        {
+          "id": "platform",
+          "label": "Sequencing Platform",
+          "required": 0,
+          "default": "infer",
+          "desc": "Sequencing platform used to generate the read library",
+          "type": "enum",
+          "enum": [
+            "infer",
+            "illumina",
+            "pacbio",
+            "nanopore"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "algorithm",
+      "type": "enum",
+      "label": "Algorithm",
+      "default": "Kraken",
+      "enum": [
+        "Kraken",
+        "Centrifuge"
+      ],
+      "desc": "Classification algorithm",
+      "required": 1
+    },
+    {
+      "id": "database",
+      "type": "enum",
+      "label": "Database",
+      "default": "Default NT",
+      "enum": [
+        "Default NT",
+        "Protein"
+      ],
+      "desc": "Target database",
+      "required": 1
+    },
+    {
+      "id": "output_path",
+      "label": "Output Folder",
+      "required": 1,
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
+      "type": "folder"
+    },
+    {
+      "id": "output_file",
+      "label": "File Basename",
+      "required": 1,
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
+      "type": "wsid"
+    }
+  ]
 }
