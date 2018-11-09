@@ -42,8 +42,8 @@ sub new
 
     my $self = {
 	json => JSON::XS->new->pretty(1),
-#	host => 'bebop.lcrc.anl.gov',
-	host => 'beboplogin1.lcrc.anl.gov',
+	host => 'bebop.lcrc.anl.gov',
+#	host => 'beboplogin1.lcrc.anl.gov',
 	%opts,
     };
     return bless $self, $class;
@@ -51,7 +51,7 @@ sub new
 
 sub assemble_paired_end_libs
 {
-    my($self, $ws_path, $libs) = @_;
+    my($self, $ws_path, $libs, $task_id) = @_;
 
     my $ws = Bio::P3::Workspace::WorkspaceClientExt->new;
 
@@ -92,6 +92,8 @@ sub assemble_paired_end_libs
     my $est_time = int($est_comp < 1500 ? (10 * $est_comp) : (4 * $est_comp));
 
     $est_time *= 10;
+    my $est_time_min = int($est_time / 60);
+    $est_time_min = 1440 if $est_time_min > 1440;
 
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
     my $est_storage = int(1.3e6 * $est_comp / 0.75);
@@ -100,7 +102,7 @@ sub assemble_paired_end_libs
     
     my $partition = "bdwall";
 
-    if ($est_storage > 10e9)
+    if ($est_storage > 3e9)
     {
 	$partition = "bdwd";
     }
@@ -114,12 +116,12 @@ sub assemble_paired_end_libs
 
     my $batch = <<ENDBATCH;
 #!/bin/sh
-#SBATCH --job-name=Binning
+#SBATCH --job-name=$task_id
 #SBATCH -N 1
 #SBATCH -p $partition
 #SBATCH -A PATRIC
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=$est_time
+#SBATCH --time=$est_time_min
 
 export KB_TOP=$top
 export KB_RUNTIME=$rt
@@ -135,10 +137,19 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 
 export KB_AUTH_TOKEN="$token_txt"
 
-p3x-run-spades-for-binning --threads 36 --memory 128 $ws_path <<'ENDINP'
+module add jdk
+p3x-run-spades-for-binning --threads 36 --memory 128 "$ws_path" <<'ENDINP'
+
 $input
 ENDINP
 ENDBATCH
+
+    if (1)
+    {
+	my $dbatch = $batch;
+	$dbatch =~ s/sig=[a-z0-9]+/sig=XXX/g;
+	print STDERR "Submitting:\n$dbatch\n";
+    }
     
     my $out;
     my($fh, $handle) = $self->run(["sbatch", "--parsable"], $batch, \$out);
@@ -169,7 +180,8 @@ ENDBATCH
     while (1)
     {
 	my $res = $self->run_sacct([$job]);
-	my $state = $job_states{$res->{$job}->{State}};
+	my($sword) = $res->{$job}->{State} =~ /^(\S+)/;
+	my $state = $job_states{$sword};
 	print Dumper($state, $res);
 	if ($state)
 	{
@@ -177,7 +189,7 @@ ENDBATCH
 	    $final_res = $res->{$job};
 	    last;
 	}
-	sleep 30;
+	sleep 120;
     }
 
     if ($final_state eq 'C')
@@ -280,7 +292,7 @@ sub run
 	@out = (">pipe", $fh);
     }
 	
-    print Dumper($new, \@inp, \@out);
+    # print Dumper($new, \@inp, \@out);
     my $h = IPC::Run::start($new, @inp, @out);
     if (!$h)
     {

@@ -102,11 +102,20 @@ sub process
     {
 	if ($self->bebop)
 	{
+	    #
+	    # Check for new form
+	    #
+	    
+	    if (@$val == 2 && !ref($val->[0]) && !ref($val->[1]))
+	    {
+		$val = [{ read1 => $val->[0], read2 => $val->[1] }];
+	    }
+	    
 	    if (@$val != 1)
 	    {
 		die "MetagenomeBinning:: only one paired end library may be provided";
 	    }
-	    $self->bebop->assemble_paired_end_libs($output_folder, $val->[0]);
+	    $self->bebop->assemble_paired_end_libs($output_folder, $val->[0], $self->app->task_id);
 	    my $local_contigs = "$assembly_dir/contigs.fasta";
 	    $self->contigs($local_contigs);
 	    print "Copy from " . $self->output_folder . "/contigs.fasta to $local_contigs\n";
@@ -454,6 +463,7 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 #	    _parent_job => $self->app->task_id,
+	    queue_nowait => 1,
 	    analyze_quality => 1,
 	    ($self->params->{skip_indexing} ? (skip_indexing => 1) : ()),
 	    recipe => $self->params->{recipe},

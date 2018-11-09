@@ -27,6 +27,20 @@ our $global_token;
 sub process_variation_data {
     my ($app, $app_def, $raw_params, $params) = @_;
 
+    #
+    # Redirect tmp to large NFS if more than 4 input files.
+    # (HACK)
+    #
+    
+    my $file_count = count_params_files($params);
+    print STDERR "File count: $file_count\n";
+    my $bigtmp = "/vol/patric3/tmp";
+    if ($file_count > 4 && -d $bigtmp)
+    {
+	print STDERR "Changing tmp from $ENV{TEMPDIR} to $bigtmp\n";
+	$ENV{TEMPDIR} = $ENV{TMPDIR} = $bigtmp;
+    }
+
     print "Proc variation data ", Dumper($app_def, $raw_params, $params);
     my $time1 = `date`;
 
@@ -43,6 +57,9 @@ sub process_variation_data {
     # my $tmpdir = "/disks/tmp/var_bam";
     # my $tmpdir = "/disks/tmp/var_bam1";
     # my $tmpdir = "/disks/tmp/var_debug";
+
+    system("chmod", "755", "$tmpdir");
+    print STDERR "tmpdir=$tmpdir\n";
 
     print STDERR '$params = '. Dumper($params);
     $params = localize_params($tmpdir, $params);
@@ -405,6 +422,21 @@ sub localize_params {
         $_->{read} = get_ws_file($tmpdir, $_->{read}) if $_->{read};
     }
     return $params;
+}
+
+
+sub count_params_files {
+    my ($params) = @_;
+    my $count = 0;
+    if (ref($params->{paired_end_libs}))
+    {
+	$count += 2 * @{$params->{paired_end_libs}};
+    }
+    if (ref($params->{single_end_libs}))
+    {
+	$count += @{$params->{single_end_libs}};
+    }
+    return $count;
 }
 
 sub get_ws {

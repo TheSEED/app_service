@@ -462,7 +462,7 @@ sub await_task_completion
 
     $query_frequency //= 10;
 
-    my %final_states = map { $_ => 1 } qw(failed suspend completed user_skipped skipped passed);
+    my %final_states = map { $_ => 1 } qw(failed suspend completed user_skipped skipped passed deleted);
 
     my $end_time;
     if ($timeout)
