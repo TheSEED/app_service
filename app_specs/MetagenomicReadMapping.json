@@ -31,6 +31,35 @@
       "id": "gene_set_type"
     },
     {
+      "desc": "Predefined gene set name",
+      "required": 0,
+      "default": null,
+      "label": "Gene set name",
+      "type": "enum",
+      "enum": [
+        "MLST",
+        "CARD"
+      ],
+      "id": "gene_set_name"
+    },
+    {
+      "id": "gene_set_fasta",
+      "required": 0,
+      "default": null,
+      "label": "Gene set FASTA data",
+      "desc": "Protein data in FASTA format",
+      "wstype": "feature_protein_fasta",
+      "type": "wstype"
+    },
+    {
+      "id": "gene_set_feature_group",
+      "label": "Gene set feature group",
+      "required": 0,
+      "default": null,
+      "desc": "Name of feature group that defines the gene set ",
+      "type": "string"
+    },
+    {
       "id": "paired_end_libs",
       "type": "group",
       "allow_multiple": false,
@@ -41,7 +70,7 @@
           "id": "read1",
           "required": 1,
           "label": "Read file 1",
-          "desc": "FASTQ or FASTA file of reads",
+          "desc": "FASTQ file of reads",
           "wstype": "ReadFile",
           "type": "wstype"
         },
@@ -49,7 +78,7 @@
           "id": "read2",
           "required": 0,
           "label": "Read file 2",
-          "desc": "FASTQ or FASTA file of reads",
+          "desc": "FASTQ file of reads",
           "wstype": "ReadFile",
           "type": "wstype"
         }
@@ -66,7 +95,7 @@
           "id": "read",
           "required": 1,
           "label": "Read file",
-          "desc": "FASTQ, FASTA or H5 file of reads",
+          "desc": "FASTQ file of reads",
           "wstype": "ReadFile",
           "type": "wstype"
         }
