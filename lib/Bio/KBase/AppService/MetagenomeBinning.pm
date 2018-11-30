@@ -18,9 +18,12 @@ use Module::Metadata;
 use Bio::KBase::AppService::ClientExt;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name
 					 binning_spades_threads binning_spades_ram
+					 bebop_binning_user bebop_binning_key
 					 seedtk binning_genome_annotation_clientgroup);
 use DBI;
 use File::Slurp;
+
+use Bio::KBase::AppService::BebopBinning;
 
 push @INC, seedtk . "/modules/RASTtk/lib";
 require BinningReports;
@@ -30,7 +33,7 @@ __PACKAGE__->mk_accessors(qw(app app_def params token task_id
 			     work_dir assembly_dir stage_dir
 			     output_base output_folder 
 			     assembly_params spades
-			     contigs app_params
+			     contigs app_params bebop
 			    ));
 
 sub new
@@ -41,6 +44,14 @@ sub new
 	assembly_params => [],
 	app_params => [],
     };
+
+    if (bebop_binning_user && bebop_binning_key)
+    {
+	my $bebop = Bio::KBase::AppService::BebopBinning->new(user => bebop_binning_user,
+							       key => bebop_binning_key);
+	$self->{bebop} = $bebop;
+    }
+
     return bless $self, $class;
 }
 
@@ -89,13 +100,50 @@ sub process
 
     if (my $val = $params->{paired_end_libs})
     {
-	$self->stage_paired_end_libs($val);
-	$self->assemble();
+	if ($self->bebop)
+	{
+	    #
+	    # Check for new form
+	    #
+	    
+	    if (@$val == 2 && !ref($val->[0]) && !ref($val->[1]))
+	    {
+		$val = [{ read1 => $val->[0], read2 => $val->[1] }];
+	    }
+	    
+	    if (@$val != 1)
+	    {
+		die "MetagenomeBinning:: only one paired end library may be provided";
+	    }
+	    $self->bebop->assemble_paired_end_libs($output_folder, $val->[0], $self->app->task_id);
+	    my $local_contigs = "$assembly_dir/contigs.fasta";
+	    $self->contigs($local_contigs);
+	    print "Copy from " . $self->output_folder . "/contigs.fasta to $local_contigs\n";
+	    $app->workspace->download_file($self->output_folder . "/contigs.fasta",
+					   $local_contigs,
+					   1, $self->token);
+	    if (! -f $local_contigs)
+	    {
+		die "Local data not found\n";
+	    }
+	}
+	else
+	{
+	    $self->stage_paired_end_libs($val);
+	    $self->assemble();
+	}
     }
     elsif (my $val = $params->{srr_ids})
     {
-	$self->stage_srr_ids($val);
-	$self->assemble();
+	if ($self->bebop)
+	{
+	    $self->bebop->assemble_srr_ids($val);
+	}
+	else
+	{
+	    $self->stage_srr_ids($val);
+	    $self->assemble();
+	}
     }
     else
     {
@@ -415,6 +463,7 @@ sub extract_fasta
 #	    output_path => $self->params->{output_path},
 	    output_file => $bin_base_name,
 #	    _parent_job => $self->app->task_id,
+	    queue_nowait => 1,
 	    analyze_quality => 1,
 	    ($self->params->{skip_indexing} ? (skip_indexing => 1) : ()),
 	    recipe => $self->params->{recipe},

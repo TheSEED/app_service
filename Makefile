@@ -70,6 +70,8 @@ TPAGE_ARGS = \
 	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
 	--define binning_spades_threads=$(BINNING_SPADES_THREADS) \
 	--define binning_spades_ram=$(BINNING_SPADES_RAM) \
+	--define bebop_binning_key=$(BEBOP_BINNING_KEY) \
+	--define bebop_binning_user=$(BEBOP_BINNING_USER) \
 	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)

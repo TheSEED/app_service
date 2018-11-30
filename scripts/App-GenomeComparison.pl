@@ -3,6 +3,8 @@
 #
 
 use strict;
+use P3DataAPI;
+
 use Carp;
 use Cwd;
 use Data::Dumper;
@@ -37,6 +39,7 @@ exit $rc;
 
 our $global_ws;
 our $global_token;
+our $data_api_module;
 
 sub process_proteomes {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -45,6 +48,7 @@ sub process_proteomes {
 
     $global_token = $app->token();
     $global_ws = $app->workspace;
+    $data_api_module = P3DataAPI->new($data_api, $global_token);
     my $output_folder = $app->result_folder();
     my $output_path = $params->{output_path};
     my $output_base = $params->{output_file};
@@ -431,48 +435,22 @@ sub get_patric_genome_name {
 
 sub get_patric_genome_faa_seed {
     my ($outdir, $gid) = @_;
-    my $faa = get_patric_genome_faa($gid);
-
-    my $ofile = "$outdir/$gid.faa";
-
-    open(S, "<", \$faa) or die "Cannot open string for reading";
-    open(FAA, ">$ofile") or die "Could not open $ofile";
-    while (my($id, $def, $seq) = read_next_fasta(\*S))
-    {
-	next if $seq eq '';
-	$id =~ s/^(fig\|\d+\.\d+\.\w+\.\d+)\S+/$1/g;
-	write_fasta(\*FAA, [$id, undef, $seq]);
-    }
-
-    print "\n$ofile, $gid\n";
-    close(FAA);
-    return $ofile;
-}
-
-sub get_patric_genome_faa {
-    my ($gid) = @_;
-    my $api_url = "$data_api/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),eq(feature_type,CDS))&sort(+accession,+start,+end)&http_accept=application/protein+fasta&limit(25000)";
-    my $ftp_url = "ftp://ftp.patricbrc.org/patric2/patric3/genomes/$gid/$gid.PATRIC.faa";
-    # my $url = $ftp_url;
-    my $url = $api_url;
-    my $out = curl_text($url);
-    return $out;
+    my $path = "$outdir/$gid.faa";
+    open(my $fh, ">", $path) or die "Cannot write $path: $!";
+    $data_api_module->retrieve_protein_features_in_genome_in_export_format($gid, $fh, 1);
+    close($fh);
+    return $path
 }
 
 sub get_feature_group_faa {
     my ($outdir, $group) = @_;
     my $escaped = uri_escape($group);
-    my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,product,aa_sequence,genome_name,genome_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
-    my $data = curl_json($url);
-    # print STDERR Dumper($data);
+    my $url = "$data_api/genome_feature/?in(feature_id,FeatureGroup($escaped))&sort(+feature_id)&http_download=true&http_accept=application/protein+fasta&limit(25000)";
+    my $out = curl_text($url);
+	# print STDERR Dumper($out);
     my $fg_name = $group; $fg_name =~ s/.*\///; $fg_name =~ s/\W+/\_/g;
     my $ofile = "$outdir/$fg_name.faa";
-    open(FAA, ">$ofile") or die "Could not open $ofile";
-    for (@$data) {
-        print FAA ">$_->{patric_id}   $_->{product}   [$_->{genome_name} | $_->{genome_id}]\n";
-        print FAA "$_->{aa_sequence}\n";
-    }
-    close(FAA);
+    write_output($out, $ofile);
     return $ofile;
 }
 

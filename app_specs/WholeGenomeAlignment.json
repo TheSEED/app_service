@@ -1,0 +1,62 @@
+{
+    "id": "WholeGenomeAlignment",
+    "script": "App-WholeGenomeAlignment",
+    "label": "Multiple Whole Genome Alignment",
+    "description": "Use Mauve to perform multiple whole genome alignment with rearrangements.",
+    "parameters": [
+        {
+    	    "id": "genome_ids",
+	        "label": "Genome IDs to Align",
+      	    "allow_multiple": true,
+      	    "required": 1,
+      	    "type": "list",
+      	    "default": []
+        },
+        {
+            "id": "recipe",
+            "label": "Mauve recipe",
+            "required": 0,
+            "default": "progressiveMauve",
+            "desc": "Mauve method to be used",
+            "type": "enum",
+            "enum": ["progressiveMauve", "mauveAligner"]
+        },
+        {
+            "id": "seedWeight",
+            "label": "Seed weight for calculating initial anchors",
+            "required": 0,
+            "default": null,
+            "type": "float"
+        },
+        {
+            "id": "hmmPGoHomologous",
+            "label": "Probability of transitioning from the unrelated to the homologous state",
+            "required": 0,
+            "default": null,
+            "type": "float"
+        },
+        {
+            "id": "hmmPGoUnrelated",
+            "label": "Probability of transitioning from the homologous to the unrelated state",
+            "required": 0,
+            "default": null,
+            "type": "float"
+        },
+        {
+            "id": "output_path",
+            "label": "Output Folder",
+            "required": 1,
+            "default": null,
+            "desc": "Path to which the output will be written. Defaults to the directory containing the input data.",
+            "type": "folder"
+        },
+        {
+            "id":"output_file",
+            "label":"File Basename",
+            "required": 1,
+            "default":null,
+            "desc":"Basename for the generated output files. Defaults to the basename of the input data.",
+            "type":"wsid"
+        }
+    ]
+}
