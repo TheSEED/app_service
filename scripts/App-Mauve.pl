@@ -1,5 +1,5 @@
 #
-# The Whole Genome Alignment application.
+# The (Mauve) Whole Genome Alignment application.
 #
 
 use Bio::KBase::AppService::AppScript;
@@ -59,7 +59,7 @@ sub process_tnseq
     my @cmd = ("p3-mauve", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
-    
+
 
     print 'Running mauve...';
     my $ok = run(\@cmd);
@@ -70,7 +70,7 @@ sub process_tnseq
 
     my @output_suffixes = (
         [qr/\.xmfa*/, "txt"],
-        [qr/\.json*/, "json"]        
+        [qr/\.json*/, "json"]
     );
 
     my $outfile;
@@ -85,12 +85,12 @@ sub process_tnseq
             {
                 my $path = "$output_folder/$file";
                 my $type = $suf->[1];
-                
+
                 $app->workspace->save_file_to_file(
                     "$work_dir/$file",
-                    {}, 
-                    "$output_folder/$file", 
-                    $type, 
+                    {},
+                    "$output_folder/$file",
+                    $type,
                     1,
                     (-s "$work_dir/$file" > 10_000 ? 1 : 0), # shock for larger files
                     $token
