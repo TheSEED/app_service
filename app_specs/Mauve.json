@@ -23,42 +23,7 @@
         },
         {
             "id": "seedWeight",
-            "label": "Seed weight for calculating initial anchors.",
-            "required": 0,
-            "default": null,
-            "type": "float"
-        },
-        {
-            "id": "maxGappedAlignerLength",
-            "label": "Maximum number of base pairs to attempt aligning with the gapped aligner.",
-            "required": 0,
-            "default": null,
-            "type": "float"
-        },
-        {
-            "id": "maxBreakpointDistanceScale",
-            "label": "Set the maximum weight scaling by breakpoint distance.  Must be in [0, 1]. Defaults to 0.9.",
-            "required": 0,
-            "default": null,
-            "type": "float"
-        },
-        {
-            "id": "conservationDistanceScale",
-            "label": "Scale conservation distances by this amount.  Must be in [0, 1].  Defaults to 1.",
-            "required": 0,
-            "default": null,
-            "type": "float"
-        },
-        {
-            "id": "weight",
-            "label": "Minimum pairwise LCB score.",
-            "required": 0,
-            "default": null,
-            "type": "float"
-        },
-        {
-            "id": "minScaledPenalty",
-            "label": "Minimum breakpoint penalty after scaling the penalty by expected divergence.",
+            "label": "Seed weight for calculating initial anchors",
             "required": 0,
             "default": null,
             "type": "float"
