@@ -1,8 +1,8 @@
 {
-    "id": "WholeGenomeAlignment",
-    "script": "App-WholeGenomeAlignment",
+    "id": "GenomeAlignment",
+    "script": "App-GenomeAlignment",
     "label": "Multiple Whole Genome Alignment",
-    "description": "Use Mauve to perform multiple whole genome alignment with rearrangements.",
+    "description": "Uses Mauve to perform multiple whole genome alignment with rearrangements.",
     "parameters": [
         {
     	    "id": "genome_ids",
