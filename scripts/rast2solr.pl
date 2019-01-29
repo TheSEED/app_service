@@ -34,13 +34,16 @@ use Bio::SeqIO;
 use Bio::SeqFeature::Generic;
 use Date::Parse;
 use XML::Simple;
+use File::Slurp;
+use Bio::KBase::AppService::RateLimitedUserAgent;
 our $have_config;
 eval
 {
     require Bio::KBase::AppService::AppConfig;
     $have_config = 1;
 };
-    
+
+our $user_agent = Bio::KBase::AppService::RateLimitedUserAgent->new(3);
 
 use lib "$Bin";
 use SolrAPI;
@@ -786,15 +789,16 @@ sub getAssemblyAccession {
 
 	my ($accn) = @_;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=$accn"`;
+	my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=$accn");
+
   $xml=~s/\n//;
   my ($gi) = $xml=~/<Id>(\d+)<\/Id>/;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=assembly&id=$gi"`;
+  my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=assembly&id=$gi");
   $xml=~s/\n//;
   my ($assembly_id) = $xml=~/<Link>\s*<Id>(\d+)<\/Id>/;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=$assembly_id"`;
+  my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=$assembly_id");
 	my ($assembly_accession) = $xml=~/<Genbank>(\S*)<\/Genbank>/;
 
 	return $assembly_accession;
@@ -807,11 +811,18 @@ sub getMetadataFromBioProject {
 
 	print "Getting genome metadata from BioProject: $bioproject_accn...\n";
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=bioproject&term=$bioproject_accn"`;
-  $xml=~s/\n//;
-  my ($bioproject_id) = $xml=~/<Id>(\d+)<\/Id>/;
+	my $url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=bioproject&term=$bioproject_accn";
+	my $res = $user_agent->get($url);
+	if (!$res->is_success)
+	{
+	    warn "Failure retrieving $url: " . $res->content;
+	    return;
+	}
+	my $xml = $res->content;
+	$xml=~s/\n//;
+	my ($bioproject_id) = $xml=~/<Id>(\d+)<\/Id>/;
 
-	`wget -q -O "$outfile.bioproject.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=bioproject&retmode=xml&id=$bioproject_id"`;
+	get_xml_to_file("$outfile.bioproject.xml", "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=bioproject&retmode=xml&id=$bioproject_id");
 
 	return unless -f "$outfile.bioproject.xml";
 	
@@ -820,11 +831,10 @@ sub getMetadataFromBioProject {
 	my ($hostName, $hostGender, $hostAge, $hostHealth);
 	my ($publication, $taxonID, $epidemiology);
 
-
 	my $xml = XMLin("$outfile.bioproject.xml", ForceArray => ["Organization"]);
 	my $root = $xml->{DocumentSummary};
 
-	#print Dumper $xml;
+	# print Dumper $xml;
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
 
@@ -1102,11 +1112,11 @@ sub getMetadataFromBioSample {
 
 	print "Getting genome metadata from BioSample: $biosample_accn ...\n";
   
-	my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=biosample&term=$biosample_accn"`;
+	my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=biosample&term=$biosample_accn");
   $xml=~s/\n//;
   my ($biosample_id) = $xml=~/<Id>(\d+)<\/Id>/;
 
-	`wget -q -O "$outfile.biosample.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=biosample&retmode=xml&id=$biosample_id"`;
+	get_xml_to_file("$outfile.biosample.xml", "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=biosample&retmode=xml&id=$biosample_id");
 
 	return unless -f "$outfile.biosample.xml";
 	
@@ -1251,4 +1261,23 @@ sub prepareTaxonomy {
 
 }
 
+sub get_xml
+{
+    my($url) = @_;
+    my $res = $user_agent->get($url);
+    if (!$res->is_success)
+    {
+	warn "Failure retrieving $url: " . $res->content;
+	return;
+    }
+    my $xml = $res->content;
+    return $xml;
+}
+
+sub get_xml_to_file
+{
+    my($file, $url) = @_;
+    my $xml = get_xml($url);
+    write_file($file, $xml);
+}
 
