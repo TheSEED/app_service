@@ -157,12 +157,18 @@ sub assemble
 
     print "Start assembler: @cmd\n";
     my $rc = system(@cmd);
+
+    my $output_folder = $app->result_folder();
+
+    #
+    # Ensure our logfile is copied across.
+    #
+    $ws->save_file_to_file($log, {}, "$output_folder/" . basename($log), 'txt', 1, 1);
+
     if ($rc != 0)
     {
 	die "Assembler failed with rc=$rc";
     }
-
-    my $output_folder = $app->result_folder();
 
     print "Upload $asm_out/. to '$output_folder'\n";
     $ws->upload_folder("$asm_out/.", "$output_folder/spades",
