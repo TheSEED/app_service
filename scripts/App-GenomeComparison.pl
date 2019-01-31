@@ -445,9 +445,18 @@ sub get_patric_genome_faa_seed {
 sub get_feature_group_faa {
     my ($outdir, $group) = @_;
     my $escaped = uri_escape($group);
-    my $url = "$data_api/genome_feature/?in(feature_id,FeatureGroup($escaped))&sort(+feature_id)&http_download=true&http_accept=application/protein+fasta&limit(25000)";
-    my $out = curl_text($url);
-	# print STDERR Dumper($out);
+    my $url = "$data_api/genome_feature/?in(feature_id,FeatureGroup($escaped))&select(patric_id,accession,start,end)&sort(+accession,+start,+end)&http_accept=application/json&limit(25000)";
+    #print STDERR "feature_group url= $url\n";
+    my $json = curl_json($url);
+    my $out = "";
+    #print STDERR "feature_group info: ", Dumper($json);
+    for my $fea (@$json) {
+        my $id = $fea->{patric_id};
+		# print STDERR "feature patric_id= " . $id . "\n";
+        my $seq = $data_api_module->retrieve_protein_feature_sequence([$id]);
+        $out = $out . ">$id\n" . $seq->{$id} . "\n";
+        #print STDERR "feature faa:\n$out\n";
+    }
     my $fg_name = $group; $fg_name =~ s/.*\///; $fg_name =~ s/\W+/\_/g;
     my $ofile = "$outdir/$fg_name.faa";
     write_output($out, $ofile);
@@ -478,7 +487,7 @@ sub add_feature_hash_with_user_feature_groups {
     my ($hash, $groups) = @_;
     for my $group (@$groups) {
         my $escaped = uri_escape($group);
-        my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene,plfam_id,pgfam_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+        my $url = "$data_api/genome_feature/?&sort(+accession,+start,+end)&select(patric_id,accession,start,end,strand,product,refseq_locus_tag,gene,plfam_id,pgfam_id)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
         my $json = curl_json($url);
         for my $fea (@$json) {
             my $id = $fea->{patric_id};
@@ -499,7 +508,8 @@ sub get_genome_contigs {
 sub get_feature_group_contigs {
     my ($group) = @_;
     my $escaped = uri_escape($group);
-    my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(genome_id,accession)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+    #my $url = "$data_api/genome_feature/?&sort(+alt_locus_tag)&select(genome_id,accession)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
+	my $url = "$data_api/genome_feature/?&sort(+accession,+start,+end)&select(genome_id,accession)&in(feature_id,FeatureGroup($escaped))&http_accept=application/json&limit(25000)";
     my $data = curl_json($url);
     my (%gids, %accs);
     for (@$data) {
