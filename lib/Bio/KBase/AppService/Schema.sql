@@ -29,6 +29,7 @@ CREATE TABLE Cluster
 	temp_path text,
 	p3_runtime_path text,
 	p3_deployment_path text,
+	max_allowed_jobs int,
 	FOREIGN KEY (type) REFERENCES ClusterType(type)
 ) ;
 INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path, 
@@ -93,6 +94,8 @@ CREATE TABLE Task
 	start_time TIMESTAMP DEFAULT 0,
 	finish_time TIMESTAMP DEFAULT 0,
 	monitor_url VARCHAR(255),
+	output_path TEXT,
+	output_file TEXT,
 	params TEXT,
 	app_spec TEXT,
 	req_memory VARCHAR(255),

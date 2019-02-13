@@ -7,6 +7,8 @@ use Bio::KBase::AppService::AppSpecs;
 use Bio::KBase::AppService::Scheduler;
 use Bio::KBase::AppService::SlurmCluster;
 
+#use Carp::Always;
+
 use Plack::Middleware::CrossOrigin;
 use Plack::Builder;
 use Data::Dumper;
@@ -28,7 +30,10 @@ my $shared_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 								      "--time 1:00:00"]);
 my $cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 							schema => $sched->schema,
-							resources => ["-p bdwall",
+							resources => [
+								      "-p bdwd",
+								      "-x bdwd-0050",
+								      # "-p bdwall",
 								      "-N 1",
 								      "-A PATRIC",
 								      "--ntasks-per-node 1"],

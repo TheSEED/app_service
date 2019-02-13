@@ -306,7 +306,7 @@ sub submit_tasks
     
     my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
 
-    my $name = join(",", map { $_->application->id } @$tasks);
+    my $name = "t-" . join(",", map { $_->id } @$tasks);
 
     #
     # Ensure all of the tasks have the same owner, if we
@@ -367,6 +367,8 @@ EREQ
     }
     
     my $time = max map { int($_->req_runtime / 60) } @$tasks;
+    # factor in slowdown.
+    $time *= @$tasks;
 
     my $out_dir = $cinfo->temp_path;
     my $out = "$out_dir/slurm-%j.out";
@@ -480,10 +482,16 @@ END
     {
 	$batch .= "exit 0\n";
     }
-    print $batch;
+    #print $batch;
+    if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
+    {
+	print FTMP $batch;
+	close(FTMP);
+    }
 
     my $id;
-    my $ok = run($self->setup_cluster_command(["sbatch", "--parsable"]), "<", \$batch, ">", \$id,
+    my $cmd = $self->setup_cluster_command(["sbatch", "--parsable"]);
+    my $ok = run($cmd, "<", \$batch, ">", \$id,
 		 init => sub { $ENV{TZ} = 'UCT'; });
     if ($ok)
     {
@@ -504,13 +512,65 @@ END
     }
     else
     {
-	print "Failed to submit batch: $?\n";
-	for my $task (@$tasks)
+	my $err = $?;
+	warn "Failed to submit batch: $err\n";
+	if ($cmd->[0] eq 'ssh' && ($err / 256) == 255)
 	{
-	    $task->update({state_code => 'F'});
+	    warn "Ssh failure; will leave task retryable\n";
+	}
+	else
+	{
+	    for my $task (@$tasks)
+	    {
+		$task->update({state_code => 'F'});
+	    }
 	}
     }
     return $ok;
+}
+
+=item B<submission_allowed>
+
+    $ok =$cluster->submission_allowed()
+
+Determine if submission is allowed now. At the least, the number of
+jobs that we've submitted needs to be below the maximum allowed by the
+cluster configuration.
+
+=cut
+
+sub submission_allowed
+{
+    my($self) = @_;
+
+    my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
+    my $max_allowed = $cinfo->max_allowed_jobs();
+
+    my $qc = $self->queue_count('S');
+    my $ok = $qc < $max_allowed ? 1 : 0;
+    # print STDERR "submission_allowed: max=$max_allowed qc=$qc ok=$ok\n";
+    return $ok;
+}
+
+=item B<queue_count>
+
+    $cluster->queue_count($status)
+
+Check the count of jobs in the queue in with the given task status.
+
+=cut
+
+sub queue_count
+{
+    my($self, $state) = @_;
+    my $count = $self->schema->resultset("ClusterJob")->search({
+	cluster_id => $self->id,
+	'task.state_code' => $state,
+	'task_executions.active' => 1,
+    }, { join => { task_executions => 'task' }, distinct => 1})
+	->count();
+
+    return $count;
 }
 
 =item B<queue_check>

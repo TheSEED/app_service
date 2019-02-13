@@ -126,6 +126,16 @@ __PACKAGE__->table("Task");
   data_type: 'text'
   is_nullable: 1
 
+=head2 output_path
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 output_file
+
+  data_type: 'text'
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -173,6 +183,10 @@ __PACKAGE__->add_columns(
   "req_runtime",
   { data_type => "integer", is_nullable => 1 },
   "req_policy_data",
+  { data_type => "text", is_nullable => 1 },
+  "output_path",
+  { data_type => "text", is_nullable => 1 },
+  "output_file",
   { data_type => "text", is_nullable => 1 },
 );
 
@@ -316,8 +330,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-26 15:37:48
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4mTv4htCP77A3yeJERVmZQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-01-31 12:44:35
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4hoUGf7eFkS1hQRA5OFKTw
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

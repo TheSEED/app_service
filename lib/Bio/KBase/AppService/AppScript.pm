@@ -15,8 +15,8 @@ use Bio::P3::Workspace::WorkspaceClientExt;
 use P3AuthToken;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
-use REST::Client;
 use Bio::KBase::AppService::AppConfig ':all';
+use Bio::KBase::AppService::LoggingClient;
 
 use Getopt::Long::Descriptive;
 use base 'Class::Accessor';
@@ -226,7 +226,7 @@ sub run
     }
 
     #
-    # If we are running at the terminal, do not set up this infrastructure.
+    # If we are running at the terminal, do not set up the logging and monitoring infrastructure.
     #
 
     if (-t STDIN)
@@ -235,10 +235,7 @@ sub run
 	exit(0);
     }
 
-    my $ua = LWP::UserAgent->new();
-    my $rest = REST::Client->new();
-    $rest->setHost($self->app_service_url . "/" . $self->task_id);
-    $self->{rest} = $rest;
+    my $logger = Bio::KBase::AppService::LoggingClient->new($self->app_service_url, $self->task_id, $self->task_secret);
 
     my $sel = IO::Select->new();
 

@@ -21,6 +21,7 @@ __PACKAGE__->mk_accessors(qw(schema specs json
 			     queue_check_timer queue_check_interval
 			     default_cluster policies
 			     time_zone
+
 			    ));
 
 sub new
@@ -34,8 +35,8 @@ sub new
     my $self = {
 	schema => $schema,
 	json => JSON::XS->new->pretty(1)->canonical(1),
-	task_start_interval => 15,
-	queue_check_interval => 60,
+	task_start_interval => 120,
+	queue_check_interval => 120,
 	time_zone => DateTime::TimeZone->new(name => 'UTC'),
 	policies => [],
 	%opts,
@@ -103,6 +104,9 @@ sub start_app
 	application_id => $app_id,
 	submit_time => DateTime->now(),
 	params => $self->json->encode($task_parameters),
+	(ref($task_parameters) eq 'HASH' ?
+	 (output_path => $task_parameters->{output_path},
+	  output_file => $task_parameters->{output_file}) : ()),
 	app_spec => $app->spec,
 	monitor_url => $monitor_url,
 	req_memory => $preflight->{memory},
@@ -118,8 +122,12 @@ sub start_app
     }); 
 
     say "Created task " . $task->id;
-    my $idle;
-    $idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
+    if (0)
+    {
+	# Don't do this; allow scheduler to batch runs
+	my $idle;
+	$idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
+    }
     return $task;
 }
 
@@ -263,6 +271,18 @@ sub task_start_check
     my($self) = @_;
     print "Task start check\n";
 
+
+    #
+    # Until we get the real policy stuff in place, query available jobs and sort
+    # by owner and requested runtime so we can bucket them together.
+    #
+    my $rs = $self->schema->resultset("Task")->search(
+						    { state_code => 'Q' },
+						    { order_by => { -asc => [qw/owner req_runtime/] } });
+#						    { order_by => { -asc => 'submit_time' } });
+
+#    print "Evaluate " . scalar(@jobs) . " jobs to be run\n";
+    
     #
     # Allow any configured policies to have first stab at the queue.
     #
@@ -274,15 +294,19 @@ sub task_start_check
 	    $policy->start_tasks($self);
 	}
     }
-    
 
-    my $rs = $self->schema->resultset("Task")->search(
-						  { state_code => 'Q' },
-						  { order_by => { -asc => 'submit_time' } });
-    
+ OUTER:
+    my $per_bucket = 4;
+    my $tolerance = 0.10;
+    #
+    # Task bucket contains [$cand, $cluster] pairs. Submission
+    # requires all elements to have the same owner and a requested runtime
+    # within $tolerance of each other.
+    #
+    my @bucket;
     while (my $cand = $rs->next())
     {
-	say "Candidate: " . $cand->id;
+	# say "Candidate: " . $cand->id;
 
 	my @clusters = $self->find_clusters_for_task($cand);
 	if (!@clusters)
@@ -293,18 +317,90 @@ sub task_start_check
 
 	for my $cluster (@clusters)
 	{
-	    if ($cluster->submit_tasks([$cand]))
+	    if (!$cluster->submission_allowed())
 	    {
-		say "Submitted";
-		last;
+		# print STDERR "Skipping submit for " . $cand->id . " on cluster " . $cluster->id . "\n";
+		next;
+	    }
+	    #
+	    # We have chosen $cluster. See if we can submit in the current bucket.
+	    #
+	    if (@bucket == 0)
+	    {
+		push(@bucket, [$cand, $cluster]);
 	    }
 	    else
 	    {
-		say "Could not submit " . $cand->id . " to cluster ". $cluster->id;
+		my $base = $bucket[0]->[0];
+		my $delta = abs($base->req_runtime - $cand->req_runtime);
+		my $tval = $base->req_runtime * $tolerance;
+		print $cand->id, " $delta $tval\n";
+		if ($cluster->id eq $bucket[0]->[1]->id &&
+		    $cand->owner->id eq $base->owner->id &&
+		    $delta < $base->req_runtime * $tolerance)
+		{
+		    push(@bucket,[$cand, $cluster]);
+		    
+		    if (@bucket >= $per_bucket)
+		    {
+			print "Submit 1\n";
+			my $ok = $self->submit_bucket(\@bucket);
+			@bucket = ();
+			if (!$ok)
+			{
+			    last OUTER;
+			}
+		    }
+		}
+		else
+		{
+		    print "Can't\n";
+		    # We can't add to this bucket. Submit it and push this entry
+		    # to a new one.
+		    print "Submit 2\n";
+		    my $ok = $self->submit_bucket(\@bucket);
+		    if (!$ok)
+		    {
+			@bucket = ();
+			last OUTER;
+		    }
+		    @bucket = ([$cand, $cluster]);
+		}
 	    }
+	    last;		# Skip cluster selection.
 	}
     }
+    if (@bucket)
+    {
+	$self->submit_bucket(\@bucket);
+    }
 }
+
+sub submit_bucket
+{
+    my($self, $bucket) = @_;
+    print "Submit:\n";
+    my $cluster = $bucket->[0]->[1];
+    my @j = map { $_->[0] } @$bucket;
+
+    for my $t (@j)
+    {
+	print join("\t", $t->id, $t->owner->id, $t->req_runtime), "\n";
+    }
+
+    my $ok = $cluster->submit_tasks(\@j);
+    if ($ok)
+    {
+	say "Submitted\n";
+    }
+    else
+    {
+	warn "Error submitting to cluster\n";
+    }	
+    return $ok;
+}
+
+
 
 =item B<find_clusters_for_task>
 
