@@ -3,8 +3,10 @@ package Bio::KBase::AppService::ReadSet;
 use strict;
 use base 'Class::Accessor';
 use File::Basename;
+use File::Path 'make_path';
 use File::Slurp;
 use JSON::XS;
+use IPC::Run;
 
 use Data::Dumper;
 
@@ -16,18 +18,22 @@ Bio::KBase::AppService::ReadSet
 
 =head1 SYNOPSIS
 
-    $readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params)
+    $readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params, $expand_sra)
 
 =head1 DESCRIPTION
 
 A ReadSet represents a set of read libraries. It may be created from a parameter hash as
 defined by the GenomeAssembly application.
 
+If the C<$expand_sra> parameter is set to a true value, then any srr_id libraries will
+be expanded to add the appropriate paired end and single end libraries to the read set.
+During the localize step, they will be retrieved from SRA if possible.
+
 =cut
 
 sub create_from_asssembly_params
 {
-    my($class, $params) = @_;
+    my($class, $params, $expand_sra) = @_;
 
     my @libs;
 
@@ -56,6 +62,8 @@ sub create_from_asssembly_params
 
     my $self = {
 	libraries => \@libs,
+	expand_sra => ($expand_sra ? 1 : 0),
+	validated => 0,
     };
     return bless $self, $class;
 }
@@ -80,6 +88,12 @@ duplicate names, a second path will disambiguate them.
 sub localize_libraries
 {
     my($self, $local_path) = @_;
+
+    $self->{local_path} = $local_path;
+    if ($self->{expand_sra})
+    {
+	$self->expand_sra_metadata();
+    }
 
     my %names;
 
@@ -145,7 +159,7 @@ sub localize_libraries
 	    $lib->{$nk} = "$local_path/$base";
 	}
     }
-    print Dumper($self);
+    #die Dumper($self);
 }
 
 =item B<validate>
@@ -181,15 +195,21 @@ sub validate
 	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $lib->{id});
 	    if ($rc != 0)
 	    {
-		die "p3-sra failed: $rc\n";
+		push(@errs, "p3-sra failed: $rc");
 	    }
-	    my $mtxt = read_file("$tmp");
-	    my $meta = eval { decode_json($mtxt); };
-	    $meta or die "Error loading or evaluating json metadata: $mtxt";
-	    my($me) = grep { $_->{run_id} eq $lib->{id} } @$meta;
-	    $total_comp_size += $me->{size};
+	    else
+	    {
+		my $mtxt = read_file("$tmp");
+		my $meta = eval { decode_json($mtxt); };
+		$meta or die "Error loading or evaluating json metadata: $mtxt";
+		print Dumper(MD => $meta);
+		my($me) = grep { $_->{accession} eq $lib->{id} } @$meta;
+		$total_comp_size += $me->{size};
+		$lib->{metadata} = $me;
+	    }
+	    next;
 	}
-	    
+
 
 	my @files = $lib->files();
 	for my $f (@files)
@@ -216,8 +236,51 @@ sub validate
 	}
 
     }
+    $self->{validated} = (@errs == 0);
     return(@errs == 0, \@errs, $total_comp_size, $total_uncomp_size);
 }
+
+=item B<expand_sra_metadata>
+
+    $readset->expand_sra_metadata()
+
+For each SRA library in the readset, use C<p3-sra> to look up the 
+library metadata and add the appropriate read library to the readset.
+
+=cut
+
+sub expand_sra_metadata
+{
+    my($self) = @_;
+
+    $self->visit_libraries(undef, undef, sub { $self->expand_one_sra_metadata($_[0]); });
+}
+
+sub expand_one_sra_metadata
+{
+    my($self, $lib) = @_;
+
+    my $md = $lib->{metadata};
+
+    if ($md->{library_layout} eq 'PAIRED')
+    {
+	my $fn1 = "$md->{accession}_1.fastq";
+	my $fn2 = "$md->{accession}_2.fastq";
+	my $nlib = PairedEndLibrary->new($fn1, $fn2);
+	$nlib->{derived_from} = $lib;
+	$lib->{derives} = $nlib;
+	push(@{$self->{libraries}}, $nlib);
+    }
+    elsif ($md->{library_layout} eq 'SINGLE')
+    {
+	my $fn1 = "$md->{accession}.fastq";
+	my $nlib = SingleEndLibrary->new($fn1);
+	$nlib->{derived_from} = $lib;
+	$lib->{derives} = $nlib;
+	push(@{$self->{libraries}}, $nlib);
+    }
+}
+
 
 =item B<stage_in>
 
@@ -239,16 +302,62 @@ sub stage_in
     my %done;
     for my $lib (@{$self->libraries})
     {
-	for my $fk ($lib->file_keys)
+	if ($lib->isa('SRRLibrary'))
 	{
-	    (my $path_key = $fk) =~ s/read_file/read_path/;
-	    my $file = $lib->{$fk};
-	    my $path = $lib->{$path_key};
-	    next if $done{$file,$path}++;
-	    
-	    print STDERR "Load $file to $path\n";
-	    $ws->download_file($file, $path, 1);
+	    $self->stage_in_srr($lib);
 	}
+	elsif ($lib->{derived_from})
+	{
+	    warn "skipping derived lib " . Dumper($lib);
+	}
+	else
+	{
+	    for my $fk ($lib->file_keys)
+	    {
+		(my $path_key = $fk) =~ s/read_file/read_path/;
+		my $file = $lib->{$fk};
+		my $path = $lib->{$path_key};
+		next if $done{$file,$path}++;
+		
+		print STDERR "Load $file to $path\n";
+		$ws->download_file($file, $path, 1);
+	    }
+	}
+    }
+}
+
+=item B<stage_in_srr>
+
+    $readset->stage_in_srr($srr_lib)
+
+Use p3-sra to download the data files for hte given SRA library.
+
+=cut
+
+sub stage_in_srr
+{
+    my($self, $lib) = @_;
+
+    my $id = $lib->{id};
+    my $path = "$self->{local_path}/tmp.$id";
+    make_path($path);
+    my @cmd = ("p3-sra", "--out", $path, "--id", $id);
+    my($stdout, $stderr);
+    print "@cmd\n";
+    my $ok = IPC::Run::run(\@cmd, '>', \$stdout, '2>', \$stderr);
+    if (!$ok)
+    {
+	die "Failure $? to run command @cmd: stdout:\n$stdout\nstderr:\n$stderr\n";
+    }
+    #
+    # Look in the derived library to find the expected filenames and local paths.
+    #
+    my $dlib = $lib->{derives};
+
+    eval { $dlib->copy_from_tmp($path); };
+    if ($@)
+    {
+	die "Error copying library from tmp for SRR $id: $@";
     }
 }
 
@@ -279,6 +388,39 @@ sub libraries_of_type
     my($self, $type) = @_;
 
     return grep { $_->p3_assembly_library_type eq $type } $self->libraries;
+}
+
+=item B<visit_libraries>
+
+    $readset->visit_libraries(\&pe_callback, \&se_callback, \&srr_callback)
+
+Walk the readset and invoke the appropriate callback on the libraries included.
+
+=cut
+
+sub visit_libraries
+{
+    my($self, $pe_cb, $se_cb, $srr_cb) = @_;
+
+    for my $lib ($self->libraries)
+    {
+	if ($lib->isa("PairedEndLibrary"))
+	{
+	    $pe_cb->($lib) if $pe_cb;;
+	}
+	elsif ($lib->isa("SingleEndLibrary"))
+	{
+	    $se_cb->($lib) if $se_cb;;
+	}
+	elsif ($lib->isa("SRRLibrary"))
+	{
+	    $srr_cb->($lib) if $srr_cb;
+	}
+	else
+	{
+	    die "Invalid library " . Dumper($lib);
+	}
+    }
 }
 
 =item B<build_p3_assembly_arguments>
@@ -385,6 +527,8 @@ package SingleEndLibrary;
 
 use strict;
 use base 'ReadLibrary';
+use File::Basename;
+use File::Copy 'move';
 
 sub new
 {
@@ -408,9 +552,39 @@ sub format_paths
     return $self->{read_path};
 }
 
+=item B<copy_from_tmp>
+
+    $ok = $lib->copy_from_tmp($path)
+
+Look in $path for the filename corresponding to this library. If there, move into our
+localized path. Otherwise fail.
+
+=cut
+
+sub copy_from_tmp
+{
+    my($self, $path) = @_;
+    my $file = basename($self->{read_file});
+    my $tfile = "$path/$file";
+    if (-f $tfile)
+    {
+	if (!move($tfile, $self->{read_path}))
+	{
+	    die "copy_from_tmp: error moving $tfile => $self->{read_path}: $!";
+	}
+    }
+    else
+    {
+	die "copy_from_tmp: missing file $tfile";
+    }
+}
+    
+
 package PairedEndLibrary;
 use base 'ReadLibrary';
 use strict;
+use File::Basename;
+use File::Copy 'move';
 
 sub new
 {
@@ -447,6 +621,38 @@ sub format_paths
     }
 }
 
+=item B<copy_from_tmp>
+
+    $ok = $lib->copy_from_tmp($path)
+
+Look in $path for the filename corresponding to this library. If there, move into our
+localized path. Otherwise fail.
+
+=cut
+
+sub copy_from_tmp
+{
+    my($self, $path) = @_;
+
+    for my $suffix ('_1', '_2')
+    {
+	my $file = basename($self->{"read_file$suffix"});
+	my $tfile = "$path/$file";
+	if (-f $tfile)
+	{
+	    my $dest = $self->{"read_path$suffix"};
+	    if (!move($tfile, $dest))
+	    {
+		die "copy_from_tmp: error moving $tfile => $dest: $!";
+	    }
+	}
+	else
+	{
+	    die "copy_from_tmp: missing file $tfile";
+	}
+    }
+}
+    
 
 package InterleavedLibrary;
 
@@ -475,6 +681,33 @@ sub format_paths
     return $self->{read_path};
 }
 
+=item B<copy_from_tmp>
+
+    $ok = $lib->copy_from_tmp($path)
+
+Look in $path for the filename corresponding to this library. If there, move into our
+localized path. Otherwise fail.
+
+=cut
+
+sub copy_from_tmp
+{
+    my($self, $path) = @_;
+    my $file = basename($self->{read_file});
+    my $tfile = "$path/$file";
+    if (-f $tfile)
+    {
+	if (!move($tfile, $self->{read_path}))
+	{
+	    die "copy_from_tmp: error moving $tfile => $self->{read_path}: $!";
+	}
+    }
+    else
+    {
+	die "copy_from_tmp: missing file $tfile";
+    }
+}
+    
 package SRRLibrary;
 
 use base 'ReadLibrary';
