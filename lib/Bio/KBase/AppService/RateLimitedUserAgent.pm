@@ -26,6 +26,7 @@ sub request
     my $host = $u->host;
     $self->{_history}->{$host} //= [];
     my $retry = 0;
+    my $retry_count = 1;
     my $ret;
     do {
 	my $h = $self->{_history}->{$host};
@@ -47,7 +48,10 @@ sub request
 	if (!$ret->is_success && $ret->code == 429)
 	{
 	    warn $ret->status_line;
-	    usleep(500000);
+	    my $delay = rand(2) + $retry_count;
+	    print STDERR "Retry $retry_count delay=$delay\n";
+	    usleep($delay * 1e6);
+	    $retry_count++;
 	    $retry = 1;
 	}
     }
