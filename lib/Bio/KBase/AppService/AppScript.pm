@@ -23,34 +23,14 @@ use base 'Class::Accessor';
 use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder
-			     workspace_url workspace params app_definition result_folder
+			     workspace_url workspace params raw_params app_definition result_folder
+			     json host
 			     task_id app_service_url));
 
 sub new
 {
     my($class, $callback) = @_;
 
-    my $self = {
-	callback => $callback,
-    };
-    return bless $self, $class;
-}
-
-#
-# Run the script.
-#
-# We wish the script to always succeed (from the point of view of the execution environment)
-# so we will run the script itself as a forked child, and monitor its execution. We create
-# pipes from stdout and stderr and push their output to the app service URL provided as the first argument to
-# the script.
-#
-sub run
-{
-    my($self, $args) = @_;
-
-    #
-    # Hack to finding task id.
-    #
     my $host = `hostname -f`;
     $host = `hostname` if !$host;
     chomp $host;
@@ -68,7 +48,30 @@ sub run
     {
 	$task_id = "UNK-$host-$$";
     }
-    $self->task_id($task_id);
+
+    my $self = {
+	callback => $callback,
+	start_time => scalar gettimeofday,
+	hostname => $host,
+	json => JSON::XS->new->pretty(1),
+	task_id => $task_id,
+    };
+
+
+    return bless $self, $class;
+}
+
+#
+# Run the script.
+#
+# We wish the script to always succeed (from the point of view of the execution environment)
+# so we will run the script itself as a forked child, and monitor its execution. We create
+# pipes from stdout and stderr and push their output to the app service URL provided as the first argument to
+# the script.
+#
+sub run
+{
+    my($self, $args) = @_;
 
     @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
     
@@ -87,7 +90,7 @@ sub run
 
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
-    $rest->setHost("$appserv_url/$task_id");
+    $rest->setHost("$appserv_url/" . $self->task_id);
     $self->{rest} = $rest;
 
     my $sel = IO::Select->new();
@@ -110,7 +113,7 @@ sub run
     }
 
     $self->write_block("pid", $pid);
-    $self->write_block("hostname", $host);
+    $self->write_block("hostname", $self->host);
     
     $stdout_pipe->reader();
     $stderr_pipe->reader();
@@ -131,13 +134,20 @@ sub run
 	    my $n = $r->read($block, 1_000_000);
 	    if (!defined($n))
 	    {
-		warn "error reading $which $r: $!";
+		if ($! ne '')
+		{
+		    warn "error reading $which: $!";
+		}
+		else
+		{
+		    print STDERR "EOF on $which\n";
+		}
 		$self->write_block("$which/eof");
 		$sel->remove($r);
 	    }
 	    elsif ($n == 0)
 	    {
-		print STDERR "EOF on $r\n";
+		print STDERR "EOF on $which\n";
 		$self->write_block("$which/eof");
 		$sel->remove($r);
 	    }
@@ -159,7 +169,7 @@ sub run
     # {
     # 	my $id;
     # 	eval {
-    # 	    $id = submit_github_issue($rc, $rest, $task_id, $args);
+    # 	    $id = submit_github_issue($rc, $rest, $self->task_id, $args);
     # 	}
     # }
 
@@ -176,68 +186,15 @@ sub subproc_run
 {
     my($self, $args) = @_;
     
-    my $json = JSON::XS->new->pretty(1)->relaxed(1);
-
     my $app_def_file = shift @$args;
     my $params_file = shift @$args;
 
     my $stdout_file = shift @$args;
     my $stderr_file = shift @$args;
 
-    my $app_def = $json->decode(scalar read_file($app_def_file));
-    my $params =  $json->decode(scalar read_file($params_file));
-
-    #
-    # Preprocess parameters to create hash of named parameters, looking for
-    # missing required values and filling in defaults.
-    #
-
-    my %proc_param;
-
-    my @errors;
-    for my $param (@{$app_def->{parameters}})
-    {
-	my $id = $param->{id};
-	if (exists($params->{$id}))
-	{
-	    my $value = $params->{$param->{id}};
-	    #
-	    # Maybe validate.
-	    #
-
-	    $proc_param{$id} = $value;
-	}
-	else
-	{
-	    if ($param->{required})
-	    {
-		push(@errors, "Required parameter $param->{label} ($id) missing");
-		next;
-	    }
-	    if ($param->{default})
-	    {
-		$proc_param{$id} = $param->{default};
-	    }
-	}
-    }
-    if (@errors)
-    {
-	die "Errors found in parameter processing:\n    " . join("\n    ", @errors), "\n";
-    }
-	 
-    my $ws = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);
-    $self->{workspace} = $ws;
-    $self->{params} = \%proc_param;
-    $self->{app_definition} = $app_def; 
-	
-    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
-    	$self->create_result_folder();
-    }
-
-    my $host = `hostname -f`;
-    $host = `hostname` if !$host;
-    chomp $host;
-    my $start_time = gettimeofday;
+    $self->preprocess_parameters($app_def_file, $params_file);
+    $self->initialize_workspace();
+    $self->setup_folders();
 
     my $job_output;
     if ($stdout_file)
@@ -245,48 +202,14 @@ sub subproc_run
 	my $stdout_fh = IO::File->new($stdout_file, "w+");
 	my $stderr_fh = IO::File->new($stderr_file, "w+");
 	
-	capture(sub { $job_output = $self->callback->($self, $app_def, $params, \%proc_param) } , stdout => $stdout_fh, stderr => $stderr_fh);
+	capture(sub { $job_output = $self->callback->($self, $self->app_definition, $self->raw_params, $self->proc_params) } , stdout => $stdout_fh, stderr => $stderr_fh);
     }
     else
     {
-	$job_output = $self->callback->($self, $app_def, $params, \%proc_param);
+	$job_output = $self->callback->($self, $self->app_definition, $self->raw_params, $self->params);
     }
 
-    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0)
-    {
-	my $end_time = gettimeofday;
-	my $elap = $end_time - $start_time;
-	
-	my $files = $ws->ls({ paths => [ $self->result_folder ], recursive => 1});
-	
-	#
-	# Hack to finding task id.
-	#
-	my $task_id = 'TBD';
-	if ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
-	{
-	    $task_id = $1;
-	}
-	else
-	{
-	    $task_id = "Not found in '$ENV{PWD}'";
-	}
-	
-	my $job_obj = {
-	    id => $task_id,
-	    app => $app_def,
-	    parameters => \%proc_param,
-	    start_time => $start_time,
-	    end_time => $end_time,
-	    elapsed_time => $elap,
-	    hostname => $host,
-	    output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
-	    job_output => $job_output,
-	};
-	
-	my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-	$ws->save_data_to_file($json->encode($job_obj), {}, $file, 'job_result',1);
-    }
+    $self->write_results($job_output);
     delete $self->{workspace};
 }
 
@@ -334,5 +257,106 @@ sub stage_in
     $self->workspace()->copy_files_to_handles(1, $self->token(), \@pairs);
     return $ret;
 }
+
+sub preprocess_parameters
+{
+    my($self, $app_def_file, $params_file) = @_;
+    
+    my $json = JSON::XS->new->pretty(1)->relaxed(1);
+
+    my $app_def = $json->decode(scalar read_file($app_def_file));
+    my $params =  $json->decode(scalar read_file($params_file));
+
+    #
+    # Preprocess parameters to create hash of named parameters, looking for
+    # missing required values and filling in defaults.
+    #
+
+    my %proc_param;
+
+    my @errors;
+    for my $param (@{$app_def->{parameters}})
+    {
+	my $id = $param->{id};
+	if (exists($params->{$id}))
+	{
+	    my $value = $params->{$param->{id}};
+	    #
+	    # Maybe validate.
+	    #
+
+	    $proc_param{$id} = $value;
+	}
+	else
+	{
+	    if ($param->{required})
+	    {
+		push(@errors, "Required parameter $param->{label} ($id) missing");
+		next;
+	    }
+	    if ($param->{default})
+	    {
+		$proc_param{$id} = $param->{default};
+	    }
+	}
+    }
+    if (@errors)
+    {
+	die "Errors found in parameter processing:\n    " . join("\n    ", @errors), "\n";
+    }
+
+    $self->{raw_params} = $params;
+    $self->{params} = \%proc_param;
+    $self->{app_definition} = $app_def;
+    return \%proc_param;
+}
+
+sub initialize_workspace
+{
+    my($self) = @_;
+	 
+    my $ws = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);
+    $self->{workspace} = $ws;
+}
+
+sub setup_folders
+{
+    my($self) = @_;
+    if (!defined($self->donot_create_result_folder()) || $self->donot_create_result_folder() == 0) {
+    	$self->create_result_folder();
+    }
+}
+
+sub write_results
+{
+    my($self, $job_output, $success) = @_;
+    
+    return if $self->donot_create_result_folder();
+
+    my $start_time = $self->{start_time};
+    my $end_time = gettimeofday;
+    my $elap = $end_time - $start_time;
+    
+    my $files = $self->workspace->ls({ paths => [ $self->result_folder ], recursive => 1});
+
+    $job_output //= "";
+    
+    my $job_obj = {
+	id => $self->task_id,
+	app => $self->app_definition,
+	parameters => $self->params,
+	start_time => $start_time,
+	end_time => $end_time,
+	elapsed_time => $elap,
+	hostname => $self->{hostname},
+	output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
+	job_output => $job_output,
+	success => ($success ? 1 : 0),
+    };
+
+    my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
+    $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
+}
+
 
 1;
