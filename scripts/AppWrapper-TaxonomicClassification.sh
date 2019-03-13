@@ -23,4 +23,14 @@ fi
 #
 export AWE_TASK_ID=$task_id
 
+#
+# Current submission process sends a first argument which is the 
+# URL for the app service; we've wrapped that into the deploy so
+# strip it out.
+#
+
+if [[ $# -eq 3 ]] ; then
+    shift
+fi
+
 p3x-app-shepherd  --task-id $task_id App-TaxonomicClassification $*
