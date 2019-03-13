@@ -1,6 +1,6 @@
 {
   "id": "TaxonomicClassification",
-  "script": "App-TaxonomicClassification",
+  "script": "AppWrapper-TaxonomicClassification",
   "label": "classify reads",
   "description": "Compute taxonomic classification for read data",
   "parameters": [
