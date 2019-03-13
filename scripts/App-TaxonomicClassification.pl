@@ -50,7 +50,7 @@ if ($params->{algorithm} ne 'Kraken2')
     die "Only Kraken2 is supported currently";
 }
 
-my %db_map = ('Default NT' => 'kraken2',
+my %db_map = ('Kraken2' => 'kraken2',
 	      Greengenes => 'Greengenes',
 	      RDP => 'RDP',
 	      SILVA => 'SILVA');
