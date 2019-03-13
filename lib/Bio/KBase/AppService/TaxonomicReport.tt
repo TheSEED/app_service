@@ -1,0 +1,16 @@
+<h1>Taxonomic Classification Report for job [% job_id %]</h1>
+
+<h2>Input data</h2>
+[% IF params.contigs %]
+Contigs file [% params.contigs %]
+[% ELSE %]
+.. enumerate reads files, perhaps with quality information..
+[% END %]
+<p>
+<h2>Results</h2>
+The top hits seen in the input data are as follows:
+<pre>
+[% top_hits %]
+</pre>
+<p>
+An interactive chart of the taxonomic classification <a target="_parent" href="chart.html">is available here.</a>
