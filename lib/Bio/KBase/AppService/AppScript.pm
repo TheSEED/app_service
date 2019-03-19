@@ -294,7 +294,7 @@ sub preprocess_parameters
 		push(@errors, "Required parameter $param->{label} ($id) missing");
 		next;
 	    }
-	    if ($param->{default})
+	    if (defined($param->{default}))
 	    {
 		$proc_param{$id} = $param->{default};
 	    }
