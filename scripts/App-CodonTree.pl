@@ -96,7 +96,7 @@ push(@options,
 print Dumper(\@cmd, \@options);
 
 my $ok = 1;
-if (0)
+if (1)
 {
     $ok = IPC::Run::run([@cmd, @options]);
 }
