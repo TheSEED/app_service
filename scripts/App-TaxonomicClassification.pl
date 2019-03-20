@@ -141,17 +141,23 @@ sub process_read_input
     $readset->visit_libraries($pe_cb, $se_cb, undef);
     print Dumper(\@options, \@paths);
 
-
     if ($pe_only)
     {
 	push(@options, "--paired");
-	push(@options, "--classified-out", "$output/classified#.fastq");
-	push(@options, "--unclassified-out", "$output/unclassified#.fastq");
     }
-    else
+    
+    if (1)
     {
-	push(@options, "--classified-out", "$output/classified.fastq");
-	push(@options, "--unclassified-out", "$output/unclassified.fastq");
+	if ($pe_only)
+	{
+	    push(@options, "--classified-out", "$output/classified#.fastq");
+	    push(@options, "--unclassified-out", "$output/unclassified#.fastq");
+	}
+	else
+	{
+	    push(@options, "--classified-out", "$output/classified.fastq");
+	    push(@options, "--unclassified-out", "$output/unclassified.fastq");
+	}
     }
 
     push(@options, "--report", "$output/full_report.txt");
@@ -213,7 +219,7 @@ sub process_read_input
     }
     if (open(my $out_fh, ">", "$output/TaxonomicReport.html"))
     {
-	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params, "$output/report.txt", $out_fh);
+	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params, "$output/report.txt", $readset, $out_fh);
 	close($out_fh);
     }
 

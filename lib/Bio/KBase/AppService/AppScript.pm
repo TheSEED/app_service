@@ -285,6 +285,15 @@ sub preprocess_parameters
 	    # Maybe validate.
 	    #
 
+	    if (!defined($value))
+	    {
+		#
+		# There is a difference between no value given, and a value
+		# of undefined. For now if we have a default value,
+		# replace the undefined with the default.
+		#
+		$value = $param->{default} if defined($param->{default});
+	    }
 	    $proc_param{$id} = $value;
 	}
 	else
