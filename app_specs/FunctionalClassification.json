@@ -1,0 +1,75 @@
+{
+  "id": "FunctionalClassification",
+  "script": "App-FunctionalClassification",
+  "label": "classify reads",
+  "description": "Compute functional classification for read data",
+  "parameters": [
+    {
+      "id": "paired_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "read1",
+          "required": 0,
+          "label": "Read file 1",
+          "desc": "FASTQ or FASTA file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        },
+        {
+          "id": "read2",
+          "required": 0,
+          "label": "Read file 2",
+          "desc": "FASTQ or FASTA file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        }
+      ]
+    },
+    {
+      "id": "single_end_libs",
+      "type": "group",
+      "allow_multiple": true,
+      "required": 0,
+      "default": null,
+      "group": [
+        {
+          "id": "read",
+          "required": 0,
+          "label": "Read file",
+          "desc": "FASTQ, FASTA or H5 file of reads",
+          "wstype": "ReadFile",
+          "type": "wstype"
+        }
+      ]
+    },
+    {
+      "id": "srr_ids",
+      "required": 0,
+      "allow_multiple": true,
+      "default": null,
+      "label": "SRR ID",
+      "desc": "Sequence Read Archive (SRA) Run ID",
+      "type": "string"
+    },
+    {
+      "id": "output_path",
+      "label": "Output Folder",
+      "required": 1,
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
+      "type": "folder"
+    },
+    {
+      "id": "output_file",
+      "label": "File Basename",
+      "required": 1,
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
+      "type": "wsid"
+    }
+  ]
+}

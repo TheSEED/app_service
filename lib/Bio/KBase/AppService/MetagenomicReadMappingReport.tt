@@ -1,0 +1,57 @@
+<h1>Metagenomic Read Mapping Report for job [% job_id %]</h1>
+
+<h2>Input data</h2>
+[% IF params.input_type == 'reads' %]
+[% IF params.single_end_libs.size > 0 %]
+Single-end libraries:
+<ul>
+[% FOR se IN params.single_end_libs %]
+<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% se.read %]">[% se.read %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+
+[% IF params.paired_end_libs.size > 0 -%]
+Paired-end libraries:
+<ul>
+[% FOR pe IN params.paired_end_libs -%]
+<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read1 %]">[% pe.read1 %]</a>,
+ <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read2 %]">[% pe.read2 %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+
+[% IF params.srr_ids.size > 0 -%]
+SRA libraries:
+<ul>
+[% FOR sid IN params.srr_ids -%]
+<li> <a target="_blank" href="https://www.ncbi.nlm.nih.gov/sra/[% sid %]">[% sid %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+[% ELSE -%]
+
+[% END -%]
+<p>
+<h2>Results</h2>
+<table border="1">
+<tr>
+[% FOR h IN results_header -%]
+<th>[% h %]</th>
+[% END -%]
+</tr>
+[% FOR row IN results -%]
+<tr>
+[% FOR res IN row %]
+[% IF res.link -%]
+<td><a target="_blank" href="[% res.link %]">[% res.key %]</a></td>
+[% ELSE -%]
+<td>[% res.key %]</td>
+[% END -%]
+[% END -%]
+</tr>
+[% END -%]
+</table>

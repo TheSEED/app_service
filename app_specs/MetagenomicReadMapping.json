@@ -1,7 +1,7 @@
 {
   "id": "MetagenomicReadMapping",
   "label": "Metagenomic read mapping",
-  "script": "App-MetagenomicReadMapping",
+  "script": "AppWrapper-MetagenomicReadMapping",
   "description": "Map metagenomic reads to a defined gene set",
   "parameters": [
     {

@@ -1,10 +1,11 @@
 {
-  "id": "SequenceTaxonomicClassification",
-  "script": "App-SequenceTaxonomicClassification",
+  "id": "TaxonomicClassification",
+  "script": "AppWrapper-TaxonomicClassification",
   "label": "classify reads",
   "description": "Compute taxonomic classification for read data",
   "parameters": [
     {
+      "id": "input_type",
       "desc": "Input type (reads / contigs)",
       "required": 1,
       "default": null,
@@ -13,17 +14,7 @@
       "enum": [
         "reads",
         "contigs"
-      ],
-      "id": "input_type"
-    },
-    {
-      "label": "Contig file",
-      "wstype": "Contigs",
-      "type": "wstype",
-      "id": "reference_assembly",
-      "required": 0,
-      "desc": "Assembled DNA contigs",
-      "default": null
+      ]
     },
     {
       "id": "paired_end_libs",
@@ -124,13 +115,21 @@
       ]
     },
     {
+      "id": "srr_ids",
+      "required": 0,
+      "allow_multiple": true,
+      "default": null,
+      "label": "SRR ID",
+      "desc": "Sequence Read Archive (SRA) Run ID",
+      "type": "string"
+    },
+    {
       "id": "algorithm",
       "type": "enum",
       "label": "Algorithm",
-      "default": "Kraken",
+      "default": "Kraken2",
       "enum": [
-        "Kraken",
-        "Centrifuge"
+        "Kraken2",
       ],
       "desc": "Classification algorithm",
       "required": 1
@@ -141,8 +140,7 @@
       "label": "Database",
       "default": "Default NT",
       "enum": [
-        "Default NT",
-        "Protein"
+        "Default NT"
       ],
       "desc": "Target database",
       "required": 1
