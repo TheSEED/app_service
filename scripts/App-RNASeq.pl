@@ -169,9 +169,11 @@ sub run_rna_rocket {
     
     my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
     my $dat = { data_api => "$data_api/genome_feature" };
+    my $override = { cufflinks => { -p => 2}, cuffdiff => {-p => 2}, cuffmerge => {-p => 2}, hisat2 => {-p => 2}, bowtie2 => {-p => 2}, stringtie => {-p => 2}};
     #
     # no pretty, ensure it's on one line
-    #
+    #i
+    my $pstring = encode_json($override);
     my $sstring = encode_json($dat);
     
     my $outdir = "$tmpdir/Rocket";
@@ -196,6 +198,7 @@ sub run_rna_rocket {
     if ($host) {
         push @cmd, ("--index");
     }
+    push @cmd, ("-p", $pstring);
     push @cmd, ("-o", $outdir);
     push @cmd, ("-g", $ref_dir);
     push @cmd, ("-d", $diffexp_name);
