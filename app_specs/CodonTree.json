@@ -1,0 +1,73 @@
+{
+  "script": "AppWrapper-CodonTree",
+  "label": "Compute phylogenetic tree from PGFam protein and DNA sequence",
+  "id": "CodonTree",
+  "description": "Computes a phylogenetic tree based on protein and DNA sequences of PGFams for a set of genomes",
+  "parameters": [
+    {
+      "required": 1,
+      "desc": "Path to which the output will be written ",
+      "type": "folder",
+      "default": null,
+      "label": "Output Folder",
+      "id": "output_path"
+    },
+    {
+      "required": 1,
+      "desc": "Basename for the generated output files",
+      "type": "wsid",
+      "default": null,
+      "label": "File Basename",
+      "id": "output_file"
+    },
+    {
+      "id": "genome_ids",
+      "label": "Main genomes",
+      "allow_multiple": true,
+      "required": 1,
+      "type": "list",
+      "default": []
+    },
+    {
+      "id": "optional_genome_ids",
+      "label": "Optional genomes (not penalized for missing/duplicated genes)",
+      "allow_multiple": true,
+      "required": 0,
+      "type": "list",
+      "default": []
+    },
+    {
+      "id": "number_of_genes",
+      "required": 0,
+      "default": "20",
+      "label": "Desired number of genes",
+      "desc": "Desired number of genes",
+      "type": "int"
+    },
+    {
+      "id": "bootstraps",
+      "required": 0,
+      "default": "100",
+      "label": "Number of bootstrap replicates",
+      "desc": "Number of bootstrap replicates",
+      "type": "int"
+    },
+    {
+      "id": "max_genomes_missing",
+      "required": 0,
+      "default": "0",
+      "label": "Number of main genomes allowed missing from any PGFam",
+      "desc": "Number of main genomes allowed missing from any PGFam",
+      "type": "int"
+    },
+    {
+      "id": "max_allowed_dups",
+      "required": 0,
+      "default": "0",
+      "label": "Number of duplications allowed for main genomes in any PGFam",
+      "desc": "Number of duplications allowed for main genomes in any PGFam",
+      "type": "int"
+    }
+
+  ]
+}

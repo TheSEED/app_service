@@ -1,22 +1,9 @@
 {
   "id": "MetagenomicReadMapping",
   "label": "Metagenomic read mapping",
-  "script": "App-MetagenomicReadMapping",
+  "script": "AppWrapper-MetagenomicReadMapping",
   "description": "Map metagenomic reads to a defined gene set",
   "parameters": [
-    {
-      "desc": "Input type (single end reads / paired end reads / SRA id )",
-      "required": 1,
-      "default": null,
-      "label": "Input Type",
-      "type": "enum",
-      "enum": [
-        "single_end_reads",
-        "paired_end_reads",
-        "sra_ids"
-      ],
-      "id": "input_type"
-    },
     {
       "desc": "Gene set type (predefined list / fasta file / feature group )",
       "required": 1,

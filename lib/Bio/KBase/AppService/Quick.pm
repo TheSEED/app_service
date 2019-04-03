@@ -187,6 +187,7 @@ post '/submit/GenomeAnnotation' => sub {
 	domain => $domain,
 	output_path => $path,
 	output_file => "genome",
+	skip_indexing => (params->{skip_indexing} ? 1 : 0),
     };
     my $appserv = Bio::KBase::AppService::Client->new();
     my $res = $appserv->start_app('GenomeAnnotation', $params, $path);

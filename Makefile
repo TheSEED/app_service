@@ -78,7 +78,7 @@ TPAGE_ARGS = \
 
 TESTS = $(wildcard t/client-tests/*.t)
 
-all: build-libs bin compile-typespec service build-dancer-config
+all: build-libs bin compile-typespec service build-dancer-config 
 
 build-libs:
 	$(TPAGE) $(TPAGE_BUILD_ARGS) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
@@ -115,7 +115,7 @@ compile-typespec: Makefile
 	-rm -f lib/$(SERVER_MODULE)Impl.py
 	-rm -f lib/CDMI_EntityAPIImpl.py
 
-bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
+bin: $(BIN_PERL) $(BIN_SERVICE_PERL) $(BIN_SH)
 
 #
 # Manually run this to update the AweEvents module.

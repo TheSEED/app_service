@@ -37,6 +37,11 @@ sub process_rnaseq {
     my $time1 = `date`;
 
     #
+    # At some point, initialize this to the given Slurm environment.
+    #
+    my $parallel = 4;
+
+    #
     # Redirect tmp to large NFS if more than 4 input files.
     # (HACK)
     #
@@ -169,7 +174,14 @@ sub run_rna_rocket {
     
     my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
     my $dat = { data_api => "$data_api/genome_feature" };
-    my $override = { cufflinks => { -p => 2}, cuffdiff => {-p => 2}, cuffmerge => {-p => 2}, hisat2 => {-p => 2}, bowtie2 => {-p => 2}, stringtie => {-p => 2}};
+    my $override = {
+	cufflinks => { -p => $parallel},
+	cuffdiff => {-p => $parallel},
+	cuffmerge => {-p => $parallel},
+	hisat2 => {-p => $parallel},
+	bowtie2 => {-p => $parallel},
+	stringtie => {-p => $parallel}
+    };
     #
     # no pretty, ensure it's on one line
     #i
