@@ -352,8 +352,9 @@ sub prepare_ref_data {
     # my $has_gbk = $out ? 1 : 0;
 
     #Generate genbank file
-    system("p3-extract-gto $gid -o $dir/$gid.gto");
-    system("rast_export_genome -i $dir/$gid.gto -o $dir/genes.gbk genbank");
+    sysrun("p3-extract-gto", "$gid", "-o", "$dir/$gid.gto");
+    sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+
     my $has_gbk = 0;    
     $has_gbk = 1 if -s "$dir/genes.gbk";
 
@@ -488,4 +489,4 @@ sub verify_cmd {
     system("which $cmd >/dev/null") == 0 or die "Command not found: $cmd\n";
 }
 
-sub sysrun { system(@_) == 0 or confess("FAILED: ". join(" ", @_)); }
+sub sysrun { system(@_) == 0 or confess("Command FAILED: ". join(" ", @_)); }
