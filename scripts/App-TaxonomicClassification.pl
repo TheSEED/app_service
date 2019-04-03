@@ -146,18 +146,15 @@ sub process_read_input
 	push(@options, "--paired");
     }
     
-    if (1)
+    if ($pe_only)
     {
-	if ($pe_only)
-	{
-	    push(@options, "--classified-out", "$output/classified#.fastq");
-	    push(@options, "--unclassified-out", "$output/unclassified#.fastq");
-	}
-	else
-	{
-	    push(@options, "--classified-out", "$output/classified.fastq");
-	    push(@options, "--unclassified-out", "$output/unclassified.fastq");
-	}
+	push(@options, "--classified-out", "$output/classified#.fastq") if $params->{save_classified_reads};
+	push(@options, "--unclassified-out", "$output/unclassified#.fastq") if $params->{save_unclassified_reads};
+    }
+    else
+    {
+	push(@options, "--classified-out", "$output/classified.fastq") if $params->{save_classified_reads};
+	push(@options, "--unclassified-out", "$output/unclassified.fastq") if $params->{save_unclassified_reads};
     }
 
     push(@options, "--report", "$output/full_report.txt");

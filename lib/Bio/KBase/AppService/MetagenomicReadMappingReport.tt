@@ -1,7 +1,6 @@
 <h1>Metagenomic Read Mapping Report for job [% job_id %]</h1>
 
 <h2>Input data</h2>
-[% IF params.input_type == 'reads' %]
 [% IF params.single_end_libs.size > 0 %]
 Single-end libraries:
 <ul>
@@ -31,9 +30,6 @@ SRA libraries:
 [% END -%]
 </ul>
 <p>
-[% END -%]
-[% ELSE -%]
-
 [% END -%]
 <p>
 <h2>Results</h2>

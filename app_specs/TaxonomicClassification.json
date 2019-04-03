@@ -124,12 +124,26 @@
       "type": "string"
     },
     {
+      "default" : false,
+      "required" : 0,
+      "type" : "bool",
+      "id" : "save_classified_reads",
+      "label" : "Save the classified reads"
+    },
+    {
+      "default" : false,
+      "required" : 0,
+      "type" : "bool",
+      "id" : "save_unclassified_reads",
+      "label" : "Save the unclassified reads"
+    },
+    {
       "id": "algorithm",
       "type": "enum",
       "label": "Algorithm",
       "default": "Kraken2",
       "enum": [
-        "Kraken2",
+        "Kraken2"
       ],
       "desc": "Classification algorithm",
       "required": 1
