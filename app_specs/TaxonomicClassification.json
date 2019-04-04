@@ -16,6 +16,15 @@
         "contigs"
       ]
     },
+      {
+         "label" : "Contig file",
+         "wstype" : "Contigs",
+         "type" : "wstype",
+         "id" : "contigs",
+         "required" : 0,
+         "desc" : "Input set of DNA contigs for classification",
+         "default" : null
+      },
     {
       "id": "paired_end_libs",
       "type": "group",
@@ -127,15 +136,15 @@
       "default" : false,
       "required" : 0,
       "type" : "bool",
-      "id" : "save_classified_reads",
-      "label" : "Save the classified reads"
+      "id" : "save_classified_sequences",
+      "label" : "Save the classified sequences"
     },
     {
       "default" : false,
       "required" : 0,
       "type" : "bool",
-      "id" : "save_unclassified_reads",
-      "label" : "Save the unclassified reads"
+      "id" : "save_unclassified_sequences",
+      "label" : "Save the unclassified sequences"
     },
     {
       "id": "algorithm",
