@@ -263,9 +263,24 @@ sub run_kraken_and_process_output
 	    warn "Error $? running @cmd\n";
 	}
     }
+
+    #
+    # Compress output if large.
+    #
+    my $output_name = "$output/output.txt";
+    if (-s "$output/output.txt" > 1_000_000)
+    {
+	print STDERR "Compressing $output/output.txt";
+	system("gzip", "-f", "$output/output.txt");
+	$output_name = "$output/output.txt.gz";
+    }
+    
+
+
     if (open(my $out_fh, ">", "$output/TaxonomicReport.html"))
     {
-	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params, "$output/report.txt", $out_fh);
+	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params,
+									    "$output/report.txt", $output_name, $out_fh);
 	close($out_fh);
     }
 
@@ -331,16 +346,6 @@ sub save_output_files
 	    }
 	}
     }
-    #
-    # Compress output if large.
-    #
-    system("ls -l $output/output.txt");
-    if (-s "$output/output.txt" > 1_000_000)
-    {
-	print STDERR "Compressing $output/output.txt";
-	system("gzip", "-f", "$output/output.txt");
-    }
-    
     if (opendir(D, $output))
     {
 	while (my $f = readdir(D))
