@@ -112,10 +112,10 @@ sub process_tnseq
 
 
     my @output_suffixes = ([qr/\.bam$/, "bam"],
-			   [qr/\.bam$/, "bam"],
+			   [qr/\.fq\.gz$/, "reads"],
 			   [qr/\.bai$/, "bai"],
 			   [qr/\.html$/, "html"],
-			   [qr/\.fastq.gz$/, "reads"],
+			   [qr/\.fastq\.gz$/, "reads"],
 			   [qr/\.txt$/, "txt"]);
 
     my $outfile;
