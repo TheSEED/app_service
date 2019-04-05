@@ -33,6 +33,21 @@ SRA libraries:
 [% END -%]
 <p>
 <h2>Results</h2>
+
+The table below shows results from read mapping 
+[% IF params.gene_set_type == "predefined_list" -%]
+against the selected template database [% params.gene_set_name %]
+[% END -%]
+using 
+<a target="_blank" href="https://bitbucket.org/genomicepidemiology/kma">KMA</a> 
+(<a target="_blank" href="https://www.ncbi.nlm.nih.gov/pubmed/30157759">reference</a>).  
+The matching
+reference genes are shown as <i>Template</i> and the input reads are shown
+as <i>Query</i>. The table provides a summary of the most common statistics for
+each mapped template.
+<p>
+
+
 <table border="1">
 <tr>
 [% FOR h IN results_header -%]
@@ -51,3 +66,22 @@ SRA libraries:
 </tr>
 [% END -%]
 </table>
+
+<p>
+
+The columns are as follows:
+<ol>
+<li> Template: Identifier of the template (reference gene) sequence that match the query reads
+<li> Function: Template gene function
+<li> Genome: Genome that contains template gene
+<li> Score: Global alignment score of the template
+<li> Expected: Expected alignment score if all mapping reads where smeared over all templates in the database
+<li> Template length: Template gene length in nucleotides
+<li> Template Identity: Percent identity between the query and template sequence, over the length of the matching query sequence
+<li> Template Coverage: Percent of the template that is covered by the query
+<li> Query Identity: Percent identity between the query and template sequence, over the length of the matching query sequence
+<li> Query Coverage: Length of the matching query sequnce divided by the template length
+<li> Depth: Number of times the template has been covered by the query.
+<li> q value: Quantile from McNemars test, to test whether the current template is a significant hit.
+<li> p value: p-value corresponding to the obtained q-value
+</ol>
