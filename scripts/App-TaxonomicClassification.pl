@@ -148,13 +148,13 @@ sub process_read_input
     
     if ($pe_only)
     {
-	push(@options, "--classified-out", "$output/classified#.fastq") if $params->{save_classified_reads};
-	push(@options, "--unclassified-out", "$output/unclassified#.fastq") if $params->{save_unclassified_reads};
+	push(@options, "--classified-out", "$output/classified#.fastq") if $params->{save_classified_sequences};
+	push(@options, "--unclassified-out", "$output/unclassified#.fastq") if $params->{save_unclassified_sequences};
     }
     else
     {
-	push(@options, "--classified-out", "$output/classified.fastq") if $params->{save_classified_reads};
-	push(@options, "--unclassified-out", "$output/unclassified.fastq") if $params->{save_unclassified_reads};
+	push(@options, "--classified-out", "$output/classified.fastq") if $params->{save_classified_sequences};
+	push(@options, "--unclassified-out", "$output/unclassified.fastq") if $params->{save_unclassified_sequences};
     }
 
     push(@options, "--report", "$output/full_report.txt");
