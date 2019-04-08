@@ -6,6 +6,8 @@
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::GenomeAnnotationCore;
 use Bio::KBase::AppService::AppConfig qw(data_api_url db_host db_user db_pass db_name seedtk);
+use Bio::KBase::AppService::FastaParser 'parse_fasta';
+use Bio::KBase::AppService::LongestCommonSubstring qw(BuildString BuildTree LongestCommonSubstring);
 use IPC::Run;
 use SolrAPI;
 use DBI;
@@ -97,43 +99,94 @@ sub process_genome
 
     $ws->copy_files_to_handles(1, $core->token, [[$input_path, $temp]]);
     
-    my $contig_data_fh;
     close($temp);
-    open($contig_data_fh, "<", $temp) or die "Cannot open contig temp $temp: $!";
+    my $contig_data_fh = open_contigs("$temp");
+
 
     #
-    # Read first block to see if this is a gzipped file.
+    # Use the state-machine based parser ported from RAST.
     #
-    my $block;
-    $contig_data_fh->read($block, 256);
-    if ($block =~ /^\037\213/)
-    {
-	#
-	# Gzipped. Close and reopen from gunzip.
-	#
-	
-	close($contig_data_fh);
-	undef $contig_data_fh;
-	open($contig_data_fh, "-|", "gzip", "-d", "-c", "$temp") or die "Cannot open gzip from $temp: $!";
-    }
-    else
-    {
-	$contig_data_fh->seek(0, 0);
-    }
-    
+    # We do an initial read of the first 64 ids of the file. If any of these are too long,
+    # we compute the longest common substring to use to replace clip out and replace with
+    # "contigs_" to shorten the ids. We keep a mapping from new name to original name.
+    #
+    # This should hit the common cases where we have IDs like
+    # SA-B-8-4-Neg_un-mapped_reads_[SA-B-8-4-Neg_S4_L001_R1_001]_(paired)_contig_22
+    # or
+    # Ahmed6_GGACTCC_L005_R1_001_(paired)_trimmed_(paired)_merged_contig_1
+    #
+
     my $n = 0;
-    while (my($id, $def, $seq) = gjoseqlib::read_next_fasta_seq($contig_data_fh))
-    {
-	$core->impl->add_contigs($genome, [{ id => $id, dna => $seq }]);
+    my @ids;
+    my $too_long = 0;
+    my $max_id_len = 70;
+    parse_fasta($contig_data_fh, undef, sub {
+	my($id, $seq) = @_;
+	push(@ids, $id);
+	$too_long++ if length($id) > $max_id_len;
 	$n++;
-    }
-    close(FH);
+	return ($n < 64);
+    });
+    close($contig_data_fh);
 
     if ($n == 0)
     {
 	die "No contigs loaded from $temp $input_path\n";
     }
 
+    my %name_map;
+    my %name_rev_map;
+    my $lcs;
+    my $qlcs;
+    if ($too_long)
+    {
+	if ($n == 1)
+	{
+	    $name_map{'contig'} = $ids[0];
+	    $name_rev_map{$ids[0]} = 'contig';
+	}
+	else
+	{
+	    BuildString(@ids);
+	    my $tree = BuildTree();
+	    $lcs = LongestCommonSubstring($tree);
+	    $qlcs = quotemeta($lcs);
+	    print STDERR "Shortening contig names using longest substring '$lcs'\n";
+	}
+    }
+
+    #
+    # Reopen the file and load data, remapping names if necessary.
+    #
+
+    $contig_data_fh = open_contigs("$temp");
+
+    my $n = 0;
+    parse_fasta($contig_data_fh, undef, sub {
+	my($id, $seq) = @_;
+
+	my $orig_id = $id;
+	my @orig;
+	if ($name_rev_map{$id})
+	{
+	    $id = $name_rev_map{$id};
+	    @orig = (original_id => $orig_id);
+	}
+	elsif ($lcs)
+	{
+	    $id =~ s/$qlcs/contig_/;
+	    @orig = (original_id => $orig_id);
+	}
+	if (length($id) > $max_id_len)
+	{
+	    die "Contig id $orig_id too long even after shortening to $id via longest substring $lcs\n";
+	}
+	
+	$core->impl->add_contigs($genome, [{ id => $id, dna => $seq, @orig }]);
+	$n++;
+	return 1;
+    });
+    close($contig_data_fh);
 
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
     my $result;
@@ -279,6 +332,35 @@ sub process_genome
     &$run_last if $run_last;
 
     $core->ctx->stderr(undef);
+}
+
+sub open_contigs
+{
+    my($file) = @_;
+    my $contig_data_fh;
+    open($contig_data_fh, "<", $file) or die "Cannot open contig file $file: $!";
+
+    #
+    # Read first block to see if this is a gzipped file.
+    #
+    my $block;
+    $contig_data_fh->read($block, 256);
+    if ($block =~ /^\037\213/)
+    {
+	#
+	# Gzipped. Close and reopen from gunzip.
+	#
+	
+	close($contig_data_fh);
+	undef $contig_data_fh;
+	open($contig_data_fh, "-|", "gzip", "-d", "-c", $file) or die "Cannot open gzip from $file: $!";
+    }
+    else
+    {
+	$contig_data_fh->seek(0, 0);
+    }
+
+    return $contig_data_fh;
 }
 
 sub run_seedtk_cmd
