@@ -40,9 +40,16 @@ if ($doc->{read1})
 }
 print "reads: $read1 $read2\n";
 
+#
+# There is a bug in p3x-assembly with the pairing up of paired end read
+# files based on filenames. For now we'll submit using the
+# --illumina flag to ensure the pairs get set correctly for binning.
+# old: "--anon", $read1, $read2,
+#
+
 my(@cmd) = ("p3x-assembly",
-	    "--anon", $read1, $read2,
 	    "--meta",
+	    "--illumina", join(":", $read1, $read2),
 	    "--runTrimmomatic",
 	    "-o", $workdir,
 	    "--threads", $opt->threads,
