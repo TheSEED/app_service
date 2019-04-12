@@ -60,9 +60,12 @@ print "@cmd\n";
 
 my $rc = system(@cmd);
 
+my $failed;
+
 if ($rc != 0)
 {
-    die "Failed to run spades: rc=$rc\n";
+    $failed = "Failed to run spades: rc=$rc\n";
+    warn $failed;
 }
 
 #
@@ -82,6 +85,8 @@ for my $f (@files)
 	}
     }
 }
+
+die $failed if $failed;
 
 sub run
 {
