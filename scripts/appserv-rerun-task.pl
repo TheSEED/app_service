@@ -4,7 +4,10 @@ use strict;
 use Data::Dumper;
 
 my($opt, $usage) = describe_options("%c %o task-id",
+				    ["output-path|p=s", "Change output path"],
+				    ["output-file|o=s", "Change output file"],
 				    ["url|u=s", "Service URL"],
+				    ["verbose|v", "Show verbose new-task output"],
 				    ["help|h", "Show this help message"]);
 
 print($usage->text), exit if $opt->help;
@@ -15,13 +18,54 @@ my $task = shift;
 my $client = Bio::KBase::AppService::Client->new($opt->url);
 
 print "Restarting task $task...\n";
-my $new_task = $client->rerun_task($task);
-if ($new_task)
+
+if ($opt->output_path || $opt->output_file)
 {
-    print "Task rerun started; new task id is $new_task\n";
+    #
+    # For these, pull the task, modify, and resubmit.
+    #
+    my $tobj = $client->query_tasks([$task]);
+    $tobj or die "Cannot find task $task\n";
+    $tobj = $tobj->{$task};
+    $tobj or die "Cannot find task $task\n";
+    my $params = $tobj->{parameters};
+    if ($opt->output_path)
+    {
+	$params->{output_path} = $opt->output_path;
+    }
+    if ($opt->output_file)
+    {
+	$params->{output_file} = $opt->output_file;
+    }
+    print STDERR "Resubmitting " . Dumper($params);
+    my $new_task = $client->start_app($tobj->{app}, $params, $tobj->{workspace});
+    if ($opt->verbose)
+    {
+	print "New task: " . Dumper($new_task);
+    }
+    if ($new_task)
+    {
+	print "Task rerun started; new task id is $new_task->{id}\n";
+    }
+    else
+    {
+	print "Error rerunning task\n";
+    }
+
 }
 else
 {
-    print "Error rerunning task\n";
+    my $new_task = $client->rerun_task($task);
+    if ($opt->verbose)
+    {
+	print "New task: " . Dumper($new_task);
+    }
+    if ($new_task)
+    {
+	print "Task rerun started; new task id is $new_task\n";
+    }
+    else
+    {
+	print "Error rerunning task\n";
+    }
 }
-
