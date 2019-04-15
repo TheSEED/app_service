@@ -37,7 +37,7 @@ if ($opt->output_path || $opt->output_file)
     {
 	$params->{output_file} = $opt->output_file;
     }
-    print STDERR "Resubmitting " . Dumper($params);
+    print STDERR "Resubmitting with output_path=$params->{output_path} and output_file=$params->{output_file}\n";
     my $new_task = $client->start_app($tobj->{app}, $params, $tobj->{workspace});
     if ($opt->verbose)
     {
