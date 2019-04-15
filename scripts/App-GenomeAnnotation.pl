@@ -162,6 +162,7 @@ sub process_genome
     $contig_data_fh = open_contigs("$temp");
 
     my $n = 0;
+    my @contigs;
     parse_fasta($contig_data_fh, undef, sub {
 	my($id, $seq) = @_;
 
@@ -181,12 +182,13 @@ sub process_genome
 	{
 	    die "Contig id $orig_id too long even after shortening to $id via longest substring $lcs\n";
 	}
-	
-	$core->impl->add_contigs($genome, [{ id => $id, dna => $seq, @orig }]);
+
+	push(@contigs, { id => $id, dna => $seq, @orig });
 	$n++;
 	return 1;
     });
     close($contig_data_fh);
+    $core->impl->add_contigs($genome, \@contigs);
 
     local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
     my $result;

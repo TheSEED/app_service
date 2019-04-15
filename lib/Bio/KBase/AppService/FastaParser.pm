@@ -13,6 +13,12 @@ sub parse_fasta
     my $state = 'expect_header';
     my $cur_id;
 
+    my $ok_chars = 'acgtumrwsykbdhvn';
+    my %ok_chars = map { $_ => 1 } split(//, $ok_chars);
+
+    my $prot_chars = 'abcdefghijklmnopqrstuvwxyz';
+    my %prot_chars = map { $_ => 1 } split(//, $prot_chars);
+
     my %ids_seen;
     my $cur_seq_len;
     my @empty_sequences;
@@ -22,8 +28,6 @@ sub parse_fasta
     eval {
 	while (<$fh>)
 	{
-	    chomp;
-	    
 	    if ($state eq 'expect_header')
 	    {
 		if (/^>(\S+)/)
@@ -63,18 +67,15 @@ sub parse_fasta
 		    print $clean_fh ">$cur_id\n" if $clean_fh;
 		    next;
 		}
-		#
-		# Strip any whitespace - we will allow it.
-		#
-		s/\s*//g;
-		if (/^([acgtumrwsykbdhvn]*)\s*$/i)
+		$_ = lc($_);
+		if (/^\s*([acgtumrwsykbdhvn]*)\s*$/)
 		{
-		    print $clean_fh lc($1) . "\n" if $clean_fh;
+		    print $clean_fh $1 . "\n" if $clean_fh;
 		    $cur_seq_len += length($1);
-		    $cur_seq .= lc($1);
+		    $cur_seq .= $1;
 		    next;
 		}
-		elsif (/^[*abcdefghijklmnopqrstuvwxyz]*\s*$/i)
+		elsif (/^\s*[*abcdefghijklmnopqrstuvwxyz]*\s*$/)
 		{
 		    die "Invalid fasta: Bad data (appears to be protein translation data) at line $.\n";
 		}
