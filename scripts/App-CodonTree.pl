@@ -102,7 +102,7 @@ push(@options,
      '--bootstrapReps', $bootstraps,
      '--maxGenomesMissing', $max_missing,
      '--maxAllowedDups', $max_allowed_dups,
-     '--debugMode',
+#     '--debugMode',
      '--raxmlExecutable', $raxml,
      '--outputDirectory', $out_dir);
 
