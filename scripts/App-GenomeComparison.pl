@@ -640,7 +640,7 @@ sub get_color_index {
     my $index = @thresh - 1;
     for (my $i = 0; $i <= $index; $i++) {
     	if ($ident >= $thresh[$i]) {
-    		return $i;
+            return $i;
     	}
     }
     return $index;
