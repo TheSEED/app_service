@@ -600,13 +600,13 @@ sub write_table_to_excel {
     }
 
     my $worksheet = $workbook->add_worksheet();
-    for(my $i = 0; $i <= $#rows; $i++) {
-		for(my $j = 0; $j <= $#{$rows[$i]} ; $j++) {
-			# bold first two rows
-			if ($i<2) {
-				$worksheet->write($i, $j, $rows[$i][$j], $format_bold);
-			} else {
-				if (length($rows[$i][$j]) == 0) {
+    for (my $i = 0; $i <= $#rows; $i++) {
+    	for (my $j = 0; $j <= $#{$rows[$i]} ; $j++) {
+    		# bold first two rows
+    		if ($i < 2) {
+    			$worksheet->write($i, $j, $rows[$i][$j], $format_bold);
+    		} else {
+    			if (length($rows[$i][$j]) == 0) {
 				# $worksheet->write($i, $j, $rows[$i][$j], $format_black);
 				} elsif ($rows[$i][$j] =~ /^fig\|/) {
 					my $url= "https://www.patricbrc.org/view/Feature/" . $rows[$i][$j];
@@ -629,21 +629,21 @@ sub write_table_to_excel {
 			}
 		}
 	}
-
-    $worksheet->freeze_panes(2);
-    $workbook->close() or die "Error closing file: $!";
+	
+	$worksheet->freeze_panes(2);
+	$workbook->close() or die "Error closing file: $!";
 }
 
 sub get_color_index {
-    my ($ident) = @_;
-    my @thresh = (100, 99.9, 99.8, 99.5, 99, 98, 95, 90, 80, 70, 60, 50, 40, 30, 20 ,10, 0);
-    my $index = @thresh - 1;
-    for (my $i = 0; $i <= $index; $i++) {
+	my ($ident) = @_;
+	my @thresh = (100, 99.9, 99.8, 99.5, 99, 98, 95, 90, 80, 70, 60, 50, 40, 30, 20 ,10, 0);
+	my $index = @thresh - 1;
+	for (my $i = 0; $i <= $index; $i++) {
 		if ($ident >= $thresh[$i]) {
-	    	return $i;
+			return $i;
 		}
-    }
-    return $index;
+	}
+	return $index;
 }
 
 sub get_ws {
