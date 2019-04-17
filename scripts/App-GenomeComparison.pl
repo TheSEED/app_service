@@ -15,6 +15,7 @@ use JSON;
 use Storable;
 use URI::Escape;
 use gjoseqlib;
+use Spreadsheet::WriteExcel;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -228,12 +229,19 @@ sub run_find_bdbh {
 
     # generate big comparison table
     my $ofile = "$tmpdir/genome_comparison.txt";
+    my $xfile = "$tmpdir/genome_comparison.xls";
+
     my @rows = (\@headers, \@fields);
     for my $fid (@fids) {
         push @rows, [ map { $hits{$fid}->{$_} } @fields ];
     }
-    write_table(\@rows, $ofile);
+    #sort by gene order (2nd column)
+    my @sorted = sort { $a->[1] <=> $b->[1] } @rows;
+
+    write_table(\@sorted, $ofile);
+    write_table_to_excel(\@sorted, $xfile);
     push @outputs, [ $ofile, 'genome_comparison_table' ];
+    push @outputs, [ $xfile, 'xls' ];
 
     $ofile = "$tmpdir/genome_comparison.json";
     my %is_user_genome;
@@ -569,6 +577,73 @@ sub write_table {
     print F map { join("\t", @$_)."\n" } @$rows;
     close(F);
     print STDERR "Wrote table to $ofile\n";
+}
+
+sub write_table_to_excel {
+    my ($table, $xfile) = @_;
+    my @rows = @$table;
+    my $workbook = Spreadsheet::WriteExcel->new($xfile);
+    die "Problems creating new Excel file: $!" unless defined $workbook;
+
+    #my $format_black = $workbook->add_format(bg_color => 'black');
+    my $format_bold = $workbook->add_format(bold => 1);
+    my @bbh_colors = ("#9999ff", "#99c2ff", "#99daff", "#99fffc", "#99ffd8", "#99ffb1", "#b5ff99", "#deff99", "#fff899", "#ffe099", "#ffcf99", "#ffc299", "#ffb799", "#ffae99", "#ffa699", "#ff9f99");
+    my @ubh_colors = ("#ccccff", "#cce1ff", "#ccedff", "#ccfffe", "#ccffec", "#ccffd8", "#daffcc", "#efffcc", "#fffccc", "#fff0cc", "#ffe7cc", "#ffe1cc", "#ffdbcc", "#ffd7cc", "#ffd3cc", "#ffcfcc");
+    my $num_colors = @bbh_colors;
+    my (@bi_colors, @bi_format, @uni_colors, @uni_format);
+    
+    for (my $i = 0; $i < $num_colors; $i++) {
+		$bi_colors[$i] = $workbook->set_custom_color($num_colors+$i, $bbh_colors[$i]);
+		$uni_colors[$i] = $workbook->set_custom_color($num_colors*2+$i, $ubh_colors[$i]);
+		$bi_format[$i] = $workbook->add_format(bg_color => $bi_colors[$i]);
+		$uni_format[$i] = $workbook->add_format(bg_color => $uni_colors[$i]);
+    }
+
+    my $worksheet = $workbook->add_worksheet();
+    for(my $i = 0; $i <= $#rows; $i++) {
+		for(my $j = 0; $j <= $#{$rows[$i]} ; $j++) {
+			# bold first two rows
+			if ($i<2) {
+				$worksheet->write($i, $j, $rows[$i][$j], $format_bold);
+			} else {
+				if (length($rows[$i][$j]) == 0) {
+				# $worksheet->write($i, $j, $rows[$i][$j], $format_black);
+				} elsif ($rows[$i][$j] =~ /^fig\|/) {
+					my $url= "https://www.patricbrc.org/view/Feature/" . $rows[$i][$j];
+					$worksheet->write_url($i, $j, $url, $rows[$i][$j]);
+				} elsif ($rows[$i][$j] eq 'bi (<->)' || $rows[$i][$j] eq 'uni (->)') {
+					my $ident = $rows[$i][($j+8)] * 100;
+					my $index = get_color_index($ident);
+					if ($index < $num_colors) {
+						if ($rows[$i][$j] eq 'bi (<->)') {
+							$worksheet->write($i, $j, $rows[$i][$j], $bi_format[$index]);
+						} else {
+							$worksheet->write($i, $j, $rows[$i][$j], $uni_format[$index]);
+						}
+					} else {
+						$worksheet->write($i, $j, $rows[$i][$j]);
+					}
+				} else {
+					$worksheet->write($i, $j, $rows[$i][$j]);
+				}
+			}
+		}
+	}
+
+    $worksheet->freeze_panes(2);
+    $workbook->close() or die "Error closing file: $!";
+}
+
+sub get_color_index {
+    my ($ident) = @_;
+    my @thresh = (100, 99.9, 99.8, 99.5, 99, 98, 95, 90, 80, 70, 60, 50, 40, 30, 20 ,10, 0);
+    my $index = @thresh - 1;
+    for (my $i = 0; $i <= $index; $i++) {
+		if ($ident >= $thresh[$i]) {
+	    	return $i;
+		}
+    }
+    return $index;
 }
 
 sub get_ws {
