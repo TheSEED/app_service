@@ -149,10 +149,10 @@ sub process_read_input
     # ugh.
     
     my $save_classified = $params->{save_classified_sequences};
-    $save_classified = 0 if $save_classified = 'false';
+    $save_classified = 0 if $save_classified eq 'false';
     
     my $save_unclassified = $params->{save_unclassified_sequences};
-    $save_unclassified = 0 if $save_unclassified = 'false';
+    $save_unclassified = 0 if $save_unclassified eq 'false';
     
     if ($pe_only)
     {
