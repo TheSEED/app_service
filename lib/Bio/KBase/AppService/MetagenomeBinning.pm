@@ -26,6 +26,7 @@ use File::Slurp;
 use Bio::KBase::AppService::BebopBinning;
 
 push @INC, seedtk . "/modules/RASTtk/lib";
+push @INC, seedtk . "/modules/p3_seedtk/lib";
 require BinningReports;
 require GEO;
 
@@ -593,8 +594,11 @@ sub write_summary_report
 	# We assume the report URL is available in the same workspace
 	# directory as the genome.
 	#
-	my $report_path = $genome_path . "/GenomeReport.html";
-	my $report_url = "https://www.patricbrc.org/workspace$report_path";
+	# The genome is actually in the same subtree as the summary report,
+	# so we use a relative path instead of $genome_path.
+	#
+	my $report_url = ".$name/GenomeReport.html";
+	#my $report_url = "https://www.patricbrc.org/workspace$report_path";
 	$report_url_map{$genome_id} = $report_url;
     }
 

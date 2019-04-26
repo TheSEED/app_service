@@ -262,7 +262,7 @@ sub expand_one_sra_metadata
 
     my $md = $lib->{metadata};
 
-    if ($md->{library_layout} eq 'PAIRED')
+    if ($md->{n_reads} ==2 || $md->{library_layout} eq 'PAIRED')
     {
 	my $fn1 = "$md->{accession}_1.fastq";
 	my $fn2 = "$md->{accession}_2.fastq";
@@ -271,10 +271,20 @@ sub expand_one_sra_metadata
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
     }
-    elsif ($md->{library_layout} eq 'SINGLE')
+    elsif ($md->{n_reads} == 1 || $md->{library_layout} eq 'SINGLE')
     {
 	my $fn1 = "$md->{accession}.fastq";
 	my $nlib = SingleEndLibrary->new($fn1);
+	$nlib->{derived_from} = $lib;
+	$lib->{derives} = $nlib;
+	push(@{$self->{libraries}}, $nlib);
+    }
+    else
+    {
+	warn "Cannot parse metadata for read count; defaulting to paired\n" . Dumper($md);
+	my $fn1 = "$md->{accession}_1.fastq";
+	my $fn2 = "$md->{accession}_2.fastq";
+	my $nlib = PairedEndLibrary->new($fn1, $fn2);
 	$nlib->{derived_from} = $lib;
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
@@ -357,7 +367,59 @@ sub stage_in_srr
     eval { $dlib->copy_from_tmp($path); };
     if ($@)
     {
-	die "Error copying library from tmp for SRR $id: $@";
+	#
+	# SRA might have lied to us (e.g. SRR6382381 metadata is for single end,
+	# but the data is paired end).
+	#
+	# Check for the case where the library type is incorrect. Patch around it if so,
+	# and retry the copy.
+	#
+	my $md = $lib->{metadata};
+	
+	if ($dlib->isa('PairedEndLibrary'))
+	{
+	    # check for single-end output
+	    my $fn = $md->{accession} . ".fastq";
+	    if (-f "$path/$fn")
+	    {
+		die "Found a single end for paired end metadata\n";
+	    }
+	    else
+	    {
+		die "Couldn't resolve";
+	    }
+	}
+	elsif ($dlib->isa('SingleEndLibrary'))
+	{
+	    # check for single-end output
+	    my $fn1 = $md->{accession} . "_1.fastq";
+	    my $fn2 = $md->{accession} . "_2.fastq";
+	    if (-f "$path/$fn1" && -f "$path/$fn2")
+	    {
+		warn "Found a paired end for single end metadata\n";
+		#
+		# Remove the derived lib from the list and re-add the proper form
+		#
+		my $libs = $self->{libraries};
+		my $index = 0;
+		$index++ until $libs->[$index] eq $dlib || $index > $#$libs;
+		splice(@$libs, $index, 1) if $index <= $#$libs;
+		my $nlib = PairedEndLibrary->new($fn1, $fn2);
+		$nlib->{derived_from} = $lib;
+		$lib->{derives} = $nlib;
+		push(@$libs, $nlib);
+		$dlib = $nlib;
+		# ick. Need to relocalize, but disable expand_sra so that
+		# we don't pull the metadata again.
+		local $self->{expand_sra} = 0;
+		$self->localize_libraries($self->{local_path});
+		$dlib->copy_from_tmp($path);
+	    }
+	    else
+	    {
+		die "Couldn't resolve";
+	    }
+	}
     }
 }
 
