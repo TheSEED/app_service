@@ -40,14 +40,14 @@ my $features = get_sorted_features($ref_fasta, $ref_gff);
 
 my @snps;
 for my $vcf (@vcf_files) {
-    my $sample = $vcf; ($sample) = $sample =~ /(\w+)\/var.vcf/;
+    my $sample = $vcf; ($sample) = $sample =~ /(\w+)\/var.snpEff.raw.vcf/;
     my $sample_snps = vcf_to_snps($vcf, $sample);
     @snps = (@snps, @$sample_snps);
     # print STDERR '$snps = '. Dumper($snps);
 }
 
 my @head = ('Sample', 'Contig', 'Pos', 'Ref', 'Var', 'Score', 'Var cov', 'Var frac',
-            'Type', 'Ref nt', 'Var nt', 'Ref aa', 'Var aa', 'Frameshift',
+            'Type', 'Ref nt', 'Var nt', 'Ref nt pos change', 'Ref aa pos change', 'Frameshift',
             'Gene ID', 'Locus tag', 'Gene name', 'Function',
             "Upstream feature",
             "Downstream feature" );
@@ -89,6 +89,15 @@ sub vcf_to_snps {
             $alt_dp = $info->{AO};
             $alt_frac = sprintf("%.2f", $alt_dp / $info->{DP});
         }
+
+		my @eff = split(/\|/, $info->{EFF});
+		my $ref_nt_change = "";
+		my $ref_aa_change = "";
+		if ($eff[3] =~ /p\.(.+)\/c\.(.+)/) {
+			$ref_aa_change = $1;
+			$ref_nt_change = $2;
+		}
+        
         my $map_qual = $info->{MQ} || $info->{MQM};
 
         # print STDERR join("\t", $ctg, $pos, $alt_dp, $alt_frac, $map_qual) . "\n";
@@ -147,7 +156,7 @@ sub vcf_to_snps {
         }
 
         push @snps, [ $sample, $ctg, $pos, $ref, $alt, $score, $alt_dp, $alt_frac,
-                      $type, $nt1, $nt2, $aa1, $aa2, $frameshift,
+                      $type, $nt1, $nt2, $ref_nt_change, $ref_aa_change, $frameshift,
                       $gene->[0], $locus, $gene_name, [ $gene->[0], $func ],
                       [ @{$hash->{left}}[0, 8] ],
                       [ @{$hash->{right}}[0, 8] ]

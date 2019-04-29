@@ -1,0 +1,45 @@
+<h1>Phylogenetic Tree Report for job [% job_id %]</h1>
+
+<h2>Rendered tree</h2>
+
+[% tree_svg %]
+
+<h2>Tree statistics</h2>
+
+
+<table border="1">
+[% FOR stat IN statistics -%]
+<tr>
+<td>[% stat.key %]
+<td>[% stat.value %]</td>
+</tr>
+[% END %]
+</table>
+
+<h2>Families</h2>
+<table border="1">
+<tr>
+<th>Family ID</th>
+<th>Function</th>
+</tr>
+[% FOR fam IN families -%]
+<tr>
+<td><a target="_blank" href="[% fam.link %]">[% fam.family_id %]</a></td>
+<td>[% fam.family_product %]</td>
+</tr>
+[% END %]
+</table>
+
+<h2>Genomes</h2>
+<table border="1">
+<tr>
+<th>Genome ID</th>
+<th>Name</th>
+</tr>
+[% FOR genome IN genomes -%]
+<tr>
+<td><a target="_blank" href="[% genome.link %]">[% genome.genome_id %]</a></td>
+<td>[% genome.genome_name %]</td>
+</tr>
+[% END %]
+</table>

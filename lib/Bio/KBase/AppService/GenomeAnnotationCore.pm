@@ -113,7 +113,10 @@ sub run_pipeline
 	    die "Invalid workflow document (must be a object containing a stage list)";
 	}
     }
-    elsif ($recipe_id)
+    #
+    # minor hack; "default" here means to use the default specified in this module, not the default RASTtk pipeline.
+    #
+    elsif ($recipe_id ne '' && $recipe_id ne 'default')
     {
 	my $recipe = $self->impl->find_recipe($recipe_id);
 	if ($recipe->{workflow})
@@ -220,6 +223,9 @@ sub default_workflow
 	      { name => 'call_features_crispr', failure_is_not_fatal => 1 },
 	      { name => 'call_features_CDS_prodigal' },
 	      { name => 'call_features_CDS_glimmer3', glimmer3_parameters => {}, failure_is_not_fatal => 1 },
+	      { name => 'prune_invalid_CDS_features',
+		    prune_invalid_CDS_features_parameters => { minimum_contig_length => 0,
+								   max_homopolymer_frequency => 0.9 } },
 	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
 	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_null_only => 1 } },
               { name => 'annotate_proteins_phage', phage_parameters => { annotate_null_only => 1 } },
@@ -233,7 +239,7 @@ sub default_workflow
 		},
 	      { name => 'renumber_features' },
 	      { name => 'annotate_special_proteins' },
-	      { name => 'annotate_families_figfam_v1' },
+	      # { name => 'annotate_families_figfam_v1' },
 	      { name => 'annotate_families_patric' },
 	      { name => 'annotate_null_to_hypothetical' },
 	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
@@ -411,6 +417,7 @@ sub submit_load_files
 		 [genome_sequence => "genome_sequence.json"],
 		 [pathway => "pathway.json"],
 		 [subsystem => "subsystem.json"],
+		 [feature_sequence => "feature_sequence.json"],
 		 [sp_gene => "sp_gene.json"],
 		 [taxonomy => "taxonomy.json"]);
     

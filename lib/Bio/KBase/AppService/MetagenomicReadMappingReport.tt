@@ -1,0 +1,87 @@
+<h1>Metagenomic Read Mapping Report for job [% job_id %]</h1>
+
+<h2>Input data</h2>
+[% IF params.single_end_libs.size > 0 %]
+Single-end libraries:
+<ul>
+[% FOR se IN params.single_end_libs %]
+<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% se.read %]">[% se.read %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+
+[% IF params.paired_end_libs.size > 0 -%]
+Paired-end libraries:
+<ul>
+[% FOR pe IN params.paired_end_libs -%]
+<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read1 %]">[% pe.read1 %]</a>,
+ <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read2 %]">[% pe.read2 %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+
+[% IF params.srr_ids.size > 0 -%]
+SRA libraries:
+<ul>
+[% FOR sid IN params.srr_ids -%]
+<li> <a target="_blank" href="https://www.ncbi.nlm.nih.gov/sra/[% sid %]">[% sid %]</a>
+[% END -%]
+</ul>
+<p>
+[% END -%]
+<p>
+<h2>Results</h2>
+
+The table below shows results from read mapping 
+[% IF params.gene_set_type == "predefined_list" -%]
+against the selected template database [% params.gene_set_name %]
+[% END -%]
+using 
+<a target="_blank" href="https://bitbucket.org/genomicepidemiology/kma">KMA</a> 
+(<a target="_blank" href="https://www.ncbi.nlm.nih.gov/pubmed/30157759">reference</a>).  
+The matching
+reference genes are shown as <i>Template</i> and the input reads are shown
+as <i>Query</i>. The table provides a summary of the most common statistics for
+each mapped template.
+<p>
+
+
+<table border="1">
+<tr>
+[% FOR h IN results_header -%]
+<th>[% h %]</th>
+[% END -%]
+</tr>
+[% FOR row IN results -%]
+<tr>
+[% FOR res IN row %]
+[% IF res.link -%]
+<td><a target="_blank" href="[% res.link %]">[% res.key %]</a></td>
+[% ELSE -%]
+<td>[% res.key %]</td>
+[% END -%]
+[% END -%]
+</tr>
+[% END -%]
+</table>
+
+<p>
+
+The columns are as follows:
+<ol>
+<li> Template: Identifier of the template (reference gene) sequence that match the query reads
+<li> Function: Template gene function
+<li> Genome: Genome that contains template gene
+<li> Score: Global alignment score of the template
+<li> Expected: Expected alignment score if all mapping reads where smeared over all templates in the database
+<li> Template length: Template gene length in nucleotides
+<li> Template Identity: Percent identity between the query and template sequence, over the length of the matching query sequence
+<li> Template Coverage: Percent of the template that is covered by the query
+<li> Query Identity: Percent identity between the query and template sequence, over the length of the matching query sequence
+<li> Query Coverage: Length of the matching query sequnce divided by the template length
+<li> Depth: Number of times the template has been covered by the query.
+<li> q value: Quantile from McNemars test, to test whether the current template is a significant hit.
+<li> p value: p-value corresponding to the obtained q-value
+</ol>

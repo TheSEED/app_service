@@ -27,6 +27,20 @@ our $global_token;
 sub process_variation_data {
     my ($app, $app_def, $raw_params, $params) = @_;
 
+    #
+    # Redirect tmp to large NFS if more than 4 input files.
+    # (HACK)
+    #
+    
+    my $file_count = count_params_files($params);
+    print STDERR "File count: $file_count\n";
+    my $bigtmp = "/vol/patric3/tmp";
+    if ($file_count > 4 && -d $bigtmp)
+    {
+	print STDERR "Changing tmp from $ENV{TEMPDIR} to $bigtmp\n";
+	$ENV{TEMPDIR} = $ENV{TMPDIR} = $bigtmp;
+    }
+
     print "Proc variation data ", Dumper($app_def, $raw_params, $params);
     my $time1 = `date`;
 
@@ -43,6 +57,9 @@ sub process_variation_data {
     # my $tmpdir = "/disks/tmp/var_bam";
     # my $tmpdir = "/disks/tmp/var_bam1";
     # my $tmpdir = "/disks/tmp/var_debug";
+
+    system("chmod", "755", "$tmpdir");
+    print STDERR "tmpdir=$tmpdir\n";
 
     print STDERR '$params = '. Dumper($params);
     $params = localize_params($tmpdir, $params);
@@ -150,7 +167,7 @@ sub run_var_annotate {
     my $fna = "$tmpdir/$ref_id/$ref_id.fna";
     my $gff = "$tmpdir/$ref_id/$ref_id.gff";
     my $dir = "$tmpdir/$lib";
-    my @cmd = split(' ', "$annotate --header $fna $gff $dir/var.vcf");
+    my @cmd = split(' ', "$annotate --header $fna $gff $dir/var.snpEff.raw.vcf");
     my ($out) = run_cmd(\@cmd, 0);
     write_output($out, "$dir/var.annotated.raw.tsv");
 }
@@ -335,8 +352,9 @@ sub prepare_ref_data {
     # my $has_gbk = $out ? 1 : 0;
 
     #Generate genbank file
-    system("p3-gto $gid -o $dir");
-    system("rast-export-genome -i $dir/$gid.gto -o $dir/genes.gbk genbank");
+    sysrun("p3-extract-gto", "$gid", "-o", "$dir/$gid.gto");
+    sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+
     my $has_gbk = 0;    
     $has_gbk = 1 if -s "$dir/genes.gbk";
 
@@ -407,6 +425,21 @@ sub localize_params {
     return $params;
 }
 
+
+sub count_params_files {
+    my ($params) = @_;
+    my $count = 0;
+    if (ref($params->{paired_end_libs}))
+    {
+	$count += 2 * @{$params->{paired_end_libs}};
+    }
+    if (ref($params->{single_end_libs}))
+    {
+	$count += @{$params->{single_end_libs}};
+    }
+    return $count;
+}
+
 sub get_ws {
     return $global_ws;
 }
@@ -456,4 +489,4 @@ sub verify_cmd {
     system("which $cmd >/dev/null") == 0 or die "Command not found: $cmd\n";
 }
 
-sub sysrun { system(@_) == 0 or confess("FAILED: ". join(" ", @_)); }
+sub sysrun { system(@_) == 0 or confess("Command FAILED: ". join(" ", @_)); }

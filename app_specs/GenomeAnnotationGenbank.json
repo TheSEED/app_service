@@ -89,12 +89,13 @@
       "id": "code",
       "label": "Genetic Code",
       "required": 0,
-      "default": 11,
+      "default": null,
       "desc": "Genetic code used in translation of DNA sequences. Overrides value in genbank file.",
       "type": "enum",
       "enum": [
         "11",
-        "4"
+        "4",
+	"25"
       ]
     },
     {

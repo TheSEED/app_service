@@ -29,7 +29,7 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
-SEEDTK = /disks/patric-common/seedtk-2018-0820
+SEEDTK = /disks/patric-common/seedtk-2019-0405
 
 REFERENCE_DATA_DIR = /tmp
 
@@ -74,13 +74,15 @@ TPAGE_ARGS = \
 	--define binning_genome_annotation_clientgroup=$(BINNING_GENOME_ANNOTATION_CLIENTGROUP) \
 	--define binning_spades_threads=$(BINNING_SPADES_THREADS) \
 	--define binning_spades_ram=$(BINNING_SPADES_RAM) \
+	--define bebop_binning_key=$(BEBOP_BINNING_KEY) \
+	--define bebop_binning_user=$(BEBOP_BINNING_USER) \
 	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 
 TESTS = $(wildcard t/client-tests/*.t)
 
-all: build-libs bin compile-typespec service build-dancer-config
+all: build-libs bin compile-typespec service build-dancer-config 
 
 build-libs:
 	$(TPAGE) $(TPAGE_BUILD_ARGS) $(TPAGE_ARGS) AppConfig.pm.tt > lib/Bio/KBase/AppService/AppConfig.pm
@@ -117,7 +119,7 @@ compile-typespec: Makefile
 	-rm -f lib/$(SERVER_MODULE)Impl.py
 	-rm -f lib/CDMI_EntityAPIImpl.py
 
-bin: $(BIN_PERL) $(BIN_SERVICE_PERL)
+bin: $(BIN_PERL) $(BIN_SERVICE_PERL) $(BIN_SH)
 
 #
 # Manually run this to update the AweEvents module.
@@ -155,7 +157,7 @@ deploy-service-scripts:
 	        base=`basename $$src .pl`; \
 	        echo install $$src $$base ; \
 	        cp $$src $(TARGET)/plbin ; \
-	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/services/$(SERVICE)/bin/$$base ; \
+	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/bin/$$base ; \
 	done
 
 deploy-monit:

@@ -72,6 +72,12 @@ sub start_app
 	$clientgroup .= "-fast";
 	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
     }
+    elsif ($app_id eq 'PhylogeneticTree' && $task_params->{full_tree_method} ne 'ml')
+    {
+	#  Hack to send non-raxml jobs to a different clientgroup
+	$clientgroup .= "-fast";
+	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
+    }
     if ($task_params->{_clientgroup})
     {
 	$clientgroup = $task_params->{_clientgroup};

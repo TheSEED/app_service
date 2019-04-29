@@ -104,6 +104,29 @@
             ]
         },
         {
+            "id": "srr_libs",
+            "type": "group",
+            "allow_multiple": true,
+            "required": 0,
+            "default" : null,
+            "group": [
+                {
+                    "id": "srr_accession",
+                    "required": 1,
+                    "label": "SRR Accession",
+                    "desc": "SRA Sample accession with SRR prefix",
+                    "type": "string"
+                },
+                {
+                    "id": "condition",
+                    "label": "Experimental condition index",
+                    "required": 0,
+                    "default": 1,
+                    "type": "int"
+                }
+            ]
+        },
+        {
             "id": "reference_genome_id",
             "required": 0,
             "default": null,

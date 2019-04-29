@@ -11,11 +11,13 @@
 #	- JSON file containing RASTtk genome object
 #	- Optional Original GenBank file used as input to RASTtk job 
 # 
-# Output: Six JSON files each correspodning to a Solr core
+# Output: Eight JSON files each correspodning to a Solr core
 #	- genome.json
 #	- genome_sequence.json
 #	- genome_feature.json
+#	- feature_sequence.json
 #	- pathway.json
+#	- subsystem.json
 #	- sp_gene.json
 # - genome_amr.json  
 #
@@ -32,13 +34,16 @@ use Bio::SeqIO;
 use Bio::SeqFeature::Generic;
 use Date::Parse;
 use XML::Simple;
+use File::Slurp;
+use Bio::KBase::AppService::RateLimitedUserAgent;
 our $have_config;
 eval
 {
     require Bio::KBase::AppService::AppConfig;
     $have_config = 1;
 };
-    
+
+our $user_agent = Bio::KBase::AppService::RateLimitedUserAgent->new(3);
 
 use lib "$Bin";
 use SolrAPI;
@@ -101,6 +106,7 @@ my %seq=();
 my $genome;
 my @sequences = ();
 my @features = ();
+my @feature_sequences = ();
 my @pathwaymap = ();
 my @subsystemmap = ();
 my @spgenemap = (); 
@@ -108,6 +114,7 @@ my @taxonomy = ();
 my @genome_amr = ();
 my $featureIndex;
 my %subsystem_assignments=();
+my %md5=();
 
 
 # Process GenomeObj
@@ -146,6 +153,7 @@ sub writeJson {
 	my $genome_json = $json->pretty->encode($genome);
 	my $sequence_json = $json->pretty->encode(\@sequences);
 	my $feature_json = $json->pretty->encode(\@features);
+	my $feature_sequence_json = $json->pretty->encode(\@feature_sequences);
 	my $pathwaymap_json = $json->pretty->encode(\@pathwaymap);
 	my $subsystemmap_json = $json->pretty->encode(\@subsystemmap);
 	my $spgenemap_json = $json->pretty->encode(\@spgenemap);
@@ -162,6 +170,10 @@ sub writeJson {
 
 	open FH, ">genome_feature.json" or die "Cannot write genome_feature.json: $!"; 
 	print FH $feature_json;
+	close FH;
+	
+	open FH, ">feature_sequence.json" or die "Cannot write feature_sequence.json: $!"; 
+	print FH $feature_sequence_json;
 	close FH;
 
 	open FH, ">pathway.json" or die "Cannot write pathway.json: $!"; 
@@ -459,7 +471,7 @@ sub getGenomeFeatures{
 			$feature->{end} = $end if ($end > $feature->{end} || !$feature->{end});
 			$feature->{strand} = $strand;
 
-			$sequence .= substr($seq{$seq_id}{sequence}, $start-1, $length);
+			$sequence .= lc substr($seq{$seq_id}{sequence}, $start-1, $length);
 
 		}
 
@@ -469,15 +481,24 @@ sub getGenomeFeatures{
 		$feature->{segments} = \@segments;
 		$feature->{location} = $feature->{strand} eq "+"? join(",", @segments): "complement(".join(",", @segments).")"; 
 
-		$feature->{pos_group} = "$feature->{sequence_id}:$feature->{end}:+" if $feature->{strand} eq '+';			
-		$feature->{pos_group} = "$feature->{sequence_id}:$feature->{start}:-" if $feature->{strand} eq '-';
+		if ($sequence && $feature->{feature_type} ne "source"){
+			$feature->{na_length} = length($sequence);
+			$feature->{na_sequence_md5} = md5_hex(lc $sequence);
+			if ($md5{$feature->{na_sequence_md5}} !=1){
+				$md5{$feature->{na_sequence_md5}} = 1;
+				push @feature_sequences, { "md5" => $feature->{na_sequence_md5}, "sequence_type" =>"NA", "sequence" => $sequence };
+			}
+		}
 
-		$feature->{na_sequence} = $sequence; 
-		$feature->{na_length} = length($sequence) unless $feature->{feature_type} eq "source";
-
-		$feature->{aa_sequence} = $featObj->{protein_translation};
-		$feature->{aa_length} 	= length($feature->{aa_sequence}) if ($feature->{aa_sequence});
-		$feature->{aa_sequence_md5} = md5_hex($feature->{aa_sequence}) if ($feature->{aa_sequence});
+		if ($featObj->{protein_translation}){
+			my $aa_sequence = $featObj->{protein_translation}; 
+			$feature->{aa_length} 	= length($aa_sequence);
+			$feature->{aa_sequence_md5} = md5_hex($aa_sequence);	
+			if ($md5{$feature->{aa_sequence_md5}} !=1){
+				$md5{$feature->{aa_sequence_md5}} = 1;
+				push @feature_sequences, { "md5" => $feature->{aa_sequence_md5}, "sequence_type" =>"AA", "sequence" => $aa_sequence };
+			}
+		}
 
 		my $strand = ($feature->{strand} eq '+')? 'fwd':'rev';
 		$feature->{feature_id}		=	"$annotation.$feature->{genome_id}.$feature->{accession}.".
@@ -492,10 +513,8 @@ sub getGenomeFeatures{
 		foreach my $alias (@{$featObj->{alias_pairs}}){
 			my ($alias_type, $alias_value) = @{$alias};
 			$feature->{refseq_locus_tag} = $alias_value if ($alias_type eq "locus_tag");
-			#$feature->{refseq_locus_tag} = $alias_value if ($alias_type eq "old_locus_tag");
 			$feature->{protein_id} = $alias_value if ($alias_type eq "");
 			$feature->{gene_id} = $alias_value if ($alias_type eq "GeneID");
-			$feature->{gi} = $alias_value if ($alias_type eq "GI");
 			$feature->{gene} = $alias_value if ($alias_type eq "gene");
 		}
 
@@ -526,9 +545,7 @@ sub getGenomeFeatures{
 
 		}
 
-		$feature->{ec} = \@ec if scalar @ec;
 		$feature->{go} = \@go if scalar @go;
-		$feature->{pathway} = \@pathways if scalar @pathways;
 		push @pathwaymap, preparePathways($feature, \@ecpathways);
 
 		@spgenes = @{$featObj->{similarity_associations}} if $featObj->{similarity_associations};			
@@ -541,7 +558,6 @@ sub getGenomeFeatures{
 			my @values = split /\t/, $subsystem_assignment;
 			my $subsystem_name = $values[2];
 			$subsystem_name =~s/_/ /g;
-			push @{$feature->{subsystem}}, $subsystem_name; 
 		
 			push @subsystemmap, prepareSubsystem($feature, $subsystem_assignment);	
 		}
@@ -773,15 +789,16 @@ sub getAssemblyAccession {
 
 	my ($accn) = @_;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=$accn"`;
+	my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=nuccore&term=$accn");
+
   $xml=~s/\n//;
   my ($gi) = $xml=~/<Id>(\d+)<\/Id>/;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=assembly&id=$gi"`;
+  my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi?dbfrom=nuccore&db=assembly&id=$gi");
   $xml=~s/\n//;
   my ($assembly_id) = $xml=~/<Link>\s*<Id>(\d+)<\/Id>/;
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=$assembly_id"`;
+  my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=assembly&id=$assembly_id");
 	my ($assembly_accession) = $xml=~/<Genbank>(\S*)<\/Genbank>/;
 
 	return $assembly_accession;
@@ -794,11 +811,18 @@ sub getMetadataFromBioProject {
 
 	print "Getting genome metadata from BioProject: $bioproject_accn...\n";
 
-  my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=bioproject&term=$bioproject_accn"`;
-  $xml=~s/\n//;
-  my ($bioproject_id) = $xml=~/<Id>(\d+)<\/Id>/;
+	my $url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=bioproject&term=$bioproject_accn";
+	my $res = $user_agent->get($url);
+	if (!$res->is_success)
+	{
+	    warn "Failure retrieving $url: " . $res->content;
+	    return;
+	}
+	my $xml = $res->content;
+	$xml=~s/\n//;
+	my ($bioproject_id) = $xml=~/<Id>(\d+)<\/Id>/;
 
-	`wget -q -O "$outfile.bioproject.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=bioproject&retmode=xml&id=$bioproject_id"`;
+	get_xml_to_file("$outfile.bioproject.xml", "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=bioproject&retmode=xml&id=$bioproject_id");
 
 	return unless -f "$outfile.bioproject.xml";
 	
@@ -807,11 +831,10 @@ sub getMetadataFromBioProject {
 	my ($hostName, $hostGender, $hostAge, $hostHealth);
 	my ($publication, $taxonID, $epidemiology);
 
-
 	my $xml = XMLin("$outfile.bioproject.xml", ForceArray => ["Organization"]);
 	my $root = $xml->{DocumentSummary};
 
-	#print Dumper $xml;
+	# print Dumper $xml;
 	
 	$organism = $root->{Project}->{ProjectType}->{ProjectTypeSubmission}->{Target}->{Organism};
 
@@ -975,7 +998,7 @@ sub getGenomeFeaturesFromGenBankFile {
 	
 		for my $featObj ($seqObj->get_SeqFeatures){
 
-			my ($accn, $feature, $pathways, $ecpathways);
+			my ($accn, $feature, $na_sequence, $aa_sequence, $pathways, $ecpathways);
 			my (@go, @ec_no, @ec, @pathway, @ecpathways, @spgenes, @uniprotkb_accns, @ids);
 
 			$feature->{owner} = $genome->{owner};
@@ -990,6 +1013,7 @@ sub getGenomeFeaturesFromGenBankFile {
 			$feature->{accession} = $accession;
 
 			$feature->{feature_type} = $featObj->primary_tag;
+			next if ($feature->{feature_type} eq 'gene' && (grep {$_=~/Bacteria|Archaea/} @{$genome->{taxon_lineage_names}}));
 			$featureIndex->{$feature->{feature_type}}++;
 
 			$feature->{start} = $featObj->start;
@@ -1007,11 +1031,10 @@ sub getGenomeFeaturesFromGenBankFile {
 			}
 			$feature->{segments} = \@segments;
 
-			$feature->{pos_group} = "$feature->{sequence_id}:$feature->{end}:+" if $feature->{strand} eq '+';
-			$feature->{pos_group} = "$feature->{sequence_id}:$feature->{start}:-" if $feature->{strand} eq '-';
+			#$feature->{pos_group} = "$feature->{sequence_id}:$feature->{end}:+" if $feature->{strand} eq '+';
+			#$feature->{pos_group} = "$feature->{sequence_id}:$feature->{start}:-" if $feature->{strand} eq '-';
 
-			$feature->{na_length} = length($featObj->spliced_seq->seq);
-			$feature->{na_sequence} = $featObj->spliced_seq->seq unless $featObj->primary_tag eq "source";
+			$na_sequence = lc $featObj->spliced_seq->seq;
 
 			my $strand = ($feature->{strand} eq '+')? 'fwd':'rev';
 			$feature->{feature_id}		=	"$annotation.$feature->{genome_id}.$feature->{accession}.".
@@ -1029,12 +1052,9 @@ sub getGenomeFeaturesFromGenBankFile {
 					$feature->{protein_id} 	= $value if ($tag eq 'protein_id');
 					$feature->{protein_id} 	= $1 if ($tag eq 'db_xref' && $value=~/protein_id:(.*)/);
 					$feature->{gene_id} = $1 if ($tag eq 'db_xref' && $value=~/^GeneID:(\d+)/);
-					$feature->{gi} = $1 if ($tag eq 'db_xref' && $value=~/^GI:(\d+)/);
 
-					$feature->{aa_sequence} = $value if ($tag eq 'translation');
-					$feature->{aa_length} 	= length($value) if ($tag eq 'translation');
-					$feature->{aa_sequence_md5} = md5_hex($value) if ($tag eq 'translation');
-					
+					$aa_sequence = $value if ($tag eq "translation");
+
 					$feature->{gene} = $value if ($tag eq 'gene');
 					$feature->{product} = $value if ($tag eq 'product');
 
@@ -1052,10 +1072,28 @@ sub getGenomeFeaturesFromGenBankFile {
 
 			}
 
-			$feature->{ec} = \@ec if scalar @ec;
+			next if ($feature->{feature_type} eq 'gene' && (grep {$_=~/Bacteria|Archaea/} @{$genome->{taxon_lineage_names}}));
+
+			push @features, $feature;
+			
+			if ($na_sequence && $feature->{feature_type} ne "source"){
+				$feature->{na_length} = length($na_sequence);
+				$feature->{na_sequence_md5} = md5_hex(lc $na_sequence);
+				if ($md5{$feature->{na_sequence_md5}} !=1){
+					$md5{$feature->{na_sequence_md5}} = 1;
+					push @feature_sequences, { "md5" => $feature->{na_sequence_md5}, "sequence_type" =>"NA", "sequence" => $na_sequence };				
+				}
+			}
+
+			if ($aa_sequence){
+				$feature->{aa_length} 	= length($aa_sequence);
+				$feature->{aa_sequence_md5} = md5_hex($aa_sequence);
+				if ($md5{$feature->{aa_sequence_md5}} !=1){
+					$md5{$feature->{aa_sequence_md5}} = 1;
+					push @feature_sequences, { "md5" => $feature->{aa_sequence_md5}, "sequence_type" =>"AA", "sequence" => $aa_sequence };
+				}
+			}					
 	
-			push @features, $feature  unless ($feature->{feature_type} eq 'gene' && (grep {$_=~/Bacteria|Archaea/} @{$genome->{taxon_lineage_names}}));
-		
 			$genome->{lc($annotation).'_cds'}++ if $feature->{feature_type} eq 'CDS';	
 
 		}
@@ -1074,11 +1112,11 @@ sub getMetadataFromBioSample {
 
 	print "Getting genome metadata from BioSample: $biosample_accn ...\n";
   
-	my $xml = `wget -q -O - "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=biosample&term=$biosample_accn"`;
+	my $xml = get_xml("http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=biosample&term=$biosample_accn");
   $xml=~s/\n//;
   my ($biosample_id) = $xml=~/<Id>(\d+)<\/Id>/;
 
-	`wget -q -O "$outfile.biosample.xml" "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=biosample&retmode=xml&id=$biosample_id"`;
+	get_xml_to_file("$outfile.biosample.xml", "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=biosample&retmode=xml&id=$biosample_id");
 
 	return unless -f "$outfile.biosample.xml";
 	
@@ -1223,4 +1261,23 @@ sub prepareTaxonomy {
 
 }
 
+sub get_xml
+{
+    my($url) = @_;
+    my $res = $user_agent->get($url);
+    if (!$res->is_success)
+    {
+	warn "Failure retrieving $url: " . $res->content;
+	return;
+    }
+    my $xml = $res->content;
+    return $xml;
+}
+
+sub get_xml_to_file
+{
+    my($file, $url) = @_;
+    my $xml = get_xml($url);
+    write_file($file, $xml);
+}
 
