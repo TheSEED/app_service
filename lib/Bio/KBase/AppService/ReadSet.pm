@@ -73,7 +73,7 @@ from the C<$local_path> parameter and the basename of the library.
 
 If necessary this process will squash spaces and other troublesome
 characters. If after the localization process is complete we have
-duplicate names, a second path will disambiguate them.
+duplicate names, a second pass will disambiguate them.
 
 =cut
 
