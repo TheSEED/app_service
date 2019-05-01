@@ -22,6 +22,10 @@ SRC_SERVICE_PERL = $(wildcard service-scripts/*.pl)
 BIN_SERVICE_PERL = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_SERVICE_PERL))))
 DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_SERVICE_PERL))))
 
+SRC_SERVICE_SH = $(wildcard service-scripts/*sh)
+BIN_SERVICE_SH = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_SERVICE_SH))))
+DEPLOY_SERVICE_SH = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_SERVICE_SH))))
+
 STARMAN_WORKERS = 5
 
 #DATA_API_URL = https://www.patricbrc.org/api
@@ -155,6 +159,13 @@ deploy-service-scripts:
 	        cp $$src $(TARGET)/plbin ; \
 	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/bin/$$base ; \
 	done
+	for src in $(SRC_SERVICE_SH) ; do \
+	        basefile=`basename $$src`; \
+	        base=`basename $$src .sh`; \
+	        echo install $$src $$base ; \
+	        cp $$src $(TARGET)/shbin ; \
+	        $(WRAP_SH_SCRIPT) "$(TARGET)/shbin/$$basefile" $(TARGET)/bin/$$base ; \
+	done
 
 deploy-monit:
 	$(TPAGE) $(TPAGE_DEPLOY_ARGS) $(TPAGE_ARGS) service/process.$(SERVICE).tt > $(TARGET)/services/$(SERVICE)/process.$(SERVICE)
@@ -174,6 +185,9 @@ deploy-dir:
 
 $(BIN_DIR)/%: service-scripts/%.pl $(TOP_DIR)/user-env.sh
 	$(WRAP_PERL_SCRIPT) '$$KB_TOP/modules/$(CURRENT_DIR)/$<' $@
+
+$(BIN_DIR)/%: service-scripts/%.sh $(TOP_DIR)/user-env.sh
+	$(WRAP_SH_SCRIPT) '$$KB_TOP/modules/$(CURRENT_DIR)/$<' $@
 
 $(BIN_DIR)/%: service-scripts/%.py $(TOP_DIR)/user-env.sh
 	$(WRAP_PYTHON_SCRIPT) '$$KB_TOP/modules/$(CURRENT_DIR)/$<' $@

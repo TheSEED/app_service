@@ -225,10 +225,28 @@ sub run
 					     
 					     ["help|h", "Show this help message."]);
 	print($usage->text), exit(0) if $opt->help;
-	die($usage->text) if @ARGV != 3;
 
-	($appserv_url, $app_def_file, $params_file) = @$args;
-	$self->app_service_url($appserv_url);
+	#
+	# Legacy support. If we're invoked with three arguments and we are running under the
+	# shepherd, ignore the first argument. Allow just two arguments when under the shepherd.
+	#
+	if (exists($ENV{P3_SHEPHERD_PID}))
+	{
+	    if (@ARGV == 3)
+	    {
+		shift @ARGV;
+	    }
+
+	    die($usage->text) if @ARGV != 2;
+
+	    ($app_def_file, $params_file) = @ARGV;
+	}
+	else
+	{
+	    die($usage->text) if @ARGV != 3;
+	    ($appserv_url, $app_def_file, $params_file) = @ARGV;
+	    $self->app_service_url($appserv_url);
+	}
     };
 
     $self->preprocess_parameters($app_def_file, $params_file);
