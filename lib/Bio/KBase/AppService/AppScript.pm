@@ -191,6 +191,15 @@ sub new
     return $self;
 }
 
+sub run_preflight
+{
+    my($self) = @_;
+    
+    return unless $self->preflight_callback();
+    
+    return $self->preflight_callback()->($self, $self->app_definition, $self->raw_params, $self->params);
+}
+
 =item B<run>
 
 =over 4
