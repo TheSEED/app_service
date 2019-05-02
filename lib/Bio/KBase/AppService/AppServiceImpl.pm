@@ -318,13 +318,16 @@ sub new
     }
     return $self;
 }
+
 =head1 METHODS
+
+
+
 =head2 service_status
 
   $return = $obj->service_status()
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -334,6 +337,7 @@ sub new
 $return is a reference to a list containing 2 items:
 	0: (submission_enabled) an int
 	1: (status_message) a string
+
 </pre>
 
 =end html
@@ -344,11 +348,13 @@ $return is a reference to a list containing 2 items:
 	0: (submission_enabled) an int
 	1: (status_message) a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -377,12 +383,13 @@ sub service_status
 }
 
 
+
+
 =head2 enumerate_apps
 
   $return = $obj->enumerate_apps()
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -406,6 +413,7 @@ AppParameter is a reference to a hash where the following keys are defined:
 	type has a value which is a string
 	enum has a value which is a string
 	wstype has a value which is a string
+
 </pre>
 
 =end html
@@ -430,11 +438,13 @@ AppParameter is a reference to a hash where the following keys are defined:
 	enum has a value which is a string
 	wstype has a value which is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -469,12 +479,13 @@ sub enumerate_apps
 }
 
 
+
+
 =head2 start_app
 
   $task = $obj->start_app($app_id, $params, $workspace)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -504,6 +515,7 @@ Task is a reference to a hash where the following keys are defined:
 	stderr_shock_node has a value which is a string
 task_id is a string
 task_status is a string
+
 </pre>
 
 =end html
@@ -534,11 +546,13 @@ Task is a reference to a hash where the following keys are defined:
 task_id is a string
 task_status is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -578,12 +592,13 @@ sub start_app
 }
 
 
+
+
 =head2 start_app2
 
   $task = $obj->start_app2($app_id, $params, $start_params)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -616,6 +631,7 @@ Task is a reference to a hash where the following keys are defined:
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_status is a string
+
 </pre>
 
 =end html
@@ -649,11 +665,13 @@ Task is a reference to a hash where the following keys are defined:
 	stderr_shock_node has a value which is a string
 task_status is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -693,12 +711,13 @@ sub start_app2
 }
 
 
+
+
 =head2 query_tasks
 
   $tasks = $obj->query_tasks($task_ids)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -726,6 +745,7 @@ app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
+
 </pre>
 
 =end html
@@ -754,11 +774,13 @@ workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -806,12 +828,13 @@ sub query_tasks
 }
 
 
+
+
 =head2 query_task_summary
 
   $status = $obj->query_task_summary()
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -820,6 +843,7 @@ sub query_tasks
 <pre>
 $status is a reference to a hash where the key is a task_status and the value is an int
 task_status is a string
+
 </pre>
 
 =end html
@@ -829,11 +853,13 @@ task_status is a string
 $status is a reference to a hash where the key is a task_status and the value is an int
 task_status is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -890,12 +916,13 @@ sub query_task_summary
 }
 
 
+
+
 =head2 query_task_details
 
   $details = $obj->query_task_details($task_id)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -911,6 +938,7 @@ TaskDetails is a reference to a hash where the following keys are defined:
 	pid has a value which is an int
 	hostname has a value which is a string
 	exitcode has a value which is an int
+
 </pre>
 
 =end html
@@ -927,11 +955,13 @@ TaskDetails is a reference to a hash where the following keys are defined:
 	hostname has a value which is a string
 	exitcode has a value which is an int
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -987,12 +1017,13 @@ sub query_task_details
 }
 
 
+
+
 =head2 enumerate_tasks
 
   $return = $obj->enumerate_tasks($offset, $count)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -1021,6 +1052,7 @@ app_id is a string
 workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
+
 </pre>
 
 =end html
@@ -1050,11 +1082,13 @@ workspace_id is a string
 task_parameters is a reference to a hash where the key is a string and the value is a string
 task_status is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -1113,12 +1147,13 @@ sub enumerate_tasks
 }
 
 
+
+
 =head2 kill_task
 
   $killed, $msg = $obj->kill_task($id)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -1129,6 +1164,7 @@ $id is a task_id
 $killed is an int
 $msg is a string
 task_id is a string
+
 </pre>
 
 =end html
@@ -1140,11 +1176,13 @@ $killed is an int
 $msg is a string
 task_id is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -1200,12 +1238,13 @@ sub kill_task
 }
 
 
+
+
 =head2 rerun_task
 
   $new_task = $obj->rerun_task($id)
 
 =over 4
-
 
 =item Parameter and return types
 
@@ -1215,6 +1254,7 @@ sub kill_task
 $id is a task_id
 $new_task is a task_id
 task_id is a string
+
 </pre>
 
 =end html
@@ -1225,11 +1265,13 @@ $id is a task_id
 $new_task is a task_id
 task_id is a string
 
+
 =end text
 
 
 
 =item Description
+
 
 
 =back
@@ -1326,7 +1368,6 @@ sub version {
 }
 
 
-
 =head1 TYPES
 
 
@@ -1334,6 +1375,7 @@ sub version {
 =head2 task_id
 
 =over 4
+
 
 
 =item Definition
@@ -1361,6 +1403,7 @@ a string
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1384,6 +1427,7 @@ a string
 =head2 workspace_id
 
 =over 4
+
 
 
 =item Definition
@@ -1411,6 +1455,7 @@ a string
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1434,6 +1479,7 @@ a reference to a hash where the key is a string and the value is a string
 =head2 AppParameter
 
 =over 4
+
 
 
 =item Definition
@@ -1479,6 +1525,7 @@ wstype has a value which is a string
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1516,6 +1563,7 @@ parameters has a value which is a reference to a list where each element is an A
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1539,6 +1587,7 @@ a string
 =head2 Task
 
 =over 4
+
 
 
 =item Definition
@@ -1594,6 +1643,7 @@ stderr_shock_node has a value which is a string
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1643,6 +1693,7 @@ output_files has a value which is a reference to a list where each element is a 
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1674,6 +1725,7 @@ workspace has a value which is a workspace_id
 =over 4
 
 
+
 =item Definition
 
 =begin html
@@ -1703,6 +1755,7 @@ exitcode has a value which is an int
 =end text
 
 =back
+
 
 
 =cut
