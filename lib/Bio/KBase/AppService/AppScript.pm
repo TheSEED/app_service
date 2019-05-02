@@ -13,6 +13,7 @@ use IO::Select;
 use Capture::Tiny 'capture';
 use Bio::P3::Workspace::WorkspaceClientExt;
 use P3AuthToken;
+use Getopt::Long::Descriptive;
 use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
@@ -22,75 +23,280 @@ use base 'Class::Accessor';
 
 use Data::Dumper;
 
-__PACKAGE__->mk_accessors(qw(callback donot_create_job_result donot_create_result_folder
+__PACKAGE__->mk_accessors(qw(execute_callback preflight_callback donot_create_job_result donot_create_result_folder
 			     workspace_url workspace params raw_params app_definition result_folder
 			     json host
 			     task_id app_service_url));
 
+=head1 NAME
+
+Bio::KBase::AppService::AppScript - backend processing for App wrappers
+
+=head1 SYNOPSIS
+
+    $app = Bio::KBase::AppService::AppScript->new(\&run_callback, \&preflight_callback);
+    $app->run(\@ARGV)
+
+=head1 DESCRIPTION
+
+C<AppScript> wraps the logic for starting and monitoring application scripts.
+
+Theory of operation:
+
+=over 4
+
+=item 1. 
+
+Application script (scripts/App-Something.pl) is started by the P3 runtime system. 
+It is provided command line arguments defining the location of the output
+collection service, the application definition file, and the parameters
+provided for this application run.
+
+If this is a preflight run, the C<--preflight> option is provided.
+
+=item 2. 
+
+AppScript instance is created and provided callbacks for execution and
+preflight. Preflight callback is optional but recommended.
+
+=item 3. 
+
+AppScript validates the parameters against the app description.
+
+=item 4. 
+
+If this is a preflight run and there is a preflight callback, 
+the preflight callback is executed and the application terminates.
+
+It is expected the preflight callback writes a JSON document containing
+preflight data to the standard output.
+
+=item 5a. 
+
+If the program is running under the control of the P3 shepherd (detectable by
+the existence of the environment variable P3_SHEPHERD_PID), the execute
+callback is invoked and no further processing is performed.
+
+=item 5b
+
+If the program is not running under the control of the P3 shepherd,
+and it is running in an interactive terminal session, the
+run callback is invoked (as below) and no further processing is performed.
+
+=item 5c.
+
+Otherwise, we set up an execution environment for the execute callback. We create pipes to map standard 
+output and standard error, and fork the process to create a child in which to execute
+the callback. The process ID of the created process and the hostname we are executing
+on are written to the output collection service, and the main process begins waiting for
+output from the child.
+
+As output comes in, it is sent to the output collection service as well as being
+written to the current standard output or error stream.
+
+When the child process completes, its return code is written to the output 
+collection service.
+  
+=back
+
+=head1 PREFLIGHT
+
+At the time that the request for creation of application instance (a task) is made, 
+a preflight request will be executed on the task scheduler host and given the
+application specification and parameters as requested by the user.
+
+If the application provides a preflight callback, it will be invoked and
+passed that information. The preflight callback will emit a preflight JSON
+document on the standard output stream
+
+The preflight document is an object with the following keys defined:
+
+=over 4
+
+=item B<cpu>
+
+Number of CPUs requested for execution. The runtime system may execute the 
+job on fewer CPUs if that will enable more rapid scheduling.
+
+=item B<memory>
+
+Amount of RAM required for execution, including buffer cache. The scheduler
+attempts to guarantee that amount of RAM be available, and may also
+provide a hard limit at that amount to the RAM available to be allocated.
+
+=item B<runtime>
+
+Estimated runtime in seconds. The script may be terminated if this time
+limit is exceeded.
+
+=item B<policy_data>
+
+Optional scheduling policy data. If provided, the value is itself an object
+with a key of name of the policy and value being the arbitrary data 
+to be interpreted by the named policy plugin, if active in the scheduling system.
+
+=back
+
+If a preflight document is not returned, the applicaiton specification defines
+C<default_memory>, C<default_cpu>, and C<default_runtime> values.
+
+=head1 SCHEDULING POLICY
+
+The scheduler may have policy plugins activated. These plugins allow for 
+site-specfic activity to be added to the scheduler. The initial example is a 
+Bebop assembly scheduler policy that attempts to pluck one or more assembly jobs
+from the queue to schedule to a single Bebop node if one is available and if the
+jobs meet certain criteria. We embed the knowledge of the criteria in the preflight
+logic in the assembly application, and use the policy field of the preflight
+data to pass that to the policy plugin.
+
+=head1 METHODS
+
+=over 4
+
+=item B<new>
+
+=over 4
+
+=item Arguments: L<\&execute_callback>, L<\&preflight_callback>
+
+=item Return value: Ignored.
+
+=back
+
+Create an instance. 
+
+=cut
+
 sub new
 {
-    my($class, $callback) = @_;
+    my($class, $execute_callback, $preflight_callback) = @_;
 
     my $host = `hostname -f`;
     $host = `hostname` if !$host;
     chomp $host;
 
-    my $task_id = 'TBD';
-    if ($ENV{AWE_TASK_ID})
-    {
-	$task_id = $ENV{AWE_TASK_ID};
-    }
-    elsif ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
-    {
-	$task_id = $1;
-    }
-    else
-    {
-	$task_id = "UNK-$host-$$";
-    }
-
     my $self = {
-	callback => $callback,
+	execute_callback => $execute_callback,
+	preflight_callback => $preflight_callback,
 	start_time => scalar gettimeofday,
 	host => $host,
 	json => JSON::XS->new->pretty(1),
-	task_id => $task_id,
     };
 
+    bless $self, $class;
 
-    return bless $self, $class;
+    $self->set_task_id();
+
+    return $self;
 }
 
-#
-# Run the script.
-#
-# We wish the script to always succeed (from the point of view of the execution environment)
-# so we will run the script itself as a forked child, and monitor its execution. We create
-# pipes from stdout and stderr and push their output to the app service URL provided as the first argument to
-# the script.
-#
+sub run_preflight
+{
+    my($self) = @_;
+    
+    return unless $self->preflight_callback();
+    
+    return $self->preflight_callback()->($self, $self->app_definition, $self->raw_params, $self->params);
+}
+
+=item B<run>
+
+=over 4
+
+=item Arguments: L<\@args>
+
+Run the script, in either preflight or execution mode.  L<\@args> is a list reference containing the 
+command line parameters.
+
+=back
+
+=cut
+
 sub run
 {
     my($self, $args) = @_;
 
-    @$args == 3 or @$args == 5 or die "Usage: $0 app-service-url app-definition.json param-values.json [stdout-file stderr-file]\n";
+    my($opt, $app_def_file, $params_file, $appserv_url);
+    do {
+	local @ARGV = @$args;
+	($opt, my $usage) = describe_options("%c %o app-service-url app-definition.json param-values.json",
+					     ["preflight=s", "Run the app in preflight mode. Write a JSON object to the file specified representing the expected runtime, requested CPU count, and memory use for this application invocation."],
+					     
+					     ["help|h", "Show this help message."]);
+	print($usage->text), exit(0) if $opt->help;
+
+	#
+	# Legacy support. If we're invoked with three arguments and we are running under the
+	# shepherd, ignore the first argument. Allow just two arguments when under the shepherd.
+	#
+	if (exists($ENV{P3_SHEPHERD_PID}))
+	{
+	    if (@ARGV == 3)
+	    {
+		shift @ARGV;
+	    }
+
+	    die($usage->text) if @ARGV != 2;
+
+	    ($app_def_file, $params_file) = @ARGV;
+	}
+	else
+	{
+	    die($usage->text) if @ARGV != 3;
+	    ($appserv_url, $app_def_file, $params_file) = @ARGV;
+	    $self->app_service_url($appserv_url);
+	}
+    };
+
+    $self->preprocess_parameters($app_def_file, $params_file);
+
+    $self->{workspace} = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);
     
-    my $appserv_url = shift @$args;
-    $self->app_service_url($appserv_url);
-
-    #
-    # If we are running at the terminal, do not set up this infrastructure.
-    #
-
-    if (-t STDIN)
+    if ($opt->preflight)
     {
-	$self->subproc_run($args);
-	exit(0);
+	open(my $fh, ">", $opt->preflight) or die "Cannot write preflight to " . $opt->preflight . ": $!";
+	my $data = $self->run_preflight();
+	print Dumper($data);
+	if (ref($data) eq 'HASH')
+	{
+	    print $fh $self->json->encode($data);
+	}
+	close($fh) or die "Cannot close preflight fh for file " . $opt->preflight . ": $!";
+	return;
     }
+    
+    #
+    # If we are running at the terminal or are running under the shepherd, 
+    # do not set up the logging infrastructure.
+    #
+
+    if (exists($ENV{P3_SHEPHERD_PID}))
+    {
+	print STDERR "Executing under P3 shepherd $ENV{P3_SHEPHERD_PID}\n";
+	exit $self->subproc_run();
+    }
+    elsif (-t STDIN)
+    {
+	print STDERR "Executing in interactive terminal\n";
+	exit $self->subproc_run();
+    }
+    else
+    {
+	$self->run_with_monitoring();
+    }
+}
+
+sub run_with_monitoring
+{
+    my($self) = @_;
+
+    my $appserv_url = $self->app_service_url();
 
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
     $rest->setHost("$appserv_url/" . $self->task_id);
+    print STDERR "Logging to " . "$appserv_url/" . $self->task_id . "\n";
     $self->{rest} = $rest;
 
     my $sel = IO::Select->new();
@@ -108,8 +314,7 @@ sub run
 	open(STDOUT, ">&", $stdout_pipe);
 	open(STDERR, ">&", $stderr_pipe);
 
-	$self->subproc_run($args);
-	exit(0);
+	exit $self->subproc_run();
     }
 
     $self->write_block("pid", $pid);
@@ -179,40 +384,75 @@ sub run
 sub write_block
 {
     my($self, $path, $data) = @_;
-    $self->{rest}->POST($path, $data);
+    my $res = $self->{rest}->POST($path, $data);
+    #print Dumper($res);
 }
 
 sub subproc_run
 {
-    my($self, $args) = @_;
+    my($self) = @_;
     
-    my $app_def_file = shift @$args;
-    my $params_file = shift @$args;
-
-    my $stdout_file = shift @$args;
-    my $stderr_file = shift @$args;
-
-    $self->preprocess_parameters($app_def_file, $params_file);
     $self->initialize_workspace();
     $self->setup_folders();
 
     my $job_output;
-    if ($stdout_file)
+    my $success = 1;
+    my $failure_report;
+
+    eval {
+	$job_output = $self->execute_callback->($self, $self->app_definition, $self->raw_params, $self->params);
+    };
+    
+    if ($@)
     {
-	my $stdout_fh = IO::File->new($stdout_file, "w+");
-	my $stderr_fh = IO::File->new($stderr_file, "w+");
-	
-	capture(sub { $job_output = $self->callback->($self, $self->app_definition, $self->raw_params, $self->proc_params) } , stdout => $stdout_fh, stderr => $stderr_fh);
+	print STDERR "Exception raised while executing: $@";
+	$failure_report = <<END;
+Your job has failed with an exception:
+
+$@
+END
+	$success = 0;
+    }
+
+    $self->write_results($job_output, $success, $failure_report);
+    delete $self->{workspace};
+    # return here turns into the process exitcode
+    return ($success ? 0 : 1);
+}
+
+sub set_task_id
+{
+    my($self) = @_;
+
+    #
+    # Hack to finding task id.
+    #
+    my $host = `hostname -f`;
+    $host = `hostname` if !$host;
+    chomp $host;
+    $self->host($host);
+
+    my $task_id = 'TBD';
+    if ($ENV{AWE_TASK_ID})
+    {
+	$task_id = $ENV{AWE_TASK_ID};
+    }
+    elsif ($ENV{SLURM_JOB_ID})
+    {
+	$task_id = $ENV{SLURM_JOB_ID};
+    }
+    elsif ($ENV{PWD} =~ /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_\d+_\d+$/i)
+    {
+	$task_id = $1;
     }
     else
     {
-	$job_output = $self->callback->($self, $self->app_definition, $self->raw_params, $self->params);
+	$task_id = "UNK-$host-$$";
+	$task_id =~ s/\./_/g;
     }
-
-    $self->write_results($job_output);
-    delete $self->{workspace};
+    $self->task_id($task_id);
+    print STDERR "Running process $$ as task $task_id\n";
 }
-
 
 sub create_result_folder
 {
@@ -338,7 +578,7 @@ sub setup_folders
 
 sub write_results
 {
-    my($self, $job_output, $success) = @_;
+    my($self, $job_output, $success, $failure_report) = @_;
     
     return if $self->donot_create_result_folder();
 
@@ -365,6 +605,13 @@ sub write_results
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
     $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
+    if ($failure_report)
+    {
+	my $type = ($failure_report =~ /<\S+>/) ? 'html' : 'txt';
+	$self->workspace->save_data_to_file($failure_report, {},
+					    $self->params->{output_path}. "/." . $self->params->{output_file} . "/JobFailed.$type", $type, 1);
+    }
+	
 }
 
 
