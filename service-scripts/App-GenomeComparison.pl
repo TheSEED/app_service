@@ -585,7 +585,7 @@ sub write_table_to_excel {
     my $workbook = Spreadsheet::WriteExcel->new($xfile);
     die "Problems creating new Excel file: $!" unless defined $workbook;
 
-    #my $format_black = $workbook->add_format(bg_color => 'black');
+    my $format_black = $workbook->add_format(bg_color => 'black');
     my $format_bold = $workbook->add_format(bold => 1);
     my @bbh_colors = ("#9999ff", "#99c2ff", "#99daff", "#99fffc", "#99ffd8", "#99ffb1", "#b5ff99", "#deff99", "#fff899", "#ffe099", "#ffcf99", "#ffc299", "#ffb799", "#ffae99", "#ffa699", "#ff9f99");
     my @ubh_colors = ("#ccccff", "#cce1ff", "#ccedff", "#ccfffe", "#ccffec", "#ccffd8", "#daffcc", "#efffcc", "#fffccc", "#fff0cc", "#ffe7cc", "#ffe1cc", "#ffdbcc", "#ffd7cc", "#ffd3cc", "#ffcfcc");
@@ -607,7 +607,10 @@ sub write_table_to_excel {
                 $worksheet->write($i, $j, $rows[$i][$j], $format_bold);
             } else {
                 if (length($rows[$i][$j]) == 0) {
-                    # $worksheet->write($i, $j, $rows[$i][$j], $format_black);
+                    # color the empty cells black for the bi/uni hit type columns. The corresponding column headers are the comparison genome names                                                                                                                                     
+                    if (length($rows[0][$j])> 0) {
+                        $worksheet->write($i, $j, $rows[$i][$j], $format_black);
+                    }
                 } elsif ($rows[$i][$j] =~ /^fig\|/) {
                     my $url= "https://www.patricbrc.org/view/Feature/" . $rows[$i][$j];
                     $worksheet->write_url($i, $j, $url, $rows[$i][$j]);
