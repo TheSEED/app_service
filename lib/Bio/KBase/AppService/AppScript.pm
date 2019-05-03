@@ -52,7 +52,7 @@ sub new
     my $self = {
 	callback => $callback,
 	start_time => scalar gettimeofday,
-	hostname => $host,
+	host => $host,
 	json => JSON::XS->new->pretty(1),
 	task_id => $task_id,
     };
@@ -357,7 +357,7 @@ sub write_results
 	start_time => $start_time,
 	end_time => $end_time,
 	elapsed_time => $elap,
-	hostname => $self->{hostname},
+	hostname => $self->host,
 	output_files => [ map { [ $_->[2] . $_->[0], $_->[4] ] } @{$files->{$self->result_folder}}],
 	job_output => $job_output,
 	success => ($success ? 1 : 0),

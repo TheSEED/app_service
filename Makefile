@@ -29,7 +29,7 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
-SEEDTK = /disks/patric-common/seedtk-2018-0820
+SEEDTK = /disks/patric-common/seedtk-2019-0405
 
 REFERENCE_DATA_DIR = /tmp
 
@@ -153,7 +153,7 @@ deploy-service-scripts:
 	        base=`basename $$src .pl`; \
 	        echo install $$src $$base ; \
 	        cp $$src $(TARGET)/plbin ; \
-	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/services/$(SERVICE)/bin/$$base ; \
+	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/bin/$$base ; \
 	done
 
 deploy-monit:

@@ -145,16 +145,24 @@ sub process_read_input
     {
 	push(@options, "--paired");
     }
+
+    # ugh.
+    
+    my $save_classified = $params->{save_classified_sequences};
+    $save_classified = 0 if $save_classified eq 'false';
+    
+    my $save_unclassified = $params->{save_unclassified_sequences};
+    $save_unclassified = 0 if $save_unclassified eq 'false';
     
     if ($pe_only)
     {
-	push(@options, "--classified-out", "$output/classified#.fastq") if $params->{save_classified_reads};
-	push(@options, "--unclassified-out", "$output/unclassified#.fastq") if $params->{save_unclassified_reads};
+	push(@options, "--classified-out", "$output/classified#.fastq") if $save_classified;
+	push(@options, "--unclassified-out", "$output/unclassified#.fastq") if $save_unclassified;
     }
     else
     {
-	push(@options, "--classified-out", "$output/classified.fastq") if $params->{save_classified_reads};
-	push(@options, "--unclassified-out", "$output/unclassified.fastq") if $params->{save_unclassified_reads};
+	push(@options, "--classified-out", "$output/classified.fastq") if $save_classified;
+	push(@options, "--unclassified-out", "$output/unclassified.fastq") if $save_unclassified;
     }
 
     push(@options, "--report", "$output/full_report.txt");
@@ -163,9 +171,58 @@ sub process_read_input
     push(@options, "--use-names");
 
     push(@options, @paths);
+
+    run_kraken_and_process_output($app, $params, \@cmd, \@options, $output);
+}
+
+sub process_contig_input
+{
+    my($app, $params, $cmd, $options) = @_;
+
+    my @cmd = @$cmd;
+    my @options = @$options;
+
+    my $ws = $app->workspace;
+    my $top = getcwd;
+    my $staging = "$top/staging";
+    my $output = "$top/output";
+    make_path($staging, $output);
+
+    my $contigs = $params->{contigs};
+    my $base = basename($contigs);
+    my $contigs_local = "$staging/$base";
+
+    print STDERR "Stage in contigs from $contigs to $contigs_local\n";
+
+    eval {
+	$ws->download_file($contigs, $contigs_local, 1);
+    };
+    if ($@)
+    {
+	die "Error downloading contigs from $contigs to $contigs_local:\n$@";
+    }
+
+
+    push(@options, "--classified-out", "$output/classified.fa") if $params->{save_classified_sequences};
+    push(@options, "--unclassified-out", "$output/unclassified.fa") if $params->{save_unclassified_sequences};
+
+    push(@options, "--report", "$output/full_report.txt");
+    push(@options, "--output", "$output/output.txt");
+    push(@options, "--report-zero-counts");
+    push(@options, "--use-names");
+
+    push(@options, $contigs_local);
+
+    run_kraken_and_process_output($app, $params, \@cmd, \@options, $output);
+}
+
+
+sub run_kraken_and_process_output
+{
+    my($app, $params, $cmd, $options, $output) = @_;
     
-    warn "Run: @cmd @options\n";
-    my $ok = IPC::Run::run((@cmd, @options), ">", "$output/kraken2.stdout", "2>", "$output/kraken2.stderr");
+    warn "Run: @$cmd @$options\n";
+    my $ok = IPC::Run::run((@$cmd, @$options), ">", "$output/kraken2.stdout", "2>", "$output/kraken2.stderr");
 
     my $err = $?;
     warn "Kraken returns ok=$ok err=$err\n";
@@ -214,9 +271,24 @@ sub process_read_input
 	    warn "Error $? running @cmd\n";
 	}
     }
+
+    #
+    # Compress output if large.
+    #
+    my $output_name = "$output/output.txt";
+    if (-s "$output/output.txt" > 1_000_000)
+    {
+	print STDERR "Compressing $output/output.txt";
+	system("gzip", "-f", "$output/output.txt");
+	$output_name = "$output/output.txt.gz";
+    }
+    
+
+
     if (open(my $out_fh, ">", "$output/TaxonomicReport.html"))
     {
-	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params, "$output/report.txt", $readset, $out_fh);
+	Bio::KBase::AppService::TaxonomicClassificationReport::write_report($app->task_id, $params,
+									    "$output/report.txt", $output_name, $out_fh);
 	close($out_fh);
     }
 
@@ -272,7 +344,7 @@ sub save_output_files
 	{
 	    my $path = "$output/$f";
 	    if (-f $path &&
-		($f =~ /\.fastq$/ || $f eq 'output.txt'))
+		($f =~ /\.fastq$/))
 	    {
 		my $rc = system("gzip", "-f", $path);
 		if ($rc)
@@ -282,7 +354,6 @@ sub save_output_files
 	    }
 	}
     }
-    
     if (opendir(D, $output))
     {
 	while (my $f = readdir(D))
@@ -293,6 +364,7 @@ sub save_output_files
 	    $p2 =~ s/\.gz$//;
 	    my($suffix) = $p2 =~ /\.([^.]+)$/;
 	    my $type = $suffix_map{$suffix} // "txt";
+	    $type = "unspecified" if $f eq 'output.txt.gz';
 
 	    if (-f $path)
 	    {

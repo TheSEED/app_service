@@ -84,12 +84,25 @@ my $raxml = "raxmlHPC-PTHREADS-SSE3";
 my $out_dir = "$here/output";
 make_path($out_dir);
 
+my @figtrees = grep { -f $_ } sort { $b <=> $a }  <$ENV{KB_RUNTIME}/FigTree*/lib/figtree.jar>;
+my @figtree_jar;
+if (@figtrees)
+{
+    @figtree_jar = ("--pathToFigtreeJar", $figtrees[0]);
+}
+else
+{
+    warn "Cannot find figtree in $ENV{KB_RUNTIME}\n";
+}
+
 push(@options,
+     @figtree_jar,
+     '--outputBase', $params->{output_file},
      '--maxGenes', $n_genes,
      '--bootstrapReps', $bootstraps,
      '--maxGenomesMissing', $max_missing,
      '--maxAllowedDups', $max_allowed_dups,
-     '--debugMode',
+#     '--debugMode',
      '--raxmlExecutable', $raxml,
      '--outputDirectory', $out_dir);
 
@@ -101,91 +114,6 @@ if (1)
     $ok = IPC::Run::run([@cmd, @options]);
 }
 my $svg_tree;
-
-if ($ok)
-{
-    #
-    # Now we can create the graphical forms of the tree.
-    #
-
-    my @cmd = ('figtree', '-graphic', 'SVG', "$out_dir/codontree.nex", "$out_dir/codontree.svg");
-    $ok = IPC::Run::run(\@cmd);
-    if ($ok)
-    {
-	$svg_tree = read_file("$out_dir/codontree.svg");
-    }
-    else
-    {
-	warn "Error $? running @cmd\n";
-    }
-
-    my @cmd = ('figtree', '-graphic', 'PNG',
-	       "-width", "1920",
-	       "-height", "1080",
-	       "$out_dir/codontree.nex", "$out_dir/codontree.png");
-
-    $ok = IPC::Run::run(\@cmd);
-    if (!$ok)
-    {
-	warn "Error $? running @cmd\n";
-    }
-}
-
-if ($ok)
-{
-    my $fams = [];
-    if (open(PG, "<", "$out_dir/codontree.singleCopyPgfams.txt"))
-    {
-	while (<PG>)
-	{
-	    print "Got $_";
-	    if (/(P[A-Z]+_\d+)/)
-	    {
-		push(@$fams, $1);
-	    }
-	}
-	close(PG);
-    }
-    else
-    {
-	warn "Cannot open $out_dir/codontree.singleCopyPgfams.txt: $!\n";
-    }
-
-    my @stats;
-    if (open(STAT, "<", "$out_dir/codontree_codontree_analysis.stats"))
-    {
-	$_ = <STAT>;
-	while (<STAT>)
-	{
-	    chomp;
-	    my($key, $val) = /^(\S+)\s+(.*)/;
-	    push(@stats, { key => $key, value => $val });
-	}
-	close(STAT);
-    }
-
-    #
-    # Create the report.
-    #
-    if (open(FH, ">", "$out_dir/TreeReport.html"))
-    {
-	my @genomes;
-	for my $id (@$genome_ids)
-	{
-	    my $link = "https://www.patricbrc.org/view/Genome/$id";
-	    push(@genomes, { genome_id => $id, genome_name => $genome_names->{$id}->[0], link => $link });
-	}
-	Bio::KBase::AppService::CodonTreeReport::write_report($app->task_id, $params, $fams, \@genomes, $svg_tree, \@stats, \*FH);
-	close(FH);
-    }
-    else
-    {
-	warn "Cannot write $out_dir/TreeReport.html: $!";
-	$ok = 0;
-    }
-    
-	    
-}
 
 save_output_files($app, $out_dir);
 $app->write_results(undef, $ok);
@@ -279,27 +207,26 @@ sub save_output_files
 		      err => 'txt',
 		      html => 'html');
 
-    if (opendir(D, $output))
+    my @suffix_map = map { ("--map-suffix", "$_=$suffix_map{$_}") } keys %suffix_map;
+
+    if (opendir(my $dh, $output))
     {
-	while (my $f = readdir(D))
+	while (my $p = readdir($dh))
 	{
-	    my $path = "$output/$f";
-
-	    my $p2 = $f;
-	    $p2 =~ s/\.gz$//;
-	    my($suffix) = $p2 =~ /\.([^.]+)$/;
-	    my $type = $suffix_map{$suffix} // "txt";
-
-	    if (-f $path)
+	    next if $p =~ /^\./;
+	    
+	    my @cmd = ("p3-cp", "-r", @suffix_map, "$output/$p", "ws:" . $app->result_folder);
+	    print "@cmd\n";
+	    my $ok = IPC::Run::run(\@cmd);
+	    if (!$ok)
 	    {
-		print "Save $path type=$type\n";
-		$app->workspace->save_file_to_file($path, {}, $app->result_folder . "/$f", $type, 1, 0, $app->token->token);
+		warn "Error $? copying output with @cmd\n";
 	    }
 	}
-	    
+	closedir($dh);
     }
     else
     {
-	warn "Cannot opendir $output: $!";
+	warn "Output directory $output does not exist\n";
     }
 }
