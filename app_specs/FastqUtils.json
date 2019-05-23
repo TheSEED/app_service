@@ -1,7 +1,7 @@
 {
   "id": "FastqUtils",
   "label": "Fastq Utilites",
-  "script": "AppWrapper-FastqUtils",
+  "script": "App-FastqUtils",
   "description": "Useful common processing of fastq files",
   "parameters": [
     {

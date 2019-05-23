@@ -35,6 +35,8 @@ sub write_report
 	$_ = <R>;
 	chomp;
 	@res_hdr = split(/\t/, $_);
+	s/^\#// foreach @res_hdr;
+	s/_/ /g foreach @res_hdr;
 	@res_hdr = ($res_hdr[0], 'Function', 'Genome', @res_hdr[1..$#res_hdr]);
 	while (<R>)
 	{

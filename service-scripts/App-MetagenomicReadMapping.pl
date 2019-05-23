@@ -209,7 +209,7 @@ sub save_output_files
 	{
 	    my $path = "$output/$f";
 	    if (-f $path &&
-		($f =~ /\.fastq$/ || $f eq 'output.txt'))
+		($f =~ /\.fastq$/))
 	    {
 		my $rc = system("gzip", "-f", $path);
 		if ($rc)
@@ -219,7 +219,7 @@ sub save_output_files
 	    }
 	}
     }
-    
+
     if (opendir(D, $output))
     {
 	while (my $f = readdir(D))

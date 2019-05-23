@@ -92,11 +92,17 @@ sub assemble_paired_end_libs
     my $est_time = int($est_comp < 1500 ? (10 * $est_comp) : (4 * $est_comp));
 
     $est_time *= 10;
-    my $est_time_min = int($est_time / 60);
+    my $est_time_min = $est_time / 60;
+    print STDERR "Raw estimated time: $est_time_min\n";
+    $est_time_min = ($est_time_min < 60) ? 60 : int($est_time_min);
     $est_time_min = 1440 if $est_time_min > 1440;
+    print STDERR "Submitted estimated time: $est_time_min\n";
 
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
-    my $est_storage = int(1.3e6 * $est_comp / 0.75);
+    #
+    # Add an additional 2*est_comp factor since we have the repaired data + trimmed data to store.
+    #
+    my $est_storage = int(3.3e6 * $est_comp / 0.75);
 
     print "est_storage=$est_storage\n";
     
@@ -110,6 +116,7 @@ sub assemble_paired_end_libs
     
     my $top = '/home/olson/P3/bebop/dev_container';
     my $rt = '/home/olson/P3/bebop/runtime';
+    my $submit_home = '/lcrc/project/PATRIC/submit-home';
 
     my $token = P3AuthToken->new();
     my $token_txt = $token->token();
@@ -122,6 +129,7 @@ sub assemble_paired_end_libs
 #SBATCH -A PATRIC
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=$est_time_min
+#SBATCH --chdir $submit_home
 
 export KB_TOP=$top
 export KB_RUNTIME=$rt
@@ -144,22 +152,49 @@ $input
 ENDINP
 ENDBATCH
 
-    if (1)
+    my($out, $fh);
+    while (1)
     {
-	my $dbatch = $batch;
-	$dbatch =~ s/sig=[a-z0-9]+/sig=XXX/g;
-	print STDERR "Submitting:\n$dbatch\n";
+	
+	if (1)
+	{
+	    my $dbatch = $batch;
+	    $dbatch =~ s/sig=[a-z0-9]+/sig=XXX/g;
+	    print STDERR "Submitting:\n$dbatch\n";
+	}
+	
+	my $err;
+	my($fh, $handle) = $self->run(["sbatch", "--parsable"], $batch, \$out, \$err);
+	
+	if (!$handle)
+	{
+	    die "Error issuing submission\n";
+	}
+	
+	if (!$handle->finish)
+	{
+	    #
+	    # See if we failed with permission denied; that means likely the machine
+	    # is in maint mode. Retry after a bit.
+	    #
+	    if ($err =~ /Permission denied/)
+	    {
+		warn "Error accessing service: $err\nSleeping and retrying\n";
+		close($fh) if $fh;
+		sleep 60;
+	    }
+	    else
+	    {
+		die "Sbatch submit failed: $?";
+	    }
+	}
+	else
+	{
+	    last;
+	}
     }
-    
-    my $out;
-    my($fh, $handle) = $self->run(["sbatch", "--parsable"], $batch, \$out);
+
     my $job;
-
-    if (!$handle->finish)
-    {
-	die "Sbatch submit failed: $?";
-    }
-
     print "Output is $out\n";
     if ($out =~ /(\d+)/)
     {
@@ -180,14 +215,17 @@ ENDBATCH
     while (1)
     {
 	my $res = $self->run_sacct([$job]);
-	my($sword) = $res->{$job}->{State} =~ /^(\S+)/;
-	my $state = $job_states{$sword};
-	print Dumper($state, $res);
-	if ($state)
+	if ($res)
 	{
-	    $final_state = $state;
-	    $final_res = $res->{$job};
-	    last;
+	    my($sword) = $res->{$job}->{State} =~ /^(\S+)/;
+	    my $state = $job_states{$sword};
+	    print Dumper($state, $res);
+	    if ($state)
+	    {
+		$final_state = $state;
+		$final_res = $res->{$job};
+		last;
+	    }
 	}
 	sleep 120;
     }
@@ -227,7 +265,14 @@ sub run_sacct
 	                      '--parsable', '--noheader');
     
 
-    my($fh, $handle) = $self->run(\@cmd);
+    my $err;
+    my($fh, $handle) = $self->run(\@cmd, undef, undef, \$err);
+
+    if (!$handle)
+    {
+	warn "Error checking sacct: $? $!\n";
+	return;
+    }
 
     my %jobinfo;
 
@@ -257,19 +302,30 @@ sub run_sacct
 	    $jobinfo{$id}->{NodeList} = $vals{NodeList};
 	}
     }
+    if (!$handle->finish())
+    {
+	if ($err =~ /Permission denied/)
+	{
+	    warn "Perm denied error from status check\n";
+	}
+	else
+	{
+	    warn "Error from status check: $err\n";
+	}
+    }
 
     return \%jobinfo;
 }
 
 sub run
 {
-    my($self, $cmd, $input, $output) = @_;
+    my($self, $cmd, $input, $output, $error) = @_;
 
     my $shcmd = join(" ", map { "'$_'" }  @$cmd);
     
     my $new = ["ssh",
-	       "-l", $self->user,
-	       "-i", $self->key,
+	       ($self->user ? ("-l", $self->user) : ()),
+	       ($self->key ? ("-i", $self->key) : ()),
 	       $self->host,
 	       "bash -l -c \"$shcmd\"",
 	       ];
@@ -291,9 +347,15 @@ sub run
 	$fh = IO::Handle->new;
 	@out = (">pipe", $fh);
     }
-	
+    my @err;
+    if ($error)
+    {
+	@err = ('2>', $error);
+    }
+
+    my $stderr;
     # print Dumper($new, \@inp, \@out);
-    my $h = IPC::Run::start($new, @inp, @out);
+    my $h = IPC::Run::start($new, @inp, @out, @err);
     if (!$h)
     {
 	warn "Error $? running : @$cmd\n";
