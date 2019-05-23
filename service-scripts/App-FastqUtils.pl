@@ -122,8 +122,6 @@ sub process_fastq
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
 
-    # Get the receipe to try to pull the overall output file.
-    my $recipe = $params->{recipe};
     my $output=1;
     for my $file (@files)
     {
