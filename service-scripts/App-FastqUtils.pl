@@ -15,13 +15,13 @@ use IPC::Run qw(run);
 use Cwd;
 use Clone;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_fastq);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
-sub process_tnseq
+sub process_fastq
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
@@ -122,19 +122,14 @@ sub process_tnseq
     opendir(D, $work_dir) or die "Cannot opendir $work_dir: $!";
     my @files = sort { $a cmp $b } grep { -f "$work_dir/$_" } readdir(D);
 
-    # Get the receipe to try to pull the overall output file.
-    my $recipe = $params->{recipe};
-    my $output;
+    my $output=1;
     for my $file (@files)
     {
-	if ($recipe && $file =~ /^$recipe.*transit.txt/)
-	{
-	    $output = read_file("$work_dir/$file");
-	}
 	for my $suf (@output_suffixes)
 	{
 	    if ($file =~ $suf->[0])
 	    {
+ 	    	$output=0;
 		my $path = "$output_folder/$file";
 		my $type = $suf->[1];
 		
