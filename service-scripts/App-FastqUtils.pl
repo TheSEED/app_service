@@ -129,9 +129,9 @@ sub process_fastq
     {
 	for my $suf (@output_suffixes)
 	{
- 	    $output=0;
 	    if ($file =~ $suf->[0])
 	    {
+ 	    	$output=0;
 		my $path = "$output_folder/$file";
 		my $type = $suf->[1];
 		
