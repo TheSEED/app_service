@@ -25,39 +25,34 @@ die($usage->text) if @ARGV != 2;
 my $app_def_file = shift;
 my $param_values_file = shift;
 
-my $app = Bio::KBase::AppService::AppScript->new();
+my $app = Bio::KBase::AppService::AppScript->new(\&run_mapping, \&preflight);
 
-my $params = $app->preprocess_parameters($app_def_file, $param_values_file);
+my $rc = $app->run(\@ARGV);
 
-print STDERR "Processed parameters for application " . $app->app_definition->{id} . ": ", Dumper($params);
+exit $rc;
 
-$app->initialize_workspace();
-
-if ($opt->preflight)
+sub run_mapping
 {
-    preflight($app, $params, $opt->preflight);
-    exit 0;
-}
+    my($self, $app, $app_def, $raw_params, $params) = @_;
 
-$app->setup_folders();
-my $here = getcwd;
-my $staging_dir = "$here/staging";
-my $output_dir = "$here/output";
+    print STDERR "Processed parameters for application " . $app->app_definition->{id} . ": ", Dumper($params);
 
-eval {
-    make_path($staging_dir, $output_dir);
-    run($app, $params, $staging_dir, $output_dir);
-};
-my $err = $@;
-if ($err)
-{
-    warn "Run failed: $@";
-}
+    my $here = getcwd;
+    my $staging_dir = "$here/staging";
+    my $output_dir = "$here/output";
     
-save_output_files($app, $output_dir);
-
-$app->write_results(undef, !defined($err));
-
+    eval {
+	make_path($staging_dir, $output_dir);
+	run($app, $params, $staging_dir, $output_dir);
+    };
+    my $err = $@;
+    if ($err)
+    {
+	warn "Run failed: $@";
+    }
+    
+    save_output_files($app, $output_dir);
+}
 
 sub run
 {
@@ -165,7 +160,7 @@ sub stage_input
 #
 sub preflight
 {
-    my($app, $params, $preflight_out) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     my $readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params);
 
@@ -175,16 +170,16 @@ sub preflight
     {
 	die "Readset failed to validate. Errors:\n\t" . join("\n\t", @$errs);
     }
+
+    my $time = 60 * 60 * 12;
     my $pf = {
 	cpu => 1,
 	memory => "32G",
-	runtime => 360,
+	runtime => $time,
 	storage => 1.1 * ($comp_size + $uncomp_size),
     };
-    open(PF, ">", $preflight_out) or die "Cannot write preflight file $preflight_out: $!";
-    my $js = JSON::XS->new->pretty(1)->encode($pf);
-    print PF $js;
-    close(PF);
+
+    return $pf;
 }
 
 sub save_output_files

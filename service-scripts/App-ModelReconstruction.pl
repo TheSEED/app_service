@@ -1,5 +1,5 @@
 #
-# The Genome Annotation application.
+# The Model Reconstruction application.
 #
 
 use Bio::KBase::AppService::AppScript;
@@ -19,7 +19,7 @@ eval {
     $get_time = sub { Time::HiRes::gettimeofday };
 };
 
-my $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model);
+my $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model, \&preflight);
 my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
 my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
 	token => $script->token()->token(),
@@ -40,6 +40,20 @@ $script->{donot_create_job_result} = 1;
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "32G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
 
 sub reconstruct_model
 {

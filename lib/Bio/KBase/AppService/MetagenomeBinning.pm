@@ -56,6 +56,27 @@ sub new
     return bless $self, $class;
 }
 
+#
+# Preflight. The CGA app itself has fairly requirements; it spends most of its
+# time waiting on other applications.
+#
+# We don't mark as a control task, however, because it does have some signficant
+# cpu use.
+#
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "64G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
 sub process
 {
     my($self, $app, $app_def, $raw_params, $params) = @_;

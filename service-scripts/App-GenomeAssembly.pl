@@ -19,7 +19,7 @@ my $ar_stat = "ar-stat";
 # my $fastq_dump = "fastq-dump";
 my $fastq_dump = "/home/fangfang/programs/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump";
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_reads, \&preflight_cb);
 
 my @large_files;
 
@@ -29,6 +29,27 @@ exit $rc;
 
 our $global_ws;
 our $global_token;
+
+#
+# Preflight. The assembly app itself has low requirements; it spends most of its
+# time waiting on other applications.
+# Mark it a control task in the preflight.
+#
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "10G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 1,
+    };
+    return $pf;
+}
+
+
 
 sub process_reads {
     my($app, $app_def, $raw_params, $params) = @_;

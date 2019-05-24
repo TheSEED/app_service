@@ -14,10 +14,15 @@ use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 use Cwd;
 
+our $global_ws;
+our $global_token;
+
+our $shock_cutoff = 10_000;
+
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_url = "http://www.alpha.patricbrc.org/api";
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_rnaseq);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_rnaseq, \&preflight);
 my $rc = $script->run(\@ARGV);
 exit $rc;
 
@@ -25,10 +30,21 @@ exit $rc;
 # my $temp_params = JSON::decode_json(`cat /home/fangfang/P3/dev_container/modules/app_service/test_data/rna.inp`);
 # process_rnaseq('RNASeq', undef, undef, $temp_params);
 
-our $global_ws;
-our $global_token;
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
 
-our $shock_cutoff = 10_000;
+    my $pf = {
+	cpu => 8,
+	memory => "128G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
+
 
 sub process_rnaseq {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -36,10 +52,7 @@ sub process_rnaseq {
     print "Proc RNASeq ", Dumper($app_def, $raw_params, $params);
     my $time1 = `date`;
 
-    #
-    # At some point, initialize this to the given Slurm environment.
-    #
-    my $parallel = 4;
+    my $parallel = $ENV{P3_ALLOCATED_CPU};
 
     #
     # Redirect tmp to large NFS if more than 4 input files.

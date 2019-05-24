@@ -291,7 +291,7 @@ sub run_kraken_and_process_output
 #
 sub preflight
 {
-    my($app, $params, $preflight_out) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     my $readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params);
 
@@ -301,16 +301,14 @@ sub preflight
     {
 	die "Readset failed to validate. Errors:\n\t" . join("\n\t", @$errs);
     }
+    my $time = 60 * 60 * 10;
     my $pf = {
 	cpu => 8,
 	memory => "32G",
-	runtime => 360,
+	runtime => $time,
 	storage => 1.1 * ($comp_size + $uncomp_size),
     };
-    open(PF, ">", $preflight_out) or die "Cannot write preflight file $preflight_out: $!";
-    my $js = JSON::XS->new->pretty(1)->encode($pf);
-    print PF $js;
-    close(PF);
+    return $pf;
 }
 
 sub save_output_files
