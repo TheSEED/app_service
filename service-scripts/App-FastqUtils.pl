@@ -60,30 +60,32 @@ sub process_fastq
     my $params_to_app = Clone::clone($params);
     my @to_stage;
 
-    for my $repname (keys %{$params_to_app->{read_files}})
+    for my $read_tuple (@{$params_to_app->{paired_end_libs}})
     {
-	my $replist = $params_to_app->{read_files}->{$repname};
-	for my $repinst (@{$replist->{replicates}})
+	for my $read_name (keys %{$read_tuple})
 	{
-	    #
-	    # Hack to patch mismatch between UI and tool
-	    #
-	    if (exists($repinst->{read}))
-	    {
-		$repinst->{read1} = delete $repinst->{read};
-	    }
-	    
-	    for my $rd (qw(read1 read2))
-	    {
-		if (exists($repinst->{$rd}))
-		{
-		    my $nameref = \$repinst->{$rd};
-		    $in_files{$$nameref} = $nameref;
-		    push(@to_stage, $$nameref);
-		}
-	    }
-	}
+	   if($read_name == "read1" || $read_name == "read2")
+           {
+	       my $nameref = \$read_tuple->{$read_name};
+	       $in_files{$$nameref} = $nameref;
+	       push(@to_stage, $$nameref);
+           }
+        }
     }
+    for my $read_tuple (@{$params_to_app->{single_end_libs}})
+    {
+	for my $read_name (keys %{$read_tuple})
+	{
+	   if($read_name == "read")
+           {
+	       my $nameref = \$read_tuple->{$read_name};
+	       $in_files{$$nameref} = $nameref;
+	       push(@to_stage, $$nameref);
+           }
+        }
+    }
+              
+        
     warn Dumper(\%in_files, \@to_stage);
     my $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
     while (my($orig, $staged_file) = each %$staged)
