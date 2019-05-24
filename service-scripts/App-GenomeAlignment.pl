@@ -15,13 +15,31 @@ use IPC::Run qw(run);
 use Cwd;
 use Clone;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_alignment, \&preflight_cb);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
-sub process_tnseq
+#
+# Run preflight to estimate size and duration.
+#
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 60 * 60 * 2;
+
+    my $pf = {
+	cpu => 1,
+	memory => "32G",
+	runtime => $time,
+	storage => 0,
+    };
+    return $pf;
+}
+
+sub process_alignment
 {
     my($app, $app_def, $raw_params, $params) = @_;
 

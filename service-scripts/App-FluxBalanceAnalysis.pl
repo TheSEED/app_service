@@ -19,7 +19,7 @@ eval {
     $get_time = sub { Time::HiRes::gettimeofday };
 };
 
-my $script = Bio::KBase::AppService::AppScript->new(\&flux_balance_analysis);
+my $script = Bio::KBase::AppService::AppScript->new(\&flux_balance_analysis, \&preflight_cb);
 my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
 my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
 	token => $script->token()->token(),
@@ -40,6 +40,25 @@ $script->{donot_create_job_result} = 1;
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+#
+# Run preflight to estimate size and duration.
+#
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 60 * 60 * 2;
+
+    my $pf = {
+	cpu => 1,
+	memory => "32G",
+	runtime => $time,
+	storage => 0,
+    };
+    return $pf;
+}
+
 
 sub flux_balance_analysis
 {

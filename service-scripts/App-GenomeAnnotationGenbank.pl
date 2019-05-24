@@ -18,11 +18,45 @@ use JSON::XS;
 use IPC::Run 'run';
 use IO::File;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_genome, \&preflight_cb);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    #
+    # Ensure the contigs are valid, and look up their size.
+    #
+
+    my $gb = $params->{genbank_file};
+    $gb or die "Genbank file must be specified\n";
+
+    my $res = $app->workspace->stat($gb);
+    $res->size > 0 or die "Genbank file $gb not found\n";
+
+    #
+    # Size estimate based on conservative 500 bytes/second aggregate
+    # compute rate for contig size, with a minimum allocated
+    # time of 5 minutes.
+    #
+    my $time = $res->size / 500;
+    $time = 300 if $time < 300;
+
+    #
+    # Request 8 cpus for some of the fatter bits of the compute.
+    #
+    return {
+	cpu => 8,
+	memory => "32G",
+	runtime => int($time),
+	storage => 10 * $res->size,
+    };
+}
+
 
 sub process_genome
 {
