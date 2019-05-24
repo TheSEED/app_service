@@ -11,11 +11,29 @@ use LWP::UserAgent;
 use JSON::XS;
 use IPC::Run qw(run);
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_diffexp);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_diffexp, \&preflight_cb);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+#
+# Run preflight to estimate size and duration.
+#
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 60 * 10;
+
+    my $pf = {
+	cpu => 1,
+	memory => "10G",
+	runtime => $time,
+	storage => 0,
+    };
+    return $pf;
+}
 
 sub process_diffexp
 {

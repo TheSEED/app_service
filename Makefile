@@ -11,6 +11,8 @@ SERVICE_MODULE = lib/Bio/KBase/AppService/Service.pm
 SERVICE = app_service
 SERVICE_PORT = 7124
 
+SLURM_CONTROL_TASK_PARTITION = watcher
+
 SERVICE_URL = http://p3.theseed.org/services/$(SERVICE)
 
 SERVICE_NAME = AppService
@@ -70,6 +72,7 @@ TPAGE_ARGS = \
 	--define sched_db_user=$(SCHED_DB_USER) \
 	--define sched_db_pass=$(SCHED_DB_PASS) \
 	--define sched_db_name=$(SCHED_DB_NAME) \
+	--define slurm_control_task_partition=$(SLURM_CONTROL_TASK_PARTITION) \
 	--define seedtk=$(SEEDTK) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \

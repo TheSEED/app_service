@@ -17,84 +17,72 @@ use File::Temp;
 use JSON::XS;
 use Getopt::Long::Descriptive;
 
-my($opt, $usage) = describe_options("%c %o app-definition.json param-values.json",
-				    ["preflight=s" => "Run app preflight and write results to given file."],
-				    ["help|h" => "Show this help message."]);
-print($usage->text), exit 0 if $opt->help;
-die($usage->text) if @ARGV != 2;
-my $app_def_file = shift;
-my $param_values_file = shift;
+my $app = Bio::KBase::AppService::AppScript->new(\&run_classification, \&preflight);
 
-my $app = Bio::KBase::AppService::AppScript->new();
+$app->run(\@ARGV);
 
-my $params = $app->preprocess_parameters($app_def_file, $param_values_file);
-$app->initialize_workspace();
-
-if ($opt->preflight)
+sub run_classification
 {
-    preflight($app, $params, $opt->preflight);
-    exit 0;
-}
-
-$app->setup_folders();
-
-#
-# Set up options for tool and database.
-#
-
-my @cmd;
-my @options;
-
-if ($params->{algorithm} ne 'Kraken2')
-{
-    die "Only Kraken2 is supported currently";
-}
-
-my %db_map = ('Kraken2' => 'kraken2',
-	      Greengenes => 'Greengenes',
-	      RDP => 'RDP',
-	      SILVA => 'SILVA');
-my $db_dir = $db_map{$params->{database}};
-if (!$db_dir)
-{
-    die "Invalid database name '$params->{database}' specified. Valid values are " . join(", ", map { qq("$_") } keys %db_map);
-}
-
-my $db_path = "/vol/patric3/metagenome_dbs/$db_dir";
-
-@cmd = ("kraken2");
-push(@options, "--db", $db_path);
-push(@options, "--memory-mapping");
-
-#
-# If we are running under Slurm, pick up our memory and CPU limits.
-#
-my $mem = $ENV{P3_ALLOCATED_MEMORY};
-my $cpu = $ENV{P3_ALLOCATED_CPU};
-
-if ($cpu)
-{
-    push(@options, "--threads", $cpu);
-}
-
-#
-# Stage input.
-#
-# We process input differently for contigs vs reads.
-#
-
-
-if ($params->{input_type} eq 'reads')
-{
-    process_read_input($app, $params, \@cmd, \@options);
-}
-elsif ($params->{input_type} eq 'contigs')
-{
-    process_contig_input($app, $params, \@cmd, \@options);
-}
-else
-{
-    die "Invalid input type '$params->{input_type}'";
+    my($app, $app_def, $raw_params, $params) = @_;
+    
+    #
+    # Set up options for tool and database.
+    #
+    
+    my @cmd;
+    my @options;
+    
+    if ($params->{algorithm} ne 'Kraken2')
+    {
+	die "Only Kraken2 is supported currently";
+    }
+    
+    my %db_map = ('Kraken2' => 'kraken2',
+		  Greengenes => 'Greengenes',
+		  RDP => 'RDP',
+		  SILVA => 'SILVA');
+    my $db_dir = $db_map{$params->{database}};
+    if (!$db_dir)
+    {
+	die "Invalid database name '$params->{database}' specified. Valid values are " . join(", ", map { qq("$_") } keys %db_map);
+    }
+    
+    my $db_path = "/vol/patric3/metagenome_dbs/$db_dir";
+    
+    @cmd = ("kraken2");
+    push(@options, "--db", $db_path);
+    push(@options, "--memory-mapping");
+    
+    #
+    # If we are running under Slurm, pick up our memory and CPU limits.
+    #
+    my $mem = $ENV{P3_ALLOCATED_MEMORY};
+    my $cpu = $ENV{P3_ALLOCATED_CPU};
+    
+    if ($cpu)
+    {
+	push(@options, "--threads", $cpu);
+    }
+    
+    #
+    # Stage input.
+    #
+    # We process input differently for contigs vs reads.
+    #
+    
+    
+    if ($params->{input_type} eq 'reads')
+    {
+	process_read_input($app, $params, \@cmd, \@options);
+    }
+    elsif ($params->{input_type} eq 'contigs')
+    {
+	process_contig_input($app, $params, \@cmd, \@options);
+    }
+    else
+    {
+	die "Invalid input type '$params->{input_type}'";
+    }
 }
 
 sub process_read_input
@@ -314,7 +302,7 @@ sub preflight
 	die "Readset failed to validate. Errors:\n\t" . join("\n\t", @$errs);
     }
     my $pf = {
-	cpu => 1,
+	cpu => 8,
 	memory => "32G",
 	runtime => 360,
 	storage => 1.1 * ($comp_size + $uncomp_size),

@@ -15,6 +15,7 @@ use LWP::UserAgent;
 use JSON::XS;
 use DateTime;
 use DateTime::TimeZone;
+use DateTime::Format::ISO8601::Format;
 
 __PACKAGE__->mk_accessors(qw(schema specs json
 			     task_start_timer task_start_interval
@@ -64,7 +65,7 @@ sub start_timers
     $self->task_start_timer(AnyEvent->timer(after => 0,
 					    interval => $self->task_start_interval,
 					    cb => sub { $self->task_start_check() }));
-    $self->queue_check_timer(AnyEvent->timer(after => $self->queue_check_interval,
+    $self->queue_check_timer(AnyEvent->timer(after => 5,
 					    interval => $self->queue_check_interval,
 					    cb => sub { $self->queue_check() }));
 }
@@ -86,8 +87,10 @@ sub start_app
 {
     my($self, $token, $app_id, $monitor_url, $task_parameters, $start_parameters, $preflight) = @_;
 
+    my $override_user = $start_parameters->{user_override};
+
     my $app = $self->find_app($app_id);
-    my $user = $self->find_user($token->user_id, $token);
+    my $user = $self->find_user($override_user // $token->user_id, $token);
 
     #
     # Create our task.
@@ -113,6 +116,7 @@ sub start_app
 	req_cpu => $preflight->{cpu},
 	req_runtime => $preflight->{runtime},
 	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
+	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
     });
 
     my $tt = $self->schema->resultset('TaskToken')->create({
@@ -122,13 +126,47 @@ sub start_app
     }); 
 
     say "Created task " . $task->id;
-    if (0)
+    if (1)
     {
 	# Don't do this; allow scheduler to batch runs
 	my $idle;
 	$idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
     }
     return $task;
+}
+
+=item B<load_apps>
+
+Use the AppSpecs instance to preload (and update if necessary) the
+Application table.
+
+=cut
+
+sub load_apps
+{
+    my($self) = @_;
+    
+    for my $app ($self->specs->enumerate())
+    {
+	my $rs = $self->schema->resultset('Application')->update_or_new( {
+	    id => $app->{id},
+	    script => $app->{script},
+	    default_memory => $app->{default_memory},
+	    default_cpu => $app->{default_cpu},
+	    spec => $self->json->encode($app),
+	});
+
+	if ($rs->in_storage)
+	{
+	    print "App $app->{id} updated\n";
+	}
+	else
+	{
+	    print "New app record for $app->{id} created\n";
+	    $rs->insert;
+	}
+    }
+
 }
 
 =item B<find_app>
@@ -269,6 +307,12 @@ We look for all jobs in state Q (Queued). Each of these is a candidate for start
 sub task_start_check
 {
     my($self) = @_;
+
+    if ($self->{task_start_disable})
+    {
+	print "Task start disabled\n";
+	return;
+    }
     print "Task start check\n";
 
 
@@ -449,9 +493,120 @@ sub clusters
     return [$self->default_cluster];
 }
 
+=item B<query_tasks>
+
+Query the status of the selected tasks.
+
+=cut
+
+sub query_tasks
+{
+    my($self, $user_id, $task_ids) = @_;
+
+    my $rs = $self->schema->resultset("Task")->search(
+						  {
+						      'me.id' => { -in => $task_ids },
+						      owner => $user_id,
+						  },
+						  {
+						      prefetch => ['owner', 'state_code'],
+						  }
+						     );
+
+
+    my $ret = {};
+    while (my $task = $rs->next())
+    {
+	$ret->{$task->id} = $self->format_task_for_service($task);
+    }
+    return $ret;
+}
+
+=item B<query_task_summary>
+
+Return a summary of the counts of the task types for the specified user.
+
+=cut
+
+sub query_task_summary
+{
+    my($self, $user_id) = @_;
+
+    my $rs = $self->schema->resultset("Task")->search(
+						  {
+						      'me.owner' => $user_id,
+						  },
+						  {
+						      prefetch => ['state_code'],
+						      select => ['state_code.service_status',
+							     { count => 'me.id', -as => 'count' } ],
+						      group_by => ['state_code'],
+						  }
+						     );
+
+
+    my $ret = {};
+    while (my $item = $rs->next())
+    {
+	$ret->{$item->state_code->service_status} = $item->get_column('count');
+    }
+    return $ret;
+}
+
+=item B<enumerate_tasks>
+
+Enumerate the given user's tasks.
+
+=cut
+
+sub enumerate_tasks
+{
+    my($self, $user_id, $offset, $count) = @_;
+
+    my $rs = $self->schema->resultset("Task")->search(
+						  {
+						      'me.owner' => $user_id,
+						  },
+						  {
+						      prefetch => ['state_code', 'owner'],
+						      order_by => { -desc => 'submit_time' },
+						      rows => $count,
+						      offset => $offset,
+						  }
+						     );
+
+
+    my $ret = [];
+    while (my $task = $rs->next())
+    {
+	push(@$ret, $self->format_task_for_service($task));
+    }
+    return $ret;
+}
+
+sub format_task_for_service
+{
+    my($self, $task) = @_;
+
+    my $rtask = {
+	id => $task->id,
+	parent_id  => $task->parent_task,
+	app => $task->application_id,
+	workspace_id => undef,
+	task_parameters => $task->params,
+	user_id => $task->owner->id,
+	status => $task->state_code->service_status,
+	submit_time => "" . $task->submit_time,
+	start_time => "" . $task->start_time,
+	completed_time => "" . $task->finish_time,
+    };
+    return $rtask;
+}
+
 =back
 
 =cut    
+
 
 
 1;

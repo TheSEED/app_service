@@ -3,6 +3,7 @@
 	"script":"App-GenomeAssembly",
 	"label":"Assemble reads",
 	"description":"Assemble reads into a set of contigs",
+  "default_memory": "100G",
 	"parameters":[
 		{
 		    "id": "paired_end_libs",

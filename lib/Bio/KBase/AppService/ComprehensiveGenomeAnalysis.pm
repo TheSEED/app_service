@@ -43,6 +43,25 @@ sub new
     return bless $self, $class;
 }
 
+#
+# Preflight. The CGA app itself has low requirements; it spends most of its
+# time waiting on other applications.
+# Mark it a control task in the preflight.
+#
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "10G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 1,
+    };
+    return $pf;
+}
+
 sub run
 {
     my($self, $app, $app_def, $raw_params, $params) = @_;
@@ -229,7 +248,7 @@ sub process_contigs
     #
 
     my $params = $self->params;
-    my @keys = qw(contigs scientific_name taxonomy_id code domain workflow analyze_quality);
+    my @keys = qw(contigs scientific_name taxonomy_id code domain workflow analyze_quality skip_indexing);
 
     my $annotation_input = { map { exists $params->{$_} ? ($_, $params->{$_}) : () } @keys };
 

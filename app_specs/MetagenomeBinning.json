@@ -3,6 +3,7 @@
 	"script":"App-MetagenomeBinning",
 	"label":"Annotate metagenome data",
 	"description":"Assemble, bin, and annotate metagenomic sample data",
+  "default_memory": "100G",
 	"parameters":[
 		{
 		    "id": "paired_end_libs",

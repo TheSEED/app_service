@@ -18,9 +18,14 @@ my @dispatch;
 my $obj = Bio::KBase::AppService::AppServiceImpl->new;
 
 my $specs = Bio::KBase::AppService::AppSpecs->new($obj->{app_dir});
+print Dumper($specs);
 
 my $sched = Bio::KBase::AppService::Scheduler->new(specs => $specs);
+$sched->{task_start_disable} = 0;
+$sched->load_apps();
 
+my $cluster = Bio::KBase::AppService::SlurmCluster->new('TSlurm',
+							schema => $sched->schema);
 
 my $shared_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 							schema => $sched->schema,
@@ -28,7 +33,7 @@ my $shared_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 								      "-N 1",
 								      "--ntasks-per-node 1",
 								      "--time 1:00:00"]);
-my $cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
+my $bebop_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 							schema => $sched->schema,
 							resources => [
 								      "-p bdwd",
@@ -38,6 +43,9 @@ my $cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
 								      "-A PATRIC",
 								      "--ntasks-per-node 1"],
 							environment_config => ['module add jdk'], ['module add gnuplot']);
+
+
+
 $sched->default_cluster($cluster);
 
 $obj->{util}->scheduler($sched);

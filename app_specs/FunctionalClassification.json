@@ -2,6 +2,7 @@
   "id": "FunctionalClassification",
   "script": "App-FunctionalClassification",
   "label": "classify reads",
+  "default_memory": "100G",
   "description": "Compute functional classification for read data",
   "parameters": [
     {

@@ -3,6 +3,7 @@
 	"script":"App-GapfillModel",
 	"label":"Gapfill metabolic model",
 	"description":"Run gapfilling on model.",
+  "default_memory": "100G",
 	"parameters":[
 		{
 			"id":"model",

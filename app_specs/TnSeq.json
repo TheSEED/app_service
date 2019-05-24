@@ -3,6 +3,7 @@
     "script": "App-TnSeq",
     "label": "Analyze TnSeq data",
     "description": "Use TRANSIT to analyze TnSeq data",
+  "default_memory": "100G",
     "parameters": [
         {
             "id": "experimental_conditions",

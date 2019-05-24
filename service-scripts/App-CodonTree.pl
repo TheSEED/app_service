@@ -112,10 +112,16 @@ sub preflight_cb
 
     my($genome_ids, $opt_genome_ids) = verify_genome_ids($app, $params);
 
+    my $time = 86400*2;
+    if ($params->{bootstraps} <= 100 && $params->{number_of_genes} <= 20 && @$genome_ids < 50)
+    {
+	$time = 60 * 60 * 2;
+    }
+
     my $pf = {
-	cpu => 1,
-	memory => "32G",
-	runtime => 0,
+	cpu => 12,
+	memory => "10G",
+	runtime => $time,
 	storage => 0,
     };
     return $pf;

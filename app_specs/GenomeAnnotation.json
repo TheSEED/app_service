@@ -3,6 +3,7 @@
   "script": "App-GenomeAnnotation",
   "label": "Annotate genome",
   "description": "Calls genes and functionally annotate input contig set.",
+  "default_memory": "100G",
   "parameters": [
     {
       "id": "contigs",

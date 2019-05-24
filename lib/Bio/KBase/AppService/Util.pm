@@ -423,5 +423,28 @@ sub token_user_is_admin
     return $user_id eq 'olson@patricbrc.org';
 }
 
+sub query_tasks
+{
+    my($self, $user_id, $task_ids) = @_;
+
+    my $tasks = $self->scheduler->query_tasks($user_id, $task_ids);
+	
+}
+
+sub query_task_summary
+{
+    my($self, $user_id) = @_;
+
+    my $tasks = $self->scheduler->query_task_summary($user_id);
+	
+}
+
+sub enumerate_tasks
+{
+    my($self, $user_id, $offset, $count) = @_;
+
+    my $tasks = $self->scheduler->enumerate_tasks($user_id, $offset, $count);
+	
+}
 
 1;

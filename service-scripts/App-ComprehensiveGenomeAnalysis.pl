@@ -13,7 +13,7 @@ use Data::Dumper;
 
 my $cga = Bio::KBase::AppService::ComprehensiveGenomeAnalysis->new();
 
-my $script = Bio::KBase::AppService::AppScript->new(sub { $cga->run(@_); });
+my $script = Bio::KBase::AppService::AppScript->new(sub { $cga->run(@_); }, sub { $cga->preflight(@_); });
 
 my $rc = $script->run(\@ARGV);
 

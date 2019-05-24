@@ -44,15 +44,17 @@ INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runti
 CREATE TABLE TaskState
 (
 	code VARCHAR(10) PRIMARY KEY,
-	description VARCHAR(255)
+	description VARCHAR(255),
+	service_status VARCHAR(20)
 );
 
 INSERT INTO TaskState VALUES
-       ('Q', 'Queued'),
-       ('S', 'Submitted to cluster'),
-       ('C', 'Completed'),
-       ('F', 'Failed'),
-       ('D', 'Deleted');
+       ('Q', 'Queued', 'queued'),
+       ('S', 'Submitted to cluster', 'pending'),
+       ('C', 'Completed', 'completed'),
+       ('F', 'Failed', 'failed'),
+       ('D', 'Deleted', 'deleted'),
+       ('T', 'Terminated', 'failed');
 
 CREATE TABLE Application
 (
@@ -102,6 +104,7 @@ CREATE TABLE Task
 	req_cpu INTEGER,
 	req_runtime INTEGER,
 	req_policy_data TEXT,
+	req_is_control_task BOOLEAN,
 	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
 	FOREIGN KEY (state_code) REFERENCES TaskState(code),
 	FOREIGN KEY (application_id) REFERENCES Application(id),
@@ -111,24 +114,18 @@ CREATE TABLE Task
 CREATE TABLE ClusterJob
 (
 	id INTEGER AUTO_INCREMENT PRIMARY KEY,
+	task_id INTEGER,
 	cluster_id VARCHAR(255),
 	job_id VARCHAR(255),
 	job_status VARCHAR(255),
+	active BOOLEAN,
 	maxrss float,
 	nodelist TEXT,
 	exitcode VARCHAR(255),
 	INDEX (job_id),
+	FOREIGN KEY(task_id) REFERENCES Task(id),
 	FOREIGN KEY(cluster_id) REFERENCES Cluster(id)
 ) ;
-
-CREATE TABLE TaskExecution
-(
-	task_id INTEGER,
-	cluster_job_id INTEGER,
-	active BOOLEAN,
-	FOREIGN KEY(task_id) REFERENCES Task(id),
-	FOREIGN KEY(cluster_job_id) REFERENCES ClusterJob(id)
-);
 
 CREATE TABLE TaskToken
 (

@@ -3,6 +3,7 @@
   "label": "Metagenomic read mapping",
   "script": "AppWrapper-MetagenomicReadMapping",
   "description": "Map metagenomic reads to a defined gene set",
+  "default_memory": "100G",
   "parameters": [
     {
       "desc": "Gene set type (predefined list / fasta file / feature group )",

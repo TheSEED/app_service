@@ -47,6 +47,12 @@ __PACKAGE__->table("TaskState");
   is_nullable: 1
   size: 255
 
+=head2 service_status
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 20
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -54,6 +60,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 10 },
   "description",
   { data_type => "varchar", is_nullable => 1, size => 255 },
+  "service_status",
+  { data_type => "varchar", is_nullable => 1, size => 20 },
 );
 
 =head1 PRIMARY KEY
@@ -86,9 +94,14 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-08-29 13:04:51
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:S1/vPBTLjVOjP625xflU0A
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-05-24 11:13:44
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:5W8yixOTF/3e8yMV8BhXrA
 
+use overload '""' => sub {
+    my $self = shift;
+    
+    return $self->code;
+}, fallback => 1;
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

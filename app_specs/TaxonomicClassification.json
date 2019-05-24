@@ -1,8 +1,9 @@
 {
   "id": "TaxonomicClassification",
-  "script": "AppWrapper-TaxonomicClassification",
+  "script": "App-TaxonomicClassification",
   "label": "classify reads",
   "description": "Compute taxonomic classification for read data",
+  "default_memory": "100G",
   "parameters": [
     {
       "id": "input_type",

@@ -3,6 +3,7 @@
     "script":"App-GenomeComparison",
     "label":"Blast-based genome proteome comparison",
     "description":"Compare the proteome sets from multiple genomes using Blast",
+  "default_memory": "100G",
     "parameters":[
         {
             "id": "genome_ids",

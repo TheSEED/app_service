@@ -142,6 +142,12 @@ __PACKAGE__->has_many(
 # Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-12 15:51:03
 # DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0l2uhC15unJrCeoYnnnCWQ
 
+use overload '""' => sub {
+    my $self = shift;
+    
+    return $self->id;
+}, fallback => 1;
+
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

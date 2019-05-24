@@ -3,6 +3,7 @@ package Bio::KBase::AppService::SlurmCluster;
 use 5.010;
 use strict;
 use Bio::KBase::AppService::Schema;
+use Bio::KBase::AppService::AppConfig qw(slurm_control_task_partition);
 use base 'Class::Accessor';
 use Data::Dumper;
 use Try::Tiny;
@@ -136,7 +137,7 @@ sub new
 	my $path = $cobj->scheduler_install_path;
 	if ($path)
 	{
-	    $sacctmgr = "$path/$sacctmgr";
+	    $sacctmgr = "$path/sacctmgr";
 	}
 	else
 	{
@@ -158,6 +159,7 @@ sub new
     if ($sacctmgr)
     {
 	$self->{sacctmgr} = Slurm::Sacctmgr->new(sacctmgr => $self->{sacctmgr_path});
+	print STDERR Dumper($self->{sacctmgr});
     }
     
     return bless $self, $class;
@@ -351,18 +353,25 @@ EAL
 	my $task = $tasks->[0];
 	my $app = $task->application;
 
-	my $ram = $task->req_memory // $app->default_memory // "1M";
+	my $ram = $task->req_memory // $app->default_memory // "100G";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
+
+	my $partition = "";
+	if ($task->req_is_control_task)
+	{
+	    $partition = "#SBATCH --oversubscribe --partition " . slurm_control_task_partition;
+	}
 	# database has requested time in seconds
 
 	$alloc_env = <<EAL;
-export P3_ALLOCATED_MEMORY="\${SLURM_JOB_CPUS_PER_NODE}M"
+export P3_ALLOCATED_MEMORY="\${SLURM_MEM_PER_NODE}M"
 export P3_ALLOCATED_CPU=\$SLURM_JOB_CPUS_PER_NODE
 EAL
 	
 	$resource_request = <<EREQ
 #SBATCH --mem $ram
-#SBATCH --ntasks $cpu --cpus-per-task 1
+#SBATCH --nodes 1-1 --ntasks $cpu 
+$partition
 EREQ
     }
     
@@ -446,7 +455,7 @@ $params
 EOPARAMS
 
 echo "Running script $script"
-$script $monitor_url app_spec params &
+p3x-app-shepherd --task-id $task_id $script $monitor_url app_spec params &
 pid_$task_id=\$!
 echo "Task $task_id has pid \$pid_$task_id"
 
@@ -482,7 +491,7 @@ END
     {
 	$batch .= "exit 0\n";
     }
-    #print $batch;
+    print $batch;
     if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
     {
 	print FTMP $batch;
@@ -508,6 +517,13 @@ END
 				   {
 				       active => 1,
 				   });
+	    # For the case where we don't have the M:M table
+	    # $task->create_related('cluster_jobs',
+	    # 		      { 
+	    # 			  cluster_id => $self->id,
+	    # 			  job_id => $id,
+	    # 			  active => 1,
+	    # 		      });
 	}
     }
     else
@@ -672,7 +688,6 @@ sub queue_check
     {
 	my $job_id = $cj->job_id;
 	my $vals = $jobinfo{$job_id};
-
 
 	#
 	# Code is true if the new job state is a terminal state.

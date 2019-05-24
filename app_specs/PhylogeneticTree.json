@@ -3,6 +3,7 @@
   "label": "Compute phylogenetic tree",
   "id": "PhylogeneticTree",
   "description": "Computes a phylogenetic tree given a set of in-group and out-group genomes",
+  "default_memory": "100G",
   "parameters": [
     {
       "required": 1,

@@ -2,6 +2,7 @@
    "id" : "ComprehensiveGenomeAnalysis",
    "label" : "Comprehensive Genome Analysis",
    "description" : "Analyze a genome from reads or contigs, generating a detailed analysis report.",
+  "default_memory": "100G",
    "parameters" : [
       #
       # Common parameters

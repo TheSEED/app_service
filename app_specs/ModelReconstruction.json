@@ -3,6 +3,7 @@
 	"script":"App-ModelReconstruction",
 	"label":"Reconstruct metabolic model",
 	"description":"Reconstructs a metabolic model from an annotated genome.",
+  "default_memory": "100G",
 	"parameters":[
 		{
 			"id":"genome",

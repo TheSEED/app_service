@@ -3,6 +3,7 @@
   "script": "App-Variation",
   "label": "Identify SNVs",
   "description": "Identify and annotate small nucleotide variations relative to a reference genome",
+  "default_memory": "100G",
   "parameters": [
     {
       "id": "reference_genome_id",
