@@ -174,7 +174,7 @@
 			"required": 0,
 			"default": "5M",
 			"desc":"Estimated genome size (for canu)",
-			"type":"wsid",
+			"type":"string"
 		}
 	]
 }
