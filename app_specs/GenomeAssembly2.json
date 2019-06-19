@@ -3,7 +3,6 @@
 	"script":"App-GenomeAssembly2",
 	"label":"Assemble reads",
 	"description":"Assemble reads into a set of contigs",
-  "default_memory": "100G",
 	"parameters":[
 		{
 		    "id": "paired_end_libs",
@@ -14,28 +13,28 @@
 		    "group":[
 			{
 			    "id": "read1",
-			    "required": 1,
+			    "required": true,
 			    "label": "Read file 1",
-			    "desc": "FASTQ or FASTA file of reads",
+			    "desc": "FASTQ file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
 			{
 			    "id": "read2",
-			    "required": 0,
+			    "required": true,
 			    "label": "Read file 2",
-			    "desc": "FASTQ or FASTA file of reads",
+			    "desc": "FASTQ file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
 			{
-			    "id":"platform",
+			    "id": "platform",
 			    "label":"Sequencing Platform",
 			    "required": 0,
 			    "default": "infer",
 			    "desc":"Sequencing platform used to generate the read library",
 			    "type":"enum",
-			    "enum": ["infer", "illumina", "pacbio", "nanopore"]
+			    "enum": ["infer", "illumina", "iontorrent"]
 			},
 			{
 			    "id": "interleaved",
@@ -56,7 +55,7 @@
 			    "label": "Average insert size",
 			    "required": 0,
 			    "default": null,
-			    "type": "int"
+			"type": "int"
 			},
 			{
 			    "id": "insert_size_stdev",
@@ -76,9 +75,9 @@
 		    "group":[
 			{
 			    "id": "read",
-			    "required": 1,
+			    "required": true,
 			    "label": "Read file",
-			    "desc": "FASTQ, FASTA or H5 file of reads",
+			    "desc": "FASTQ or FASTA file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
@@ -89,13 +88,13 @@
 			    "default": "infer",
 			    "desc":"Sequencing platform used to generate the read library",
 			    "type":"enum",
-			    "enum": ["infer", "illumina", "pacbio", "nanopore"]
+			    "enum": ["infer", "illumina", "iontorrent", "pacbio", "nanopore"]
 			}
 		    ]
 		},
 		{
 			"id": "srr_ids",
-			"required": 0,
+			"required": false,
 		        "allow_multiple": true,
 			"default": null,
 			"label": "SRR ID",
@@ -118,7 +117,7 @@
 			"default": "auto",
 			"desc":"Recipe used for assembly",
 			"type":"enum",
-			"enum": ["auto", "full_spades", "fast", "miseq", "smart", "kiki" ]
+			"enum": ["auto", "unicycler", "spades", "canu" ]
 		},
 		{
 			"id":"pipeline",
@@ -149,7 +148,7 @@
 			"label":"Output Folder",
 			"required": 1,
 			"default":null,
-			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
+			"desc":"Path to which the output will be written.",
 			"type":"folder"
 		},
 		{
@@ -157,8 +156,25 @@
 			"label":"File Basename",
 			"required": 1,
 			"default":null,
-			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
+			"desc":"Basename for the generated output files.",
 			"type":"wsid"
+		},
+		{
+			"id":"special_flags",
+			"label":"Specialized flags",
+			"required": 0,
+			"default": null,
+			"desc":"Specialized options to tune assembly method",
+			"type":"enum",
+			"enum": ["single-cell", "meta-spades" ]
+		},
+		{
+			"id":"genome_size",
+			"label":"Genome Size",
+			"required": 0,
+			"default": "5M",
+			"desc":"Estimated genome size (for canu)",
+			"type":"wsid",
 		}
 	]
 }
