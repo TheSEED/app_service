@@ -188,21 +188,38 @@ sub process
     # Examine task output to ensure all succeeded
     #
     my $fail = 0;
+    my @good_results;
     for my $res (@$results)
     {
-	if ($res->{status} ne 'completed')
+	if ($res->{status} eq 'completed')
+	{
+	    push(@good_results, $res);
+	}
+	else
 	{
 	    warn "Task $res->{id} resulted with unsuccessful status $res->{status}\n" . Dumper($res);
 	    $fail++;
 	}
     }
-    die "Annotation failed on $fail bins\n" if $fail;
 
+    if ($fail > 0)
+    {
+	if ($fail == @$results)
+	{
+	    die "Annotation failed on all $fail bins\n";
+	}
+	else
+	{
+	    my $n = @$results;
+	    warn "Annotation failed on $fail of $n bins, continuing\n";
+	}
+    }
+    
     #
     # Annotations are complete. Pull data and write the summary report.
     #
 
-    $self->write_summary_report($results, $all_bins, $self->app->workspace, $self->token);
+    $self->write_summary_report(\@good_results, $all_bins, $self->app->workspace, $self->token);
 }
 
 #
