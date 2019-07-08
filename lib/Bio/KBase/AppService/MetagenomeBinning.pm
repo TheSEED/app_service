@@ -590,19 +590,40 @@ sub write_summary_report
 	my $qual_temp = File::Temp->new(UNLINK => 1);
 
 	print "$genome_path/genome_quality_details.txt\n";
-	$ws->copy_files_to_handles(1, $token,
-				   [[$gto_path, $temp],
-				    ["$genome_path/genome_quality_details.txt", $qual_temp],
-				    ]);
+	eval {
+	    $ws->copy_files_to_handles(1, $token,
+				       [[$gto_path, $temp],
+					]);
+	};
+	warn "Error copying $gto_path: $@" if $@;
+	eval {
+	    $ws->copy_files_to_handles(1, $token,
+				       [["$genome_path/genome_quality_details.txt", $qual_temp],
+					]);
+	};
+	warn "Error copying $genome_path/genome_quality_details.txt: $@" if $@;
 	close($temp);
 	close($qual_temp);
+
+	if (! -s "$temp")
+	{
+	    warn "Could not load $gto_path\n";
+	    next;
+	}
+		
 	my $gret = GEO->CreateFromGtoFiles(["$temp"], %geo_opts);
 	my($geo) = values %$gret;
 
-	$geo->AddQuality("$qual_temp");
-	write_file("$name.geo", Dumper($geo));
-	push(@geos, $geo);
-
+	if (-s "$qual_temp")
+	{
+	    $geo->AddQuality("$qual_temp");
+	    write_file("$name.geo", Dumper($geo));
+	    push(@geos, $geo);
+	}
+	else
+	{
+	    warn "Could not read qual file $genome_path/genome_quality_details.txt\n";
+	}
 	my $genome_id = $geo->id;
 	print "$genome_id: $geo->{name}\n";
 	push(@genomes, $genome_id);
