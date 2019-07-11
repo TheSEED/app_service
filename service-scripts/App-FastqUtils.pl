@@ -85,15 +85,18 @@ sub process_fastq
         }
     }
               
-        
-    warn Dumper(\%in_files, \@to_stage);
-    my $staged = $app->stage_in(\@to_stage, $stage_dir, 1);
-    while (my($orig, $staged_file) = each %$staged)
+    my $staged = {};
+    if (@to_stage)
     {
-	my $path_ref = $in_files{$orig};
-	$$path_ref = $staged_file;
+	warn Dumper(\%in_files, \@to_stage);
+	$staged = $app->stage_in(\@to_stage, $stage_dir, 1);
+	while (my($orig, $staged_file) = each %$staged)
+	{
+	    my $path_ref = $in_files{$orig};
+	    $$path_ref = $staged_file;
+	}
     }
-
+    
     #
     # Write job description.
     #
