@@ -8,61 +8,47 @@
 		    "id": "paired_end_libs",
 		    "type": "group",
 		    "allow_multiple": true,
-		    "required": 0,
+		    "required": false,
 		    "default" : null,
 		    "group":[
 			{
 			    "id": "read1",
 			    "required": true,
 			    "label": "Read file 1",
-			    "desc": "FASTQ file of reads",
+			    "desc": "FASTQ or FASTA file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
 			{
 			    "id": "read2",
-			    "required": true,
+			    "required": false,
 			    "label": "Read file 2",
-			    "desc": "FASTQ file of reads",
+			    "desc": "FASTQ or FASTA file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
-			{
-			    "id": "platform",
+			{ 
+			    "id":"platform",
 			    "label":"Sequencing Platform",
-			    "required": 0,
+			    "required": false,
 			    "default": "infer",
 			    "desc":"Sequencing platform used to generate the read library",
 			    "type":"enum",
-			    "enum": ["infer", "illumina", "iontorrent"]
+			    "enum": ["infer", "illumina", "pacbio", "nanopore", "iontorrent"]
 			},
 			{
 			    "id": "interleaved",
 			    "label": "Are the paired end reads interleaved?",
-			    "required": 0,
+			    "required": false,
 			    "default": false,
 			    "type": "bool"
 			},
 			{
 			    "id": "read_orientation_outward",
 			    "label": "Do the two reads in each pair face outward?",
-			    "required": 0,
+			    "required": false,
 			    "default": false,
 			    "type": "bool"
-			},
-			{
-			    "id": "insert_size_mean",
-			    "label": "Average insert size",
-			    "required": 0,
-			    "default": null,
-			"type": "int"
-			},
-			{
-			    "id": "insert_size_stdev",
-			    "label": "Average insert standard deviation",
-			    "required": 0,
-			    "default": null,
-			    "type": "float"
 			}
 		    ]
 		},
@@ -70,25 +56,25 @@
 		    "id": "single_end_libs",
 		    "type": "group",
 		    "allow_multiple": true,
-		    "required": 0,
+		    "required": false,
 		    "default" : null,
 		    "group":[
 			{
 			    "id": "read",
 			    "required": true,
 			    "label": "Read file",
-			    "desc": "FASTQ or FASTA file of reads",
+			    "desc": "FASTQ, FASTA or H5 file of reads",
 			    "wstype": "ReadFile",
 			    "type": "wstype"
 			},
 			{
 			    "id":"platform",
 			    "label":"Sequencing Platform",
-			    "required": 0,
+			    "required": false,
 			    "default": "infer",
 			    "desc":"Sequencing platform used to generate the read library",
 			    "type":"enum",
-			    "enum": ["infer", "illumina", "iontorrent", "pacbio", "nanopore"]
+			    "enum": ["infer", "illumina", "pacbio", "nanopore", "iontorrent"]
 			}
 		    ]
 		},
@@ -103,7 +89,7 @@
 		},
 		{
 			"id": "reference_assembly",
-			"required": 0,
+			"required": false,
 			"default": null,
 			"label": "Contig file",
 			"desc":"Reference set of assembled DNA contigs",
@@ -113,24 +99,32 @@
 		{
 			"id":"recipe",
 			"label":"Assembly recipe",
-			"required": 0,
+			"required": false,
 			"default": "auto",
 			"desc":"Recipe used for assembly",
 			"type":"enum",
 			"enum": ["auto", "unicycler", "spades", "canu" ]
 		},
 		{
-			"id":"pipeline",
-			"label":"Assembly pipeline arguments",
-			"required": 0,
-			"default": null,
-			"desc":"Advanced assembly pipeline arguments that overrides recipe",
-			"type":"string"
+			"id":"racon_iter",
+			"label":"Racon iterations",
+			"required": false,
+			"default": 2,
+			"desc":"Racon polishing iterations (for long reads)",
+			"type":"int"
+		},
+		{
+			"id":"pilon_iter",
+			"label":"Pilon iterations",
+			"required": false,
+			"default": 2,
+			"desc":"Pilon polishing iterations (for short reads)",
+			"type":"int"
 		},
 		{
 			"id":"min_contig_len",
 			"label":"Minimal output contig length",
-			"required": 0,
+			"required": false,
 			"default": 300,
 			"desc": "Filter out short contigs in final assembly",
 			"type": "int"
@@ -138,7 +132,7 @@
 		{
 			"id":"min_contig_cov",
 			"label":"Minimal output contig coverage",
-			"required": 0,
+			"required": false,
 			"default": 5,
 			"desc": "Filter out contigs with low read depth in final assembly",
 			"type": "float"
@@ -146,35 +140,18 @@
 		{
 			"id":"output_path",
 			"label":"Output Folder",
-			"required": 1,
+			"required": true,
 			"default":null,
-			"desc":"Path to which the output will be written.",
+			"desc":"Path to which the output will be written. Defaults to the directory containing the input data. ",
 			"type":"folder"
 		},
 		{
 			"id":"output_file",
 			"label":"File Basename",
-			"required": 1,
+			"required": true,
 			"default":null,
-			"desc":"Basename for the generated output files.",
+			"desc":"Basename for the generated output files. Defaults to the basename of the input data.",
 			"type":"wsid"
-		},
-		{
-			"id":"special_flags",
-			"label":"Specialized flags",
-			"required": 0,
-			"default": null,
-			"desc":"Specialized options to tune assembly method",
-			"type":"enum",
-			"enum": ["single-cell", "meta-spades" ]
-		},
-		{
-			"id":"genome_size",
-			"label":"Genome Size",
-			"required": 0,
-			"default": "5M",
-			"desc":"Estimated genome size (for canu)",
-			"type":"string"
 		}
 	]
 }
