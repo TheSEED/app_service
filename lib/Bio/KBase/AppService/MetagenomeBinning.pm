@@ -500,7 +500,7 @@ sub extract_fasta
 
     close(SAMPLE);
     close(BINS);
-    print Dumper($self->app_params);
+    print STDERR Dumper($self->app_params);
 
     #
     # Return the bins so that we can cleanly terminate the job if no bins
@@ -651,7 +651,7 @@ sub write_summary_report
 		permission => "w",
 		overwrite => 1,
 	    });
-	    print Dumper(group_create => $res);
+	    print STDERR Dumper(group_create => $res);
 	}
 	else
 	{

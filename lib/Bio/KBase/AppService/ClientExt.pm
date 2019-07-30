@@ -40,7 +40,7 @@ sub await_task_completion
     my %remaining = map { $_ => 1 } @$task_ids;
 
     my $result = [];
-    print Dumper(\%remaining);
+    print STDERR Dumper(\%remaining);
     while (%remaining && (!$end_time || (time < $end_time)))
     {
 	my $qtasks = $self->query_tasks([keys %remaining]);
