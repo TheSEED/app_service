@@ -492,12 +492,19 @@ sub await_task_completion
     my $qtask;
     while (!$end_time || (time < $end_time))
     {
-	my $qtasks = $client->query_tasks([$task_id]);
-	$qtask = $qtasks->{$task_id};
-	my $status = $qtask->{status};
-	print "Queried status = $status: " . Dumper($qtask);
-	
-	last if $final_states{$status};
+	my $qtasks = eval { $client->query_tasks([$task_id]); };
+	if ($@)
+	{
+	    warn "Error checking tasks: $@\n";
+	}
+	else
+	{
+	    $qtask = $qtasks->{$task_id};
+	    my $status = $qtask->{status};
+	    print "Queried status = $status: " . Dumper($qtask);
+	    
+	    last if $final_states{$status};
+	}
 	
 	sleep($query_frequency);
 	undef $qtask;

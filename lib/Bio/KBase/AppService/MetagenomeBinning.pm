@@ -209,21 +209,38 @@ sub process
     # Examine task output to ensure all succeeded
     #
     my $fail = 0;
+    my @good_results;
     for my $res (@$results)
     {
-	if ($res->{status} ne 'completed')
+	if ($res->{status} eq 'completed')
+	{
+	    push(@good_results, $res);
+	}
+	else
 	{
 	    warn "Task $res->{id} resulted with unsuccessful status $res->{status}\n" . Dumper($res);
 	    $fail++;
 	}
     }
-    die "Annotation failed on $fail bins\n" if $fail;
 
+    if ($fail > 0)
+    {
+	if ($fail == @$results)
+	{
+	    die "Annotation failed on all $fail bins\n";
+	}
+	else
+	{
+	    my $n = @$results;
+	    warn "Annotation failed on $fail of $n bins, continuing\n";
+	}
+    }
+    
     #
     # Annotations are complete. Pull data and write the summary report.
     #
 
-    $self->write_summary_report($results, $all_bins, $self->app->workspace, $self->token);
+    $self->write_summary_report(\@good_results, $all_bins, $self->app->workspace, $self->token);
 }
 
 #
@@ -594,19 +611,40 @@ sub write_summary_report
 	my $qual_temp = File::Temp->new(UNLINK => 1);
 
 	print "$genome_path/genome_quality_details.txt\n";
-	$ws->copy_files_to_handles(1, $token,
-				   [[$gto_path, $temp],
-				    ["$genome_path/genome_quality_details.txt", $qual_temp],
-				    ]);
+	eval {
+	    $ws->copy_files_to_handles(1, $token,
+				       [[$gto_path, $temp],
+					]);
+	};
+	warn "Error copying $gto_path: $@" if $@;
+	eval {
+	    $ws->copy_files_to_handles(1, $token,
+				       [["$genome_path/genome_quality_details.txt", $qual_temp],
+					]);
+	};
+	warn "Error copying $genome_path/genome_quality_details.txt: $@" if $@;
 	close($temp);
 	close($qual_temp);
+
+	if (! -s "$temp")
+	{
+	    warn "Could not load $gto_path\n";
+	    next;
+	}
+		
 	my $gret = GEO->CreateFromGtoFiles(["$temp"], %geo_opts);
 	my($geo) = values %$gret;
 
-	$geo->AddQuality("$qual_temp");
-	write_file("$name.geo", Dumper($geo));
-	push(@geos, $geo);
-
+	if (-s "$qual_temp")
+	{
+	    $geo->AddQuality("$qual_temp");
+	    write_file("$name.geo", Dumper($geo));
+	    push(@geos, $geo);
+	}
+	else
+	{
+	    warn "Could not read qual file $genome_path/genome_quality_details.txt\n";
+	}
 	my $genome_id = $geo->id;
 	print "$genome_id: $geo->{name}\n";
 	push(@genomes, $genome_id);
