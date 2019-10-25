@@ -56,13 +56,14 @@ if ($opt->output_path || $opt->output_file)
 else
 {
     my $new_task = $client->rerun_task($task);
+    
     if ($opt->verbose)
     {
 	print "New task: " . Dumper($new_task);
     }
     if ($new_task)
     {
-	print "Task rerun started; new task id is $new_task\n";
+	print "Task rerun started; new task id is $new_task->{id}\n";
     }
     else
     {

@@ -3,45 +3,139 @@ package Bio::KBase::AppService::Scheduler;
 use 5.010;
 use strict;
 use P3AuthToken;
-use Bio::KBase::AppService::Schema;
-use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_user sched_db_pass sched_db_name);
+use Bio::KBase::AppService::SchedulerDB;
+use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_user sched_db_pass sched_db_port sched_db_name
+					 redis_host redis_port redis_db);
 use base 'Class::Accessor';
 use Data::Dumper;
 use Try::Tiny;
 use DateTime;
 use EV;
 use AnyEvent;
+use EV::Hiredis;
 use LWP::UserAgent;
 use JSON::XS;
 use DateTime;
 use DateTime::TimeZone;
 use DateTime::Format::ISO8601::Format;
+use DBIx::Class::ResultClass::HashRefInflator;
 
 __PACKAGE__->mk_accessors(qw(schema specs json
 			     task_start_timer task_start_interval
 			     queue_check_timer queue_check_interval
 			     default_cluster policies
 			     time_zone
-
+			     completed_tasks
+			     redis
 			    ));
 
 sub new
 {
     my($class, %opts) = @_;
 
-    my $schema = Bio::KBase::AppService::Schema->connect("dbi:mysql:" . sched_db_name . ";host=" . sched_db_host,
-							 sched_db_user, sched_db_pass);
-    $schema or die "Cannot connect to database: " . Bio::KBase::AppService::Schema->errstr;
+    my $port = sched_db_port // 3306;
+    my $dsn = "dbi:mysql:" . sched_db_name . ";host=" . sched_db_host . ";port=$port";
+    print STDERR "Connect to $dsn\n";
+
+    #
+    # Create a SchedulerDB to make raw DBI requests; it will also create us a schema
+    # for ORM requests.
+    #
+    # It will die upon failure to connect.
+    #
+    my $sched_db = Bio::KBase::AppService::SchedulerDB->new();
+    my $schema = $sched_db->schema();
+
+    #
+    # We also connect to redis to get immediate response to
+    # jobs submission and job-complete notifications.
+    #
+
+    my $redis;
+    my $cv;
+    $cv = AnyEvent->condvar;
+    $redis = EV::Hiredis->new(host => redis_host,
+				(redis_port ? (port => redis_port) : ()),
+				on_connect => sub {
+				    print "Connect\n";
+				    $redis->command("select", redis_db, sub {
+					print  "select finished\n";
+					$cv->send();
+				    })
+				    },);
+    $cv->wait();
+    print "redis ready\n";
+    undef $cv;
+
     $schema->storage->ensure_connected();
     my $self = {
 	schema => $schema,
+	db => $sched_db,
+	redis => $redis,
 	json => JSON::XS->new->pretty(1)->canonical(1),
 	task_start_interval => 120,
 	queue_check_interval => 120,
 	time_zone => DateTime::TimeZone->new(name => 'UTC'),
 	policies => [],
+	completed_tasks => [],
 	%opts,
     };
+
+    $redis->command("subscribe", "task_submission",
+		    sub {
+			my($result, $error) = @_;
+			if ($error)
+			{
+			    warn "Redis error on submit: $error\n";
+			}
+			else
+			{
+			    if (ref($result))
+			    {
+				my($what, $channel, $data) = @$result;
+				print "Tasksub: what=$what data=$data\n";
+				my $idle;
+				$idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
+			    }
+			    else
+			    {
+				print STDERR "redis: $result\n";
+			    }
+			}
+		    });
+			
+    $redis->command("subscribe", "task_completion",
+		    sub {
+			my($result, $error) = @_;
+			if ($error)
+			{
+			    warn "Redis error on submit: $error\n";
+			}
+			else
+			{
+			    if (ref($result))
+			    {
+				my($what, $channel, $data) = @$result;
+				if ($what eq 'message' && $data =~ /^\d+$/)
+				{
+				    $self->task_completion_seen($data);
+				}
+			    }
+			    else
+			    {
+				print STDERR "redis: $result\n";
+			    }
+			}
+		    });
+			
+
+    #
+    # Set up for clean shutdown on signal receipt.
+    #
+    for my $sig (qw(INT HUP TERM))
+    {
+	$self->{sig}->{$sig} = AnyEvent->signal(signal => $sig, cb => sub { $self->shutdown(); });
+    }
 
     return bless $self, $class;
 }
@@ -62,12 +156,46 @@ sub start_timers
 {
     my($self) = @_;
 
-    $self->task_start_timer(AnyEvent->timer(after => 0,
+    $self->start_task_timer(0);
+    $self->start_queue_timer(5);
+}
+
+sub start_task_timer
+{
+    my($self, $initial_timeout) = @_;
+    $self->task_start_timer(undef);
+    $self->task_start_timer(AnyEvent->timer(after => $initial_timeout,
 					    interval => $self->task_start_interval,
 					    cb => sub { $self->task_start_check() }));
-    $self->queue_check_timer(AnyEvent->timer(after => 5,
+}
+
+sub start_queue_timer
+{
+    my($self, $initial_timeout) = @_;
+
+    $self->queue_check_timer(undef);
+    $self->queue_check_timer(AnyEvent->timer(after => $initial_timeout,
 					    interval => $self->queue_check_interval,
 					    cb => sub { $self->queue_check() }));
+}
+
+sub task_completion_seen
+{
+    my($self, $task) = @_;
+    print STDERR "Scheduler notified of completed task $task, queue is @{$self->{completed_tasks}}\n";
+    push @{$self->completed_tasks}, $task;
+    #
+    # If we have tasks backed up, process queue now. Otherwise
+    # set our timer for shortly in the future.
+    #
+    if (@{$self->completed_tasks} > 3)
+    {
+	$self->start_queue_timer(0);
+    }
+    else
+    {
+	$self->start_queue_timer(2);
+    }
 }
 
 =item B<start_app>
@@ -117,6 +245,11 @@ sub start_app
 	req_runtime => $preflight->{runtime},
 	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
+	search_terms => join(" ", $user->id, 'Queued', $code, 
+			     (ref($task_parameters) eq 'HASH' ?
+			      ($task_parameters->{output_path}, output_file => $task_parameters->{output_file}) : ()),
+			     $app_id),
+
     });
 
     my $tt = $self->schema->resultset('TaskToken')->create({
@@ -148,23 +281,25 @@ sub load_apps
     
     for my $app ($self->specs->enumerate())
     {
-	my $rs = $self->schema->resultset('Application')->update_or_new( {
+	my $record = {
 	    id => $app->{id},
 	    script => $app->{script},
 	    default_memory => $app->{default_memory},
 	    default_cpu => $app->{default_cpu},
 	    spec => $self->json->encode($app),
-	});
+	};
+	my $rs = $self->schema->resultset('Application')->update_or_new($record);
 
 	if ($rs->in_storage)
 	{
-	    print "App $app->{id} updated\n";
+	    print STDERR "App $app->{id} updated\n";
 	}
 	else
 	{
-	    print "New app record for $app->{id} created\n";
+	    print STDERR "New app record for $app->{id} created\n";
 	    $rs->insert;
 	}
+	# print STDERR Dumper($record);
     }
 
 }
@@ -250,10 +385,10 @@ sub find_user
     my $urec = $self->schema->resultset("ServiceUser")->find($userid);
     if (!$urec)
     {
-	# print "create user $userid\n";
+	# print STDERR "create user $userid\n";
 
 	my $proj = $self->schema->resultset("Project")->find({userid_domain => $domain});
-	print "proj=$proj " . $proj->id . "\n";
+	print STDERR "proj=$proj " . $proj->id . "\n";
 
 	#
 	# Inline this for now. If this is a PATRIC user, try to expand
@@ -286,7 +421,7 @@ sub find_user
 				      id => $userid,
 				      map { $_ => $user_info->{$_} } qw(first_name last_name email affiliation),
 				  });
-	print "Created user " . $urec->id . " " . $urec->project_id . "\n";
+	print STDERR "Created user " . $urec->id . " " . $urec->project_id . "\n";
 
 	#
 	# Offer each of the clusters the chance to set up accounting for this user.
@@ -310,10 +445,67 @@ sub task_start_check
 
     if ($self->{task_start_disable})
     {
-	print "Task start disabled\n";
+	print STDERR "Task start disabled\n";
 	return;
     }
-    print "Task start check\n";
+    print STDERR "Task start check\n";
+
+    #
+    # A baseline fairness measure. Don't release more than 10 jobs at a time from a
+    # single user into the scheduler on a single task-start pass.
+    #
+    # This is a crude measure, as we'll do this again each time through. It might help in
+    # rate limiting very large submissions.
+    #
+    my $max_per_owner_release = 10;
+    my %jobs_released_per_owner;
+
+    my $cluster = $self->default_cluster;
+    if (!$cluster->submission_allowed())
+    {
+	return;
+    }
+
+    my $rs = $self->schema->resultset("Task")->search(
+						    { state_code => 'Q' },
+						    { order_by => { -asc => 'submit_time' } });
+
+    my %warned;
+    while (my $cand = $rs->next())
+    {
+	#
+	# we use get_column here to avoid the ORM pulling the owner class; we just need the id.
+	#
+	my $owner = $cand->get_column("owner");
+	if ($jobs_released_per_owner{$owner} > $max_per_owner_release)
+	{
+	    if (!$warned{$owner}++)
+	    {
+		warn "Skipping additional submissions for $owner\n";
+	    }
+	    next;
+	}
+	$jobs_released_per_owner{$owner}++;
+
+	$cluster->submit_tasks([$cand]);
+    }
+}
+
+#
+# Archival code for now. We are disabling bucketing of submissions until we finish the
+# policy-plugin support.
+#
+
+sub task_start_check_bucketed
+{
+    my($self) = @_;
+
+    if ($self->{task_start_disable})
+    {
+	print STDERR "Task start disabled\n";
+	return;
+    }
+    print STDERR "Task start check\n";
 
 
     #
@@ -325,7 +517,7 @@ sub task_start_check
 						    { order_by => { -asc => [qw/owner req_runtime/] } });
 #						    { order_by => { -asc => 'submit_time' } });
 
-#    print "Evaluate " . scalar(@jobs) . " jobs to be run\n";
+#    print STDERR "Evaluate " . scalar(@jobs) . " jobs to be run\n";
     
     #
     # Allow any configured policies to have first stab at the queue.
@@ -340,76 +532,95 @@ sub task_start_check
     }
 
  OUTER:
-    my $per_bucket = 4;
+    # Disable bucketing for now.
+    my $per_bucket = 1;
     my $tolerance = 0.10;
     #
     # Task bucket contains [$cand, $cluster] pairs. Submission
     # requires all elements to have the same owner and a requested runtime
     # within $tolerance of each other.
     #
+
+    #
+    # We also don't try to support multiple clusters here; this requires
+    # more thought to support in the face of high job load.
+    #
     my @bucket;
+ CANDIDATE:
     while (my $cand = $rs->next())
     {
-	# say "Candidate: " . $cand->id;
+	say "Candidate: " . $cand->id;
 
-	my @clusters = $self->find_clusters_for_task($cand);
-	if (!@clusters)
-	{
-	    warn "No cluster found to start task " . $cand->id . "\n";
-	    next;
-	}
+	my $cluster = $self->default_cluster;
 
-	for my $cluster (@clusters)
+	# my @clusters = $self->find_clusters_for_task($cand);
+	# if (!@clusters)
+	# {
+	#     warn "No cluster found to start task " . $cand->id . "\n";
+	#     next;
+	# }
+
+	# for my $cluster (@clusters)
 	{
 	    if (!$cluster->submission_allowed())
 	    {
 		# print STDERR "Skipping submit for " . $cand->id . " on cluster " . $cluster->id . "\n";
-		next;
+		last CANDIDATE;
 	    }
 	    #
-	    # We have chosen $cluster. See if we can submit in the current bucket.
+	    # We have chosen $cluster. See if we are bucketing and can submit in the current bucket. 
 	    #
-	    if (@bucket == 0)
+	    if ($per_bucket > 1)
 	    {
-		push(@bucket, [$cand, $cluster]);
-	    }
-	    else
-	    {
-		my $base = $bucket[0]->[0];
-		my $delta = abs($base->req_runtime - $cand->req_runtime);
-		my $tval = $base->req_runtime * $tolerance;
-		print $cand->id, " $delta $tval\n";
-		if ($cluster->id eq $bucket[0]->[1]->id &&
-		    $cand->owner->id eq $base->owner->id &&
-		    $delta < $base->req_runtime * $tolerance)
+		if (@bucket == 0)
 		{
-		    push(@bucket,[$cand, $cluster]);
-		    
-		    if (@bucket >= $per_bucket)
-		    {
-			print "Submit 1\n";
-			my $ok = $self->submit_bucket(\@bucket);
-			@bucket = ();
-			if (!$ok)
-			{
-			    last OUTER;
-			}
-		    }
+		    push(@bucket, [$cand, $cluster]);
 		}
 		else
 		{
-		    print "Can't\n";
-		    # We can't add to this bucket. Submit it and push this entry
-		    # to a new one.
-		    print "Submit 2\n";
-		    my $ok = $self->submit_bucket(\@bucket);
-		    if (!$ok)
+		    my $base = $bucket[0]->[0];
+		    my $delta = abs($base->req_runtime - $cand->req_runtime);
+		    my $tval = $base->req_runtime * $tolerance;
+		    print $cand->id, " $delta $tval\n";
+		    if ($cluster->id eq $bucket[0]->[1]->id &&
+			$cand->owner->id eq $base->owner->id &&
+			$delta < $base->req_runtime * $tolerance)
 		    {
-			@bucket = ();
-			last OUTER;
+			push(@bucket,[$cand, $cluster]);
+			
+			if (@bucket >= $per_bucket)
+			{
+			    print STDERR "Submit 1\n";
+			    my $ok = $self->submit_bucket(\@bucket);
+			    @bucket = ();
+			    if (!$ok)
+			    {
+				last OUTER;
+			    }
+			}
 		    }
-		    @bucket = ([$cand, $cluster]);
+		    else
+		    {
+			print STDERR "Can't\n";
+			# We can't add to this bucket. Submit it and push this entry
+			# to a new one.
+			print STDERR "Submit 2\n";
+			my $ok = $self->submit_bucket(\@bucket);
+			if (!$ok)
+			{
+			    @bucket = ();
+			    last OUTER;
+			}
+			@bucket = ([$cand, $cluster]);
+		    }
 		}
+	    }
+	    else
+	    {
+		#
+		# No bucketing. Just submit this job.
+		#
+		$self->submit_bucket([[$cand, $cluster]]);
 	    }
 	    last;		# Skip cluster selection.
 	}
@@ -423,7 +634,7 @@ sub task_start_check
 sub submit_bucket
 {
     my($self, $bucket) = @_;
-    print "Submit:\n";
+    print STDERR "Submit:\n";
     my $cluster = $bucket->[0]->[1];
     my @j = map { $_->[0] } @$bucket;
 
@@ -469,13 +680,19 @@ Timer callback for checking queues for updates.
 sub queue_check
 {
     my($self) = @_;
-    print "Queue check\n";
+    @{$self->completed_tasks} = ();
+    print STDERR "Queue check\n";
     for my $cluster (@{$self->clusters})
     {
 	$cluster->queue_check();
     }
 }
 
+sub request_queue_check
+{
+    my($self) = @_;
+    AnyEvent::postpone { $self->queue_check(); }
+}
 
 =item B<clusters>
 
@@ -490,7 +707,7 @@ sub clusters
     #
     # For now we just have the default.
     #
-    return [$self->default_cluster];
+    return [$self->default_cluster // ()];
 }
 
 =item B<query_tasks>
@@ -509,15 +726,23 @@ sub query_tasks
 						      owner => $user_id,
 						  },
 						  {
-						      prefetch => ['owner', 'state_code'],
-						  }
+						      prefetch => ['state_code'],
+						      order_by => { -desc => 'submit_time' },
+						      select => [qw(id parent_task application_id params owner state_code.service_status),
+							     { DATE_FORMAT => ['submit_time', "'%Y-%m-%dT%TZ'"] },
+							     { DATE_FORMAT => ['start_time', "'%Y-%m-%dT%TZ'"] },
+							     { DATE_FORMAT => ['finish_time', "'%Y-%m-%dT%TZ'"] },
+							     ],
+						      as => [qw(id parent_task application_id params owner
+								state_code.service_status submit_time start_time finish_time )],
+						      }
 						     );
-
+    $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
 
     my $ret = {};
     while (my $task = $rs->next())
     {
-	$ret->{$task->id} = $self->format_task_for_service($task);
+	$ret->{$task->{id}} = $self->format_task_for_service($task);
     }
     return $ret;
 }
@@ -568,14 +793,22 @@ sub enumerate_tasks
 						      'me.owner' => $user_id,
 						  },
 						  {
-						      prefetch => ['state_code', 'owner'],
+						      prefetch => ['state_code'],
 						      order_by => { -desc => 'submit_time' },
 						      rows => $count,
 						      offset => $offset,
-						  }
+						      select => [qw(id parent_task application_id params owner state_code.service_status),
+							     { DATE_FORMAT => ['submit_time', "'%Y-%m-%dT%TZ'"] },
+							     { DATE_FORMAT => ['start_time', "'%Y-%m-%dT%TZ'"] },
+							     { DATE_FORMAT => ['finish_time', "'%Y-%m-%dT%TZ'"] },
+							     ],
+						      as => [qw(id parent_task application_id params owner
+								state_code.service_status submit_time start_time finish_time )],
+						      }
 						     );
 
 
+    $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
     my $ret = [];
     while (my $task = $rs->next())
     {
@@ -588,19 +821,105 @@ sub format_task_for_service
 {
     my($self, $task) = @_;
 
+    my $params = eval { decode_json($task->{params}) };
+    if ($@)
+    {
+	warn "Error parsing params '$task->{params}'\n";
+	$params = {};
+    }
+
     my $rtask = {
-	id => $task->id,
-	parent_id  => $task->parent_task,
-	app => $task->application_id,
-	workspace_id => undef,
-	task_parameters => $task->params,
-	user_id => $task->owner->id,
-	status => $task->state_code->service_status,
-	submit_time => "" . $task->submit_time,
-	start_time => "" . $task->start_time,
-	completed_time => "" . $task->finish_time,
+	id => $task->{id},
+	parent_id  => $task->{parent_task},
+	app => $task->{application_id},
+	workspace => undef,
+	parameters => $params,
+	user_id => $task->{owner},
+	status => $task->{state_code}->{service_status},
+	submit_time => "" . $task->{submit_time},
+	start_time => "" . $task->{start_time},
+	completed_time => "" . $task->{finish_time},
     };
     return $rtask;
+}
+
+
+=item B<kill_tasks>
+
+Kill the given tasks.
+
+This requires finding the active cluster the task is resident on; if the
+task is marked as active there we forward the kill request to the cluster.
+
+=cut
+
+sub kill_tasks
+{
+    my($self, $user_id, $tasks) = @_;
+
+    my $rs = $self->schema->resultset("Task")->search(
+						  {
+						      'me.owner' => $user_id,
+						      'task_executions.active' => 1,
+						      'me.id' => $tasks,
+						  },
+						  {
+#						      join => { task_executions => 'cluster_job' },
+						      prefetch => { task_executions => 'cluster_job' },
+						  }
+						     );
+
+
+    my %to_kill = map { $_ => 1 } @$tasks;
+    my $kill_status = {};
+    
+    while (my $ent = $rs->next())
+    {
+	my $task_id = $ent->id;
+	my $killed;
+	
+	delete $to_kill{$task_id};
+	my $te = ($ent->task_executions->all())[0];
+	my $cj = $te->cluster_job;
+
+	my $msg = "job=" . $cj->job_id . " status=" . $cj->job_status;
+
+	my($cluster) = grep { $_->id eq $cj->cluster_id } @{$self->clusters()};
+	if ($cluster)
+	{
+	    $cluster->kill_job($cj);
+	    $killed = 1;
+	}
+	else
+	{
+	    warn "No cluster found for " . $cj->cluster_id . "\n";
+	    $msg .= ": no cluster configured";
+	    $killed = 0;
+	}
+	$kill_status->{$task_id} = { killed => $killed, msg => $msg };
+    }
+    for my $task_id (keys %to_kill)
+    {
+	$kill_status->{$task_id} = { killed => 0, msg => "task $task_id not found" };
+    }
+    return $kill_status;
+}
+
+=item B<shutdown>
+
+Shutdown scheduler and exit.
+
+=cut
+
+sub shutdown
+{
+    my($self) = @_;
+    #
+    # Note we'll get a warning "here error:" from EV::Hiredis. However we want to ensure a shutdown
+    # so we don't try to do clean disconnect (which gives us an error anyway).
+    #
+    warn "Shutting down\n";
+    exit(0);
 }
 
 =back

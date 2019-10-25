@@ -6,6 +6,7 @@ use Bio::KBase::AppService::AppScript;
 use strict;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&sleep, \&preflight);
+$script->donot_create_result_folder(1);
 
 $script->run(\@ARGV);
 
@@ -23,16 +24,23 @@ sub preflight
     return $pf;
 }
 
-
-
 sub sleep
 {
     my($app, $app_def, $raw_params, $params) = @_;
-    
+
+    $SIG{INT} = $SIG{TERM} = $SIG{HUP} = \&sighandler;
+
     my $time = $params->{sleep_time};
     print "Sleeping for $time seconds\n";
     sleep($time);
     my $now = `date`;
     chomp $now;
     print "Done sleeping. It is now $now\n";
+}
+
+sub sighandler
+{
+    my($sig) = @_;
+    print STDERR "Caught signal $sig\n";
+#    exit 1;
 }

@@ -30,7 +30,7 @@ sub write_report
 	my @res = $api->query('protein_family_ref',
 			      ['in', 'family_id', '(' . join(",", @$family_list) . ')'],
 			      ['select', 'family_id,family_product']);
-	print Dumper(\@res);
+	print STDERR Dumper(\@res);
 
 	my %res;
 	

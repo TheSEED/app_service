@@ -2,6 +2,9 @@
 export KB_TOP=[% kb_top %]
 export KB_RUNTIME=[% kb_runtime %]
 export PATH=$KB_TOP/bin:$KB_RUNTIME/bin:$KB_TOP/services/[% kb_service_name %]/bin:$KB_TOP/services/cdmi_api/bin:$PATH:$KB_RUNTIME/seedtk/bin
+[% IF slurm_path -%]
+export PATH=$PATH:[% slurm_path %]/bin
+[% END -%]
 export PERL5LIB=$KB_TOP/lib
 export KB_SERVICE_NAME="[% kb_service_name %]"
 [% IF kb_service_log_dir -%]
@@ -40,6 +43,8 @@ workers="--workers [% kb_starman_workers %]"
 max_requests="--max-requests [% kb_starman_max_requests %]"
 [% END -%]
 
+twiggy_params="--listen :[% kb_service_port %] --pid $pid_file"
+
 starman_params="--listen :[% kb_service_port %] --pid $pid_file $workers $max_requests"
 
 starman_params="$starman_params --error-log $KB_SERVICE_LOG_DIR/error.log"
@@ -47,5 +52,26 @@ starman_params="$starman_params --access-log $KB_SERVICE_LOG_DIR/access.log"
 
 starman_params="$starman_params --daemonize"
 
-exec $KB_RUNTIME/bin/perl $KB_RUNTIME/bin/starman $starman_params $KB_TOP/lib/[% kb_psgi %]
+twiggy_params="$twiggy_params --error-log $KB_SERVICE_LOG_DIR/error.log"
+twiggy_params="$twiggy_params --access-log $KB_SERVICE_LOG_DIR/access.log"
+
+twiggy_params="$twiggy_params --daemonize"
+
+mkdir -p $KB_SERVICE_LOG_DIR/output
+logsize=1000000000
+
+($KB_RUNTIME/bin/perl $KB_RUNTIME/bin/twiggy $twiggy_params $KB_TOP/lib/[% kb_async_psgi %] 2>&1 | \
+    multilog t s$logsize n100 $KB_SERVICE_LOG_DIR/output) &
+pid=$!
+
+
+#
+# Find the twiggy in the children of the backgrounded subshell, for use in stopping later.
+# Sleep to let the procesess settle in
+#
+sleep 1
+
+child=`pstree -l -a -p $pid | grep -v start_service | grep -v multilog | cut -d, -f2 | sed 's/ .*$//'`
+
+echo $child > $pid_file
 

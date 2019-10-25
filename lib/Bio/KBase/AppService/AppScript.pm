@@ -25,7 +25,7 @@ use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw(execute_callback preflight_callback donot_create_job_result donot_create_result_folder
 			     workspace_url workspace params raw_params app_definition result_folder
-			     json host
+			     json
 			     task_id app_service_url));
 
 =head1 NAME
@@ -172,15 +172,10 @@ sub new
 {
     my($class, $execute_callback, $preflight_callback) = @_;
 
-    my $host = `hostname -f`;
-    $host = `hostname` if !$host;
-    chomp $host;
-
     my $self = {
 	execute_callback => $execute_callback,
 	preflight_callback => $preflight_callback,
 	start_time => scalar gettimeofday,
-	host => $host,
 	json => JSON::XS->new->pretty(1),
     };
 
@@ -189,6 +184,20 @@ sub new
     $self->set_task_id();
 
     return $self;
+}
+
+sub host
+{
+    my($self) = @_;
+    my $host;
+    if (!defined($host = $self->{host}))
+    {
+	$host = `hostname -f`;
+	$host = `hostname` if !$host;
+	chomp $host;
+	$self->{host} = $host;
+    }
+    return $host;
 }
 
 sub run_preflight
@@ -257,7 +266,6 @@ sub run
     {
 	open(my $fh, ">", $opt->preflight) or die "Cannot write preflight to " . $opt->preflight . ": $!";
 	my $data = $self->run_preflight();
-	print Dumper($data);
 	if (ref($data) eq 'HASH')
 	{
 	    print $fh $self->json->encode($data);
@@ -427,10 +435,6 @@ sub set_task_id
     #
     # Hack to finding task id.
     #
-    my $host = `hostname -f`;
-    $host = `hostname` if !$host;
-    chomp $host;
-    $self->host($host);
 
     my $task_id = 'TBD';
     if ($ENV{AWE_TASK_ID})
@@ -447,6 +451,7 @@ sub set_task_id
     }
     else
     {
+	my $host = $self->host;
 	$task_id = "UNK-$host-$$";
 	$task_id =~ s/\./_/g;
     }
@@ -462,6 +467,14 @@ sub create_result_folder
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
     $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+
+    #
+    # Remove any job failed reports that were left from a prior run.
+    #
+    eval { $self->workspace->delete({ objects => ["$result_folder/JobFailed.txt"] }) };
+    # if ($@) { warn "delete $result_folder/JobFailed.txt failed: $@"; }
+    eval { $self->workspace->delete({ objects => ["$result_folder/JobFailed.html"] }) };
+    # if ($@) { warn "delete $result_folder/JobFailed.html failed: $@"; }
 }
 
 sub token
@@ -521,6 +534,22 @@ sub preprocess_parameters
 	if (exists($params->{$id}))
 	{
 	    my $value = $params->{$param->{id}};
+
+	    if ($param->{type} eq 'bool')
+	    {
+		if ($value eq 'false')
+		{
+		    print STDERR "Fixing false value to 0 for $id\n";
+		    $value = 0;
+		}
+		elsif ($value eq 'true')
+		{
+		    print STDERR "Fixing true value to 1 for $id\n";
+		    $value = 1;
+		}
+	    }
+		    
+	    
 	    #
 	    # Maybe validate.
 	    #

@@ -219,7 +219,7 @@ ENDBATCH
 	{
 	    my($sword) = $res->{$job}->{State} =~ /^(\S+)/;
 	    my $state = $job_states{$sword};
-	    print Dumper($state, $res);
+	    print STDERR Dumper($state, $res);
 	    if ($state)
 	    {
 		$final_state = $state;
@@ -354,7 +354,7 @@ sub run
     }
 
     my $stderr;
-    # print Dumper($new, \@inp, \@out);
+    # print STDERR Dumper($new, \@inp, \@out);
     my $h = IPC::Run::start($new, @inp, @out, @err);
     if (!$h)
     {

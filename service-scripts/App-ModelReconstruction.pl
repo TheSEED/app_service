@@ -19,20 +19,9 @@ eval {
     $get_time = sub { Time::HiRes::gettimeofday };
 };
 
-my $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model, \&preflight);
-my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
-my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
-	token => $script->token()->token(),
-	username => $script->token()->user_id(),
-	fbajobcache => $config->{fbajobcache},
-	fbajobdir => $config->{fbajobdir},
-	mfatoolkitbin => $config->{mfatoolkitbin},
-	logfile => $config->{logfile},
-	data_api_url => $config->{data_api_url},
-	"workspace-url" => $config->{"workspace-url"},
-	"shock-url" => $config->{"shock_url"},
-	method => "ModelReconstruction",
-});
+our $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model, \&preflight);
+our $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
+
 $script->{workspace_url} = $config->{"workspace-url"};
 $script->{donot_create_result_folder} = 1;
 $script->{donot_create_job_result} = 1;
@@ -58,6 +47,21 @@ sub preflight
 sub reconstruct_model
 {
     my($app, $app_def, $raw_params, $params) = @_;
+
+    my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
+	token => $script->token()->token(),
+	username => $script->token()->user_id(),
+	fbajobcache => $config->{fbajobcache},
+	fbajobdir => $config->{fbajobdir},
+	mfatoolkitbin => $config->{mfatoolkitbin},
+	logfile => $config->{logfile},
+	data_api_url => $config->{data_api_url},
+	"workspace-url" => $config->{"workspace-url"},
+	"shock-url" => $config->{"shock_url"},
+	method => "ModelReconstruction",
+});
+
+print Dumper($helper);
     print "Reconstructing model ", Dumper($app_def, $raw_params, $params);
 	$helper->ModelReconstruction($params);
 }

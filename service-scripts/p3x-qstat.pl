@@ -12,51 +12,102 @@ Queries the PATRIC application service queue.
 
 =cut
 
+use 5.010;    
 use strict;
-use Data::Dumper;
-use JSON::XS;
-use Bio::KBase::AppService::Schema;
-use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_user sched_db_pass sched_db_name);
-use DateTime::Format::Duration;
+use DBI;
+#use Data::Dumper;
+#use JSON::XS;
+use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name);
 
-use Text::Table;
+use Text::Table::Tiny 'generate_table';
 use Getopt::Long::Descriptive;
 
-my($opt, $usage) = describe_options("%c %o",
+my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["application|A=s" => "Limit results to the given application"],
+				    ["user|u=s" => "Limit results to the given user"],
+				    ["cluster|c=s" => "Limit results to the given cluster"],
+				    ["n-jobs|n=i" => "Limit to the given number of jobs", { default => 50 } ],
 				    ["help|h" => "Show this help message."],
 				    );
 print($usage->text), exit 0 if $opt->help;
-die($usage->text) if @ARGV > 0;
 
-my $schema = Bio::KBase::AppService::Schema->connect("dbi:mysql:" . sched_db_name . ";host=" . sched_db_host,
-						     sched_db_user, sched_db_pass);
-$schema or die "Cannot connect to database: " . Bio::KBase::AppService::Schema->errstr;
+my $port = sched_db_port // 3306;
+my $dbh = DBI->connect("dbi:mysql:" . sched_db_name . ";host=" . sched_db_host . ";port=$port",
+		       sched_db_user, sched_db_pass);
+$dbh or die "Cannot connect to database: " . $DBI::errstr;
+$dbh->do(qq(SET time_zone = "+00:00"));
+
 
 #
 # Basic query is to enumerate all queued and running jobs.
 #
 
-my @app_condition = (application_id => $opt->application) if $opt->application;
+my @conds;
+my @params;
+push(@conds, 'true');
+if ($opt->application)
+{
+    push(@conds, "t.application_id = ?");
+    push(@params, $opt->application);
+}
 
-my $sort = {-desc => 'submit_time'};
-my $tasks = $schema->resultset('Task')->search(
-					   {
-					       state_code => { -in => ['Q','S', 'R', 'C', 'F'] },
-					       owner => { -like => '%olson%' },
-					       @app_condition,
-					       'task_executions.active' => [undef, 1],
-					   },
-					   {
-#					       distinct => 1,
-					       limit => 20,
-#					       columns => ['task_executions.active', 'task_executions.task_id', 'task_executions.cluster_job_id', 'me.id', 'me.owner' ],
-					       join => {'task_executions' => 'cluster_job' },
-#					       prefetch => ['owner', 'state_code'],
-					       prefetch => ['owner', 'state_code', { 'task_executions' => 'cluster_job' } ],
-					       order_by => [$sort, 'me.id'],
-					   }
-						 );
+if ($opt->cluster)
+{
+    push(@conds, "cj.cluster_id = ?");
+    push(@params, $opt->cluster);
+}
+ 
+
+if (my $u = $opt->user)
+{
+    if ($u !~ /@/)
+    {
+	$u .= '@patricbrc.org';
+    }
+    push(@conds, "t.owner = ?");
+    push(@params, $u);
+}
+
+my @sort = ('submit_time DESC');
+my $sort = join(", ", @sort);
+
+if (@ARGV)
+{
+    #
+    # Only query the given job ids.
+    #
+    for my $id (@ARGV)
+    {
+	if ($id !~ /^\d+$/)
+	{
+	    die "Invalid job id $id\n";
+	}
+    }
+    my $vals = join(", ", @ARGV);
+    push(@conds, "t.id IN ($vals)");
+}
+
+push(@conds, "te.active = 1 or te.active IS NULL");
+
+my $cond = join(" AND ", map { "($_)" } @conds);
+
+my $limit;
+if ($opt->n_jobs)
+{
+    $limit = "LIMIT " . $opt->n_jobs;
+}
+
+my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
+	     t.submit_time, t.start_time, t.finish_time, sec_to_time(t.finish_time - t.start_time) as elap,
+	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist,
+	     ts.description as task_state
+	     FROM Task t JOIN TaskState ts on t.state_code = ts.code
+	     LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
+	     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+	     WHERE $cond
+	     ORDER BY $sort
+	     $limit
+	     );
 
 my @cols;
 push(@cols,
@@ -64,32 +115,32 @@ push(@cols,
  { title => "State" },
  { title => "Owner" },
  { title => "Application" },
+ { title => "Submitted" },
  { title => "Elapsed" },
  { title => "Cluster" },
- { title => "Cluster\njob" },
- { title => "Cluster\njob status "},
+ { title => "Cl job" },
+ { title => "Cl job status"},
  { title => "Nodes" },
- { title => "Memory\nused" },
+ { title => "RAM used" },
      );
 
-my $tbl = Text::Table->new(@cols);
+#my $tbl = Text::Table->new(@cols);
 
-my $elap_fmt = DateTime::Format::Duration->new(pattern => '%T', normalize => 1);
+my $sth = $dbh->prepare($qry);
+$sth->execute(@params);
+my @rows;
 
-while (my $task = $tasks->next())
+push(@rows, [map { $_->{title} } @cols]);
+
+while (my $task = $sth->fetchrow_hashref)
 {
-    my $tf = $task->task_executions->first();
-    my $cj;
-    if ($tf)
-    {
-	$cj = $tf->cluster_job;
-    }
-    (my $owner = $task->owner) =~ s/\@patricbrc.org$//;
-    my $elap = $task->finish_time ? $task->finish_time->subtract_datetime($task->start_time) : "";
-    $tbl->add($task->id, $task->state_code, $owner, $task->application_id,
-	      ($elap ? $elap_fmt->format_duration($elap) : ""),
-	      $cj ? ($cj->cluster_id, $cj->job_id, $cj->job_status, $cj->nodelist, $cj->maxrss) : ());
+    (my $owner = $task->{owner}) =~ s/\@patricbrc.org$//;
+    my @row = ($task->{task_id}, $task->{task_state}, $owner, $task->{application_id},
+	      $task->{submit_time}, $task->{elap},
+	      $task->{job_id} ? ($task->{cluster_id}, $task->{job_id}, $task->{job_status}, $task->{nodelist}, int($task->{maxrss})) : ());
+    push(@rows, \@row);
 }
 
-print $tbl;
+#print $tbl;
 
+say generate_table(rows => \@rows, header_row => 1);

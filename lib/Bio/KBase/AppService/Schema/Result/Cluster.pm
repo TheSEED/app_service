@@ -103,6 +103,18 @@ __PACKAGE__->table("Cluster");
   data_type: 'integer'
   is_nullable: 1
 
+=head2 submit_queue
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 submit_cluster
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -130,6 +142,10 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "max_allowed_jobs",
   { data_type => "integer", is_nullable => 1 },
+  "submit_queue",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "submit_cluster",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -182,8 +198,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-01-24 14:40:52
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:gdMRa1oCCwdRZo5YV8T8Qg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-07-03 16:07:13
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8DjHVHU4A6Yn21V2YV2Z3Q
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

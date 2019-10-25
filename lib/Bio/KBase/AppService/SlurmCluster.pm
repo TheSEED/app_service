@@ -11,16 +11,14 @@ use DateTime;
 use EV;
 use AnyEvent;
 use JSON::XS;
-use Slurm::Sacctmgr;
-use Slurm::Sacctmgr::Account;
-use Slurm::Sacctmgr::Association;
+use File::Basename;
 use File::SearchPath qw(searchpath);
 use File::Path qw(make_path);
 use IPC::Run qw(run);
 use IO::Handle;
 use List::Util qw(max);
 
-__PACKAGE__->mk_accessors(qw(id schema json sacctmgr sacctmgr_path
+__PACKAGE__->mk_accessors(qw(id schema json slurm_path
 			    ));
 
 # value is true if it is a terminal state; the value is the
@@ -118,7 +116,7 @@ sub new
     my($class, $id, %opts) = @_;
 
     #
-    # Find sacctmgr in our path to use as the default for the wrapper.
+    # Find sacctmgr in our path to set our slurm_path.
     #
 
     my $schema = $opts{schema};
@@ -131,37 +129,50 @@ sub new
     # Set up accountmgr features if we don't have a fixed account
     # to use for this cluster.
     #
-    my $sacctmgr;
+
+    my $slurm_path;
     if (!$cobj->account)
     {
 	my $path = $cobj->scheduler_install_path;
 	if ($path)
 	{
-	    $sacctmgr = "$path/sacctmgr";
+	    $slurm_path = "$path/bin";
 	}
 	else
 	{
-	    $sacctmgr = searchpath('sacctmgr');
-	}
-	if (!$sacctmgr && ! -x $sacctmgr)
-	{
-	    warn "Could not find sacctmgr '$sacctmgr' in path";
+	    my $p = searchpath('sacctmgr');
+	    if ($p)
+	    {
+		$slurm_path = dirname($p);
+	    }
+	    else
+	    {
+		die "Cannot find slurm executables in $ENV{PATH}";
+	    }
 	}
     }
+
+    print STDERR "Using slurm path $slurm_path\n";
 
     my $self = {
 	id => $id,
 	json => JSON::XS->new->pretty(1)->canonical(1),
-	sacctmgr_path => $sacctmgr,
+	slurm_path => $slurm_path,
 	%opts,
     };
 
-    if ($sacctmgr)
+    #
+    # Look up and cache task codes.
+    #
+
+    my $rs = $schema->resultset('TaskState');
+    $rs->result_class('DBIx::Class::ResultClass::HashRefInflator');
+    while (my $s = $rs->next)
     {
-	$self->{sacctmgr} = Slurm::Sacctmgr->new(sacctmgr => $self->{sacctmgr_path});
-	print STDERR Dumper($self->{sacctmgr});
+	$self->{code_description}->{$s->{code}} = $s->{description};
     }
-    
+	
+
     return bless $self, $class;
 }
 
@@ -183,39 +194,66 @@ sub configure_user
 {
     my($self, $user) = @_;
 
+
+    if (!ref($user))
+    {
+	$user = $self->schema->resultset("ServiceUser")->find($user);
+	die "Cannot find user $user\n" unless $user;
+    }
+
     my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
 
     return if $cinfo->account;
 
+
     #
-    # See if SLURM has this user already.
+    # We don't do a check to see if slurm has the user; we are likely only
+    # coming here when a submission failed due to the lack of an account.
     #
-    my $mgr = Slurm::Sacctmgr::Account->new;
-    my $suser = $mgr->new_from_sacctmgr_by_name($self->sacctmgr, $user->id);
-    if ($suser)
+    my $desc = "";
+    if ($user->first_name)
     {
-	print "Slurm already has " . $user->id . ": " . Dumper($suser);
+	$desc = $user->first_name . " " . $user->last_name;
+    }
+    $desc .= " <" . $user->email . ">" if $user->email;
+
+    #
+    # Attempt to add the account.
+    #
+    my @cmd = ($self->slurm_path . "/sacctmgr", "-i",
+	       "create", "account",
+	       "name=" . $user->id,
+	       "fairshare=parent",
+	       "parent=" . $user->project_id,
+	       ($desc ? ("description=$desc") : ()),,
+	       ($user->affiliation ? ("organization=" . $user->affiliation) : ()),
+	       );
+    my($stderr, $stdout);
+    print STDERR "@cmd\n";
+    my $ok = run(\@cmd, ">", \$stderr, "2>", \$stdout);
+    if ($ok)
+    {
+	print STDERR "Account created: $stdout\n";
+    }
+    elsif ($stderr =~ /Nothing new added/)
+    {
+	print STDERR "Account " . $user->id . " apparently already present\n";
     }
     else
     {
-	my $desc = "";
-	if ($user->first_name)
-	{
-	    $desc = $user->first_name . " " . $user->last_name;
-	}
-	$desc .= " <" . $user->email . ">" if $user->email;
-
-	my $output = eval { $mgr->sacctmgr_add($self->sacctmgr,
-					       name => $user->id,
-					       parent => $user->project_id,
-					       description => $desc,
-					       organization => $user->affiliation) };
-	if ($@)
-	{
-	    warn "Account add failed: $@";
-	}
-	print $_ foreach @$output;
-			    
+	warn "Failed to add account " . $user->id . ": $stderr\n";
+    }
+	
+    #
+    # Ensure the current user has access to this new account.
+    #
+    @cmd = ($self->slurm_path . "/sacctmgr", "-i",
+	       "add", "user", $ENV{USER}, "Account=" . $user->id);
+    $ok = run(\@cmd,
+	      "2>", \$stderr);
+    if (!$ok)
+    {
+	warn "Error $? adding account " . $user->id . " to user $ENV{USER} via @cmd\n$stderr\n";
     }
 }
 
@@ -356,11 +394,32 @@ EAL
 	my $ram = $task->req_memory // $app->default_memory // "100G";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
 
+	#
+	# Choose a partition.
+	#
+	# We have a configuration option for a partition for the "control tasks" that
+	# spend most of their time waiting. If the task is flagged as one, use the
+	# configured control partition.
+	#
+	# Otherwise, if the cluster configuration defines a submit_queue use that.
+	#
+	# Additionally, if the cluster configuration defines a submit_cluster
+	# specify that.
+	#
 	my $partition = "";
 	if ($task->req_is_control_task)
 	{
 	    $partition = "#SBATCH --oversubscribe --partition " . slurm_control_task_partition;
 	}
+	elsif ($cinfo->submit_queue)
+	{
+	    $partition = "#SBATCH --partition " . $cinfo->submit_queue;
+	}
+	if ($cinfo->submit_cluster)
+	{
+	    $partition .= "\n#SBATCH --clusters " . $cinfo->submit_cluster;
+	}
+
 	# database has requested time in seconds
 
 	$alloc_env = <<EAL;
@@ -370,7 +429,8 @@ EAL
 	
 	$resource_request = <<EREQ
 #SBATCH --mem $ram
-#SBATCH --nodes 1-1 --ntasks $cpu 
+#SBATCH --nodes 1-1 --ntasks $cpu
+#SBATCH --export NONE
 $partition
 EREQ
     }
@@ -390,6 +450,8 @@ EREQ
 
     my $top = $cinfo->p3_deployment_path;
     my $rt = $cinfo->p3_runtime_path;
+
+    print STDERR "CLUSTER: top=$top rt=$rt\n";
     my $temp = $cinfo->temp_path;
 
     my $batch = <<END;
@@ -441,6 +503,7 @@ END
 # Run task $task_id - $script
 
 export P3_AUTH_TOKEN="$token"
+export KB_AUTH_TOKEN="$token"
 
 export WORKDIR=$temp/task-$task_id
 mkdir \$WORKDIR
@@ -498,51 +561,108 @@ END
 	close(FTMP);
     }
 
-    my $id;
-    my $cmd = $self->setup_cluster_command(["sbatch", "--parsable"]);
-    my $ok = run($cmd, "<", \$batch, ">", \$id,
-		 init => sub { $ENV{TZ} = 'UCT'; });
-    if ($ok)
+    #
+    # Run the submit.
+    # We need to handle the following possible errors:
+    #
+    #    Account is not valid:
+    #	   sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+    #    Here, we will use $self->configure_user to create the account and rerun the submission. If
+    #    it fails again, register a hard failure on the job.
+    #
+    #    ssh failures:
+    #	 If we are submitting via ssh and the target system is not available, we will just
+    #    skip this job and let it retry later.
+    #
+    # Otherwise we mark the job as failed.
+    #
+    my($stdout, $stderr);
+    my $cmd = $self->setup_cluster_command([$self->slurm_path . "/sbatch", "--parsable"]);
+
+    my $submit = sub { run($cmd, "<", \$batch, ">", \$stdout, "2>", \$stderr,
+			   init => sub { $ENV{TZ} = 'UCT'; });
+		   };
+
+
+    my $retrying = 0;
+    my $ok;
+    while (1)
     {
-	chomp $id;
-	print "Batch submitted with id $id\n";
-	for my $task (@$tasks)
+	$ok = &$submit();
+	
+	if ($ok && $stdout =~ /^(\d+)/)
 	{
-	    $task->update({state_code => 'S'});
-	    $task->add_to_cluster_jobs(
-				   {
-				       cluster_id => $self->id,
-				       job_id => $id,
-				   },
-				   {
-				       active => 1,
-				   });
-	    # For the case where we don't have the M:M table
-	    # $task->create_related('cluster_jobs',
-	    # 		      { 
-	    # 			  cluster_id => $self->id,
-	    # 			  job_id => $id,
-	    # 			  active => 1,
-	    # 		      });
-	}
-    }
-    else
-    {
-	my $err = $?;
-	warn "Failed to submit batch: $err\n";
-	if ($cmd->[0] eq 'ssh' && ($err / 256) == 255)
-	{
-	    warn "Ssh failure; will leave task retryable\n";
+	    my $id = $1;
+	    $self->update_for_submitted_tasks($tasks, $id);
+	    last;
 	}
 	else
 	{
-	    for my $task (@$tasks)
+	    my $err = $?;
+
+	    #
+	    # We only try once to remedy an invalid account error.
+	    #
+	    if ($stderr =~ /Invalid account/ && !$retrying)
 	    {
-		$task->update({state_code => 'F'});
+
+		$self->configure_user($account);
+		#
+		# And retry.
+		#
+	    }
+	    elsif ($cmd->[0] eq 'ssh' && ($err / 256) == 255)
+	    {
+		warn "Ssh failure; will leave task retryable\n";
+		last;
+	    }
+	    else
+	    {
+		for my $task (@$tasks)
+		{
+		    $task->update({state_code => 'F'});
+		}
+		last;
 	    }
 	}
+	$retrying = 1;
     }
     return $ok;
+}
+
+=item B<update_for_submitted_tasks>
+    
+    $self->update_for_submitted_tasks($tasks, $id)
+
+Update the database records for the tasks in $tasks to mark
+they are submitted to this cluster with job id $id.
+
+=cut
+
+sub update_for_submitted_tasks
+{
+    my($self, $tasks, $id) = @_;
+
+    print STDERR "Batch submitted with id $id\n";
+    for my $task (@$tasks)
+    {
+	$task->update({state_code => 'S'});
+	$task->add_to_cluster_jobs(
+			       {
+				   cluster_id => $self->id,
+				   job_id => $id,
+			       },
+			       {
+				   active => 1,
+			       });
+	# For the case where we don't have the M:M table
+	# $task->create_related('cluster_jobs',
+	# 		      { 
+	# 			  cluster_id => $self->id,
+	# 			  job_id => $id,
+	# 			  active => 1,
+	# 		      });
+    }
 }
 
 =item B<submission_allowed>
@@ -564,7 +684,7 @@ sub submission_allowed
 
     my $qc = $self->queue_count('S');
     my $ok = $qc < $max_allowed ? 1 : 0;
-    # print STDERR "submission_allowed: max=$max_allowed qc=$qc ok=$ok\n";
+    print STDERR "submission_allowed: max=$max_allowed qc=$qc ok=$ok\n";
     return $ok;
 }
 
@@ -623,7 +743,7 @@ sub queue_check
 
     if (@jobs == 0)
     {
-	print "No jobs\n";
+	print STDERR "No jobs\n";
 	return;
     }
 
@@ -637,7 +757,7 @@ sub queue_check
     my @params = qw(JobID State Account User MaxRSS ExitCode Elapsed Start End NodeList);
     my %col = map { $params[$_] => $_ } 0..$#params;
 
-    my @cmd = ('sacct', '-j', $jobspec,
+    my @cmd = ($self->slurm_path . '/sacct', '-j', $jobspec,
 	       '-o', join(",", @params),
 	       '--units', 'M',
 	       '--parsable', '--noheader');
@@ -663,7 +783,7 @@ sub queue_check
 	my @a = split(/\|/);
 	my %vals = map { $_ => $a[$col{$_}] } @params;
 	my($id, $isbatch) = $vals{JobID}  =~ /(\d+)(\.batch)?/;
-	# print "$id: " . Dumper(\%vals);
+	# print STDERR "$id: " . Dumper(\%vals);
 
 	if ($isbatch)
 	{
@@ -676,7 +796,7 @@ sub queue_check
 	    $jobinfo{$id}->{NodeList} = $vals{NodeList};
 	}
     }
-    # print Dumper(\%jobinfo);
+    # print STDERR Dumper(\%jobinfo);
 
     if (!$h->finish)
     {
@@ -701,7 +821,7 @@ sub queue_check
 	    my($rss) = $vals->{MaxRSS} =~ /(.*)M$/;
 	    $rss = 0 if $vals->{MaxRSS} == 0;
 
-	    print "Job $job_id done " . Dumper($vals);
+	    print STDERR "Job $job_id done " . Dumper($vals);
 	    $cj->update({
 		job_status => $vals->{State},
 		maxrss => $rss,
@@ -719,12 +839,21 @@ sub queue_check
 		    state_code => $code,
 		    start_time => $vals->{Start},
 		    finish_time => $vals->{End},
+		    search_terms => join(" ",
+					 $task->owner,
+					 $self->{code_description}->{$code},
+					 $code,
+					 $job_id,
+					 $cj->cluster_id,
+					 $task->output_path,
+					 $task->output_file,
+					 $task->application_id),
 		});
 	    }
 	}
 	else
 	{
-	    print "Job $job_id update " . Dumper($vals);
+	    print STDERR "Job $job_id update " . Dumper($vals);
 	    # job is still running; just update state and node info.
 	    if ($cj->job_status ne $vals->{State})
 	    {
@@ -734,6 +863,31 @@ sub queue_check
 		});
 	    }
 	}
+    }
+}
+
+=item B<kill_job>
+
+=over 4
+
+=item Arguments: $cluster_job
+
+=back
+
+Kill the job represented by $cluster_job. Uses scancel.
+
+=cut
+
+sub kill_job
+{
+    my($self, $cluster_job) = @_;
+
+    my $cmd = $self->setup_cluster_command([$self->slurm_path . "/scancel", $cluster_job->job_id]);
+    print STDERR "Run: @$cmd\n";
+    my $ok = run($cmd);
+    if (!$ok)
+    {
+	warn "Error $? from @$cmd\n";
     }
 }
 
@@ -772,7 +926,7 @@ sub setup_cluster_command
 		   $cinfo->remote_host,
 		   "bash -l -c \"$shcmd\"",
 		   ];
-	print "@$new\n";
+	print STDERR "@$new\n";
 	return $new;
     }
     else

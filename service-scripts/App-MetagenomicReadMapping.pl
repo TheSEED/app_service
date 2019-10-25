@@ -17,14 +17,6 @@ use File::Temp;
 use JSON::XS;
 use Getopt::Long::Descriptive;
 
-my($opt, $usage) = describe_options("%c %o app-definition.json param-values.json",
-				    ["preflight=s" => "Run app preflight and write results to given file."],
-				    ["help|h" => "Show this help message."]);
-print($usage->text), exit 0 if $opt->help;
-die($usage->text) if @ARGV != 2;
-my $app_def_file = shift;
-my $param_values_file = shift;
-
 my $app = Bio::KBase::AppService::AppScript->new(\&run_mapping, \&preflight);
 
 my $rc = $app->run(\@ARGV);
@@ -33,7 +25,7 @@ exit $rc;
 
 sub run_mapping
 {
-    my($self, $app, $app_def, $raw_params, $params) = @_;
+    my($app, $app_def, $raw_params, $params) = @_;
 
     print STDERR "Processed parameters for application " . $app->app_definition->{id} . ": ", Dumper($params);
 

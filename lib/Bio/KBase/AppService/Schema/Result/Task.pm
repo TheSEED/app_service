@@ -141,6 +141,17 @@ __PACKAGE__->table("Task");
   data_type: 'tinyint'
   is_nullable: 1
 
+=head2 search_terms
+
+  data_type: 'text'
+  is_nullable: 1
+
+=head2 hidden
+
+  data_type: 'tinyint'
+  default_value: 0
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -195,6 +206,10 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "req_is_control_task",
   { data_type => "tinyint", is_nullable => 1 },
+  "search_terms",
+  { data_type => "text", is_nullable => 1 },
+  "hidden",
+  { data_type => "tinyint", default_value => 0, is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -337,8 +352,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-05-23 17:33:15
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:kr9XIapsRJLHGhI/uIiN0A
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-10-17 12:28:49
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:q7lBps11CGRahGtKp4YpNQ
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

@@ -33,9 +33,12 @@ our %return_counts = (
         'start_app2' => 1,
         'query_tasks' => 1,
         'query_task_summary' => 1,
+        'query_app_summary' => 1,
         'query_task_details' => 1,
         'enumerate_tasks' => 1,
+        'enumerate_tasks_filtered' => 2,
         'kill_task' => 2,
+        'kill_tasks' => 1,
         'rerun_task' => 1,
         'version' => 1,
 );
@@ -47,9 +50,12 @@ our %method_authentication = (
         'start_app2' => 'required',
         'query_tasks' => 'required',
         'query_task_summary' => 'required',
+        'query_app_summary' => 'required',
         'query_task_details' => 'required',
         'enumerate_tasks' => 'required',
+        'enumerate_tasks_filtered' => 'required',
         'kill_task' => 'required',
+        'kill_tasks' => 'required',
         'rerun_task' => 'required',
 );
 
@@ -71,9 +77,12 @@ sub _build_valid_methods
         'start_app2' => 1,
         'query_tasks' => 1,
         'query_task_summary' => 1,
+        'query_app_summary' => 1,
         'query_task_details' => 1,
         'enumerate_tasks' => 1,
+        'enumerate_tasks_filtered' => 1,
         'kill_task' => 1,
+        'kill_tasks' => 1,
         'rerun_task' => 1,
         'version' => 1,
     };
@@ -90,7 +99,7 @@ sub handle_rpc
 {
     my($self, $env) = @_;
 
-    print STDERR Dumper($env);
+    # print STDERR Dumper($env);
     my $req = Plack::Request->new($env);
 
     my $body = $req->content();
@@ -217,7 +226,7 @@ sub call_method {
 	    
 	    if (!$token && $method_auth eq 'required')
 	    {
-		return $self->error_return({ code => -32603, message => "Authentication required for AppService but no authentication header was passed", id => $id });
+		return $self->error_return($req, { code => -32603, message => "Authentication required for AppService but no authentication header was passed", id => $id });
 	    }
 	    
 	    my $auth_token = P3AuthToken->new(token => $token, ignore_authrc => 1);
@@ -225,7 +234,7 @@ sub call_method {
 	    # Only throw an exception if authentication was required and it fails
 	    if ($method_auth eq 'required' && !$valid)
 	    {
-		return $self->error_return({ code => -32603, message => "Token validation failed: $validate_err", id => $id });
+		return $self->error_return($req, { code => -32603, message => "Token validation failed: $validate_err", id => $id });
 	    } elsif ($valid) {
 		$ctx->authenticated(1);
 		$ctx->user_id($auth_token->user_id);
@@ -235,7 +244,7 @@ sub call_method {
     };
     local $CallContext = $ctx;
     local $Bio::KBase::AppService::Service::CallContext = $ctx;
-    print Dumper($ctx);
+    # print STDERR Dumper($ctx);
     my @result;
     do {
 	# 
@@ -292,7 +301,7 @@ sub call_method {
                             context => $ctx,
 			    id => $id
                             };
-            return $self->error_return($nicerr);
+            return $self->error_return($req, $nicerr);
         }
 	$ctx->stderr(undef);
 	undef $stderr;

@@ -152,7 +152,7 @@ sub process_genome
     my $n = 0;
     my @ids;
     my $too_long = 0;
-    my $max_id_len = 70;
+    my $max_id_len = 60;
     parse_fasta($contig_data_fh, undef, sub {
 	my($id, $seq) = @_;
 	push(@ids, $id);
@@ -272,7 +272,7 @@ sub process_genome
     #
 
     $ws->save_data_to_file($json->encode($result->{quality}),
-		           {}, "$output_folder/quality.json", "json", 1, 0, $core->token);
+		           {}, "$output_folder/quality.json", "json", 1, 1, $core->token);
 
     #
     # Determine if we are one of a peer group of jobs that was started

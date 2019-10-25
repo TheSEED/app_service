@@ -216,7 +216,7 @@ sub run
     {
 	open(my $fh, ">", $opt->preflight) or die "Cannot write preflight to " . $opt->preflight . ": $!";
 	my $data = $self->run_preflight();
-	print Dumper($data);
+	print STDERR  Dumper($data);
 	if (ref($data) eq 'HASH')
 	{
 	    print $fh $self->json->encode($data);

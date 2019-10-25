@@ -19,7 +19,7 @@ $script->run(\@ARGV);
 sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
-    print $app->json->encode({ cpu => 1, memory => '1G', runtime => 60 });
+    return { cpu => 1, memory => '1G', runtime => 60 };
 }
 
 sub date
@@ -31,6 +31,6 @@ sub date
     my $folder = $app->result_folder();
 
     my $date = `date`;
-    $app->workspace->save_data_to_file($date, {}, "$folder/now", 'txt', 0);
+    $app->workspace->save_data_to_file($date, {}, "$folder/now", 'txt', 1);
 
 }
