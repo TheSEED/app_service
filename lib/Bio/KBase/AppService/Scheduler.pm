@@ -824,7 +824,7 @@ sub format_task_for_service
     my $params = eval { decode_json($task->{params}) };
     if ($@)
     {
-	warn "Error parsing params '$task->{params}'\n";
+	warn "Error parsing params for task $task->{id}: '$task->{params}'\n";
 	$params = {};
     }
 

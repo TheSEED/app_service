@@ -205,7 +205,12 @@ sub configure_user
 
     return if $cinfo->account;
 
-
+    #
+    # We will want to do this across the configured clusters.
+    # For now, don't worry about it to make things run again.
+    #
+    my $cluster = "patric";
+    
     #
     # We don't do a check to see if slurm has the user; we are likely only
     # coming here when a submission failed due to the lack of an account.
@@ -223,7 +228,8 @@ sub configure_user
     my @cmd = ($self->slurm_path . "/sacctmgr", "-i",
 	       "create", "account",
 	       "name=" . $user->id,
-	       "fairshare=parent",
+	       "fairshare=1",
+	       "cluster=$cluster",
 	       "parent=" . $user->project_id,
 	       ($desc ? ("description=$desc") : ()),,
 	       ($user->affiliation ? ("organization=" . $user->affiliation) : ()),
@@ -248,7 +254,9 @@ sub configure_user
     # Ensure the current user has access to this new account.
     #
     @cmd = ($self->slurm_path . "/sacctmgr", "-i",
-	       "add", "user", $ENV{USER}, "Account=" . $user->id);
+	    "add", "user", $ENV{USER},
+	    "cluster=$cluster",
+	    "Account=" . $user->id);
     $ok = run(\@cmd,
 	      "2>", \$stderr);
     if (!$ok)

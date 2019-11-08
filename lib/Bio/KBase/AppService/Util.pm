@@ -122,9 +122,27 @@ sub continue_submit
 {
     my($self, $ctx, $cb, $output, $start_params, $task_tmp) = @_;
 
-    my $ret_task = $self->json->decode(scalar read_file("$task_tmp"));
-    print STDERR Dumper($ret_task);
-    $cb->([$ret_task]);
+    if (-f "$task_tmp")
+    {
+	my $data = read_file("$task_tmp");
+	
+	my $ret_task = eval { $self->json->decode($data) };
+	if ($@)
+	{
+	    print STDERR "Error parsing generated task data:\n$data\n";
+	    $cb->([]);
+	}
+	else
+	{
+	    print STDERR Dumper($ret_task);
+	    $cb->([$ret_task]);
+	}
+    }
+    else
+    {
+	print STDERR "No task tmp file $task_tmp generated\n";
+	$cb->([]);
+    }
 }
 
 sub enumerate_apps

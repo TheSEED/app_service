@@ -57,27 +57,27 @@ sub async_dbi
     # Don't cache. This lets us have multiple handles flowing.
     #return $self->{async} if $self->{async};
 
-    print "asycn create\n";
+    print STDERR "asycn create\n";
     my $cv = AnyEvent->condvar;
     my $async;
     $async = new AnyEvent::DBI($self->dsn, $self->user, $self->pass,
 				  PrintError => 0,
-				  on_error => sub { print "ERROR on new @_\n"},
+				  on_error => sub { print STDERR "ERROR on new @_\n"},
 				  on_connect => sub {
 				      my($dbh, $ok) = @_;
-				      print "on conn  ok=$ok\n";
+				      print STDERR "on conn  ok=$ok\n";
 				      #
 				      # Force timezone
 				      #
 				      $async->exec(qq(SET time_zone = "+00:00"), sub {
-					  print "On conn\n";
+					  print STDERR "On conn\n";
 					  $cv->send;
 				      });
 				  });
 					       
-    print "Wait for conn\n";
+    print STDERR "Wait for conn\n";
     $cv->wait;
-    print "connected\n";
+    print STDERR "connected\n";
     #$self->{async} = $async;
     return $async;
 }
@@ -87,9 +87,7 @@ sub async_mysql
     my($self) = @_;
 
     my $async = AnyEvent::DBI::MySQL->connect($self->dsn, $self->user, $self->pass);
-    $async->do(qq(SET time_zone = "+00:00"));
 
-    #$self->{async} = $async;
     return $async;
 }
 *async = *async_mysql;
@@ -356,9 +354,9 @@ sub query_task_summary_async
 				      WHERE owner = ?
 				      GROUP BY code), undef, $user_id, sub {
 					  my($res) = @_;
-					  $async;
 					  my $ret = {};
-					  $ret->{$_->[1]} = $_->[0] foreach @$res;
+					  $async;
+					  $ret->{$_->[1]} = int($_->[0]) foreach @$res;
 					  &$cb([$ret])});
 }
 
@@ -380,7 +378,7 @@ sub query_app_summary_async
 					  my($res) = @_;
 					  $async;
 					  my $ret = {};
-					  $ret->{$_->[1]} = $_->[0] foreach @$res;
+					  $ret->{$_->[1]} = int($_->[0]) foreach @$res;
 					  &$cb([$ret])});
 }
 
@@ -438,9 +436,9 @@ sub enumerate_tasks_async
 
     my $qry = qq(SELECT id, parent_task, application_id, params, owner,
 				     service_status,
-				     DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ') as submit_time,
-				     DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ') as start_time,
-					 DATE_FORMAT(finish_time, '%Y-%m-%dT%TZ') as finish_time
+				     DATE_FORMAT(CONVERT_TZ(submit_time, \@\@session.time_zone, '+00:00'), '%Y-%m-%dT%TZ') as submit_time,
+				     DATE_FORMAT(CONVERT_TZ(start_time, \@\@session.time_zone, '+00:00'), '%Y-%m-%dT%TZ') as start_time,
+				     DATE_FORMAT(CONVERT_TZ(finish_time, \@\@session.time_zone, '+00:00'), '%Y-%m-%dT%TZ') as finish_time
 				     FROM Task JOIN TaskState on state_code = code
 				     WHERE owner = ?
 				     ORDER BY submit_time DESC
@@ -504,6 +502,7 @@ sub enumerate_tasks_filtered_async
 	    push(@cond, "ts.service_status = ?");
 	    push(@param, $st);
 	}
+
     }
     if (my $search_text = $simple_filter->{search})
     {
@@ -512,29 +511,6 @@ sub enumerate_tasks_filtered_async
     }
     
     my $cond = join(" AND ", map { "($_)" } @cond);
-
-    my $async = $self->async;
-    my $count_qry;
-    my $prep_cb = sub {
-	my($rv, $sth) = @_;
-	$async;			#  Hold lexical ref
-	my $ret = [];
-	while (my $task = $sth->fetchrow_hashref())
-	{
-	    push(@$ret, $self->format_task_for_service($task));
-	}
-
-	my $async2 = $self->async;
-	my $sth2 = $async2->prepare($count_qry);
-	$sth2->execute(@param, sub {
-	    my($rv, $sth) = @_;
-	    $async2;		# Hold lexical ref
-	    print "got other ret $rv\n";
-	    my $row = $sth->fetchrow_arrayref();
-	    print Dumper($row);
-	    &$cb([$ret, int($row->[0])]);
-	});
-    };
 
     my $ret_fields = "t.id, t.parent_task, t.application_id, t.params, t.owner, ";
     for my $x (qw(submit_time start_time finish_time))
@@ -549,12 +525,55 @@ sub enumerate_tasks_filtered_async
 		 ORDER BY t.submit_time DESC
 		 LIMIT ?
 		 OFFSET ?);
-    $count_qry = qq(SELECT COUNT(t.id)
+    my $count_qry = qq(SELECT COUNT(t.id)
 		       FROM Task t JOIN TaskState ts on t.state_code = ts.code
 		       WHERE $cond);
 
+    my $all_ret = [];
+    my $cv = AnyEvent->condvar;
+
+    my $async = $self->async;
+    my $async2 = $self->async;
+
+    $cv->begin;
+    
+    my $enumerate_cb = sub {
+	my($rv, $sth) = @_;
+	print STDERR "outer query returns $rv\n";
+	$async;			#  Hold lexical ref
+	my $ret = [];
+	while (my $task = $sth->fetchrow_hashref())
+	{
+	    push(@$ret, $self->format_task_for_service($task));
+	}
+	$all_ret->[0] = $ret;
+
+	$cv->end();
+    };
+
+    my $count_cb = sub {
+	my($rv, $sth) = @_;
+
+	$async2;		# Hold lexical ref
+	print STDERR "Inner query returns $rv\n";
+	my $row = $sth->fetchrow_arrayref();
+	print Dumper($row);
+	$all_ret->[1] = int($row->[0]);
+	$cv->end();
+    };
+
     my $sth = $async->prepare($qry);
-    $sth->execute(@param, $count, $offset, $prep_cb);
+
+    print STDERR "execute outer query $qry\n";
+    $cv->begin();
+    $sth->execute(@param, $count, $offset, $enumerate_cb);
+
+    my $sth2 = $async2->prepare($count_qry);
+    $cv->begin();
+    $sth2->execute(@param, $count_cb);
+
+    $cv->cb(sub { print "FINISH \n"; $cb->($all_ret); });
+    $cv->end();
 }
 
 sub format_task_for_service
@@ -564,7 +583,7 @@ sub format_task_for_service
     my $params = eval { decode_json($task->{params}) };
     if ($@)
     {
-	warn "Error parsing params '$task->{params}'\n";
+	warn "Error parsing params for task $task->{id}: '$task->{params}'\n";
 	$params = {};
     }
     #die Dumper($task);

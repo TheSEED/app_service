@@ -355,7 +355,7 @@ sub save_output_files
 	    if (-f $path)
 	    {
 		print "Save $path type=$type\n";
-		my $shock = -s $file > 10000 ? 1 : 0;
+		my $shock = -s $path > 10000 ? 1 : 0;
 		$app->workspace->save_file_to_file($path, {}, $app->result_folder . "/$f", $type, 1, $shock, $app->token->token);
 	    }
 	}

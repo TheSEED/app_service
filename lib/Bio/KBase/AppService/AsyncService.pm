@@ -18,6 +18,10 @@ eval {
 use P3AuthToken;
 use P3TokenValidator;
 
+my $g_hostname = `hostname`;
+chomp $g_hostname;
+$g_hostname ||= 'unknown-host';
+
 has 'impl' => (is => 'ro', isa => 'Bio::KBase::AppService::AppServiceImpl');
 has 'valid_methods' => (is => 'ro', isa => 'HashRef', lazy => 1,
 			builder => '_build_valid_methods');
@@ -131,8 +135,10 @@ sub error_return
 {
     my($self, $req, $error_obj, $id) = @_;
 
-    warn "Returning error: " . Dumper($error_obj);
-    return [500, ['Content-Type' => 'application/json'], [$self->json->encode({ jsonrpc => '2.0', id => $id, error => $error_obj})]];
+    my $enc = $self->json->encode({ jsonrpc => '2.0', id => $id, error => $error_obj});
+    warn "Returning error: " . Dumper($error_obj) unless $enc =~ /Authentication required/;
+    
+    return [500, ['Content-Type' => 'application/json'], [$enc]];
 }
 
 sub trim {
@@ -253,10 +259,7 @@ sub call_method {
 	my $tag = $req->header("Kbrpc-Tag");
 	if (!$tag)
 	{
-	    if (!$self->{hostname}) {
-		chomp($self->{hostname} = `hostname`);
-                $self->{hostname} ||= 'unknown-host';
-	    }
+	    $self->{hostname} ||= $g_hostname;
 
 	    my ($t, $us) = &$get_time();
 	    $us = sprintf("%06d", $us);
@@ -444,10 +447,9 @@ sub new
     }
     
     my $self = {
+        hostname => $g_hostname,
         @opts,
     };
-    chomp($self->{hostname} = `hostname`);
-    $self->{hostname} ||= 'unknown-host';
     return bless $self, $class;
 }
 

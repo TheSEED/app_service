@@ -227,7 +227,7 @@ sub default_workflow
 		    prune_invalid_CDS_features_parameters => { minimum_contig_length => 0,
 								   max_homopolymer_frequency => 0.9 } },
 	      { name => 'annotate_proteins_kmer_v2', kmer_v2_parameters => {} },
-	      { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_null_only => 1 } },
+	      # { name => 'annotate_proteins_kmer_v1', kmer_v1_parameters => { annotate_null_only => 1 } },
               { name => 'annotate_proteins_phage', phage_parameters => { annotate_null_only => 1 } },
 	      { name => 'annotate_proteins_similarity', similarity_parameters => { annotate_null_only => 1 } },
 	      { name => 'propagate_genbank_feature_metadata',

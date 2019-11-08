@@ -116,7 +116,6 @@ sub assemble
     my $token = $app->token();
     my $ws = $app->workspace();
 
-    $params->{debug_level} = 1;
     my $cleanup = $params->{debug_level} > 0 ? 0 : 1;
 
     my $tmpdir = File::Temp->newdir( CLEANUP => $cleanup );
