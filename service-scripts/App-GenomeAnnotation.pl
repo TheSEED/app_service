@@ -229,37 +229,17 @@ sub process_genome
     # Run pipeline and scikit analysis inside eval to trap errors so we can
     # kill the checkm if need be.
     #
-    eval {
-
-	my $override;
-	if (my $ref = $params->{reference_genome_id})
-	{
-	    $override = {
-		evaluate_genome => {
-		    evaluate_genome_parameters => { reference_genome_id => $ref },
-		}
-	    };
-	}
-	
-	$result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
-
-	#
-	# Use the GenomeTypeObject code to compute overall genome metrics.
-	#
-
-	my $metrics = GenomeTypeObject::metrics($result);
-	%{$result->{quality}->{genome_metrics}} = %$metrics;
-    };
-    if ($@)
+    my $override;
+    if (my $ref = $params->{reference_genome_id})
     {
-	my $err = $@;
-	die $err;
+	$override = {
+	    evaluate_genome => {
+		evaluate_genome_parameters => { reference_genome_id => $ref },
+	    }
+	};
     }
-
-    {
-	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
-	$result = $core->impl->compute_genome_quality_control($result);
-    }
+    
+    $result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
 
     my $gto_path = $core->write_output($genome, $result, {}, undef,
 				       $params->{public} ? 1 : 0,

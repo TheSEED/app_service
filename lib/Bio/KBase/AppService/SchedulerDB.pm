@@ -533,7 +533,6 @@ sub enumerate_tasks_filtered_async
     my $cv = AnyEvent->condvar;
 
     my $async = $self->async;
-    my $async2 = $self->async;
 
     $cv->begin;
     
@@ -551,6 +550,14 @@ sub enumerate_tasks_filtered_async
 	$cv->end();
     };
 
+    my $sth = $async->prepare($qry);
+
+    print STDERR "execute outer query $qry\n";
+    $cv->begin();
+    $sth->execute(@param, $count, $offset, $enumerate_cb);
+
+    my $async2 = $self->async;
+
     my $count_cb = sub {
 	my($rv, $sth) = @_;
 
@@ -561,12 +568,6 @@ sub enumerate_tasks_filtered_async
 	$all_ret->[1] = int($row->[0]);
 	$cv->end();
     };
-
-    my $sth = $async->prepare($qry);
-
-    print STDERR "execute outer query $qry\n";
-    $cv->begin();
-    $sth->execute(@param, $count, $offset, $enumerate_cb);
 
     my $sth2 = $async2->prepare($count_qry);
     $cv->begin();

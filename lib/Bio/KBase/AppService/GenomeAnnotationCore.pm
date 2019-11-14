@@ -246,6 +246,7 @@ sub default_workflow
 	      # { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
 		  # { name => 'call_features_prophage_phispy' },
+	      { name => 'compute_genome_quality_control' },
 	      { name => 'evaluate_genome',
 		    failure_is_not_fatal => 1,
 		    evaluate_genome_parameters => {},
@@ -275,7 +276,8 @@ sub import_workflow
 	      { name => 'project_subsystems', failure_is_not_fatal => 1 },
 	      { name => 'find_close_neighbors', failure_is_not_fatal => 1 },
 	      { name => 'annotate_strain_type_MLST' },
-	      { name => 'evaluate_genome', failure_is_not_fatal => 1 },
+	      { name => 'compute_genome_quality_control' },
+	      { name => 'evaluate_genome', failure_is_not_fatal => 1, evaluate_genome_parameters => {} },
 		 );
     my $workflow = { stages => \@stages };
 
