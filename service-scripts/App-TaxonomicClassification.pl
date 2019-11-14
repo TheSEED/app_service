@@ -6,6 +6,7 @@
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::ReadSet;
+use Bio::KBase::AppService::AppConfig qw(metagenome_dbs);
 use Bio::KBase::AppService::TaxonomicClassificationReport;
 use IPC::Run;
 use Cwd;
@@ -47,7 +48,7 @@ sub run_classification
 	die "Invalid database name '$params->{database}' specified. Valid values are " . join(", ", map { qq("$_") } keys %db_map);
     }
     
-    my $db_path = "/vol/patric3/metagenome_dbs/$db_dir";
+    my $db_path = metagenome_dbs . "/$db_dir";
     
     @cmd = ("kraken2");
     push(@options, "--db", $db_path);

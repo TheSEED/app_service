@@ -23,7 +23,7 @@ sub preflight
 
     my $time = 86400 * 2;
 
-    if ($task_params->{full_tree_method} ne 'ml')
+    if ($params->{full_tree_method} ne 'ml')
     {
 	$time = 3600 * 12;
     }

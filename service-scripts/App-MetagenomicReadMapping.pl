@@ -6,6 +6,7 @@
 
 use Bio::KBase::AppService::AppScript;
 use Bio::KBase::AppService::ReadSet;
+use Bio::KBase::AppService::AppConfig qw(kma_db);
 use Bio::KBase::AppService::MetagenomicReadMappingReport 'write_report';
 use IPC::Run;
 use Cwd;
@@ -16,6 +17,7 @@ use File::Basename;
 use File::Temp;
 use JSON::XS;
 use Getopt::Long::Descriptive;
+
 
 my $app = Bio::KBase::AppService::AppScript->new(\&run_mapping, \&preflight);
 
@@ -70,7 +72,7 @@ sub run
 	die "Invalid gene set name '$params->{gene_set_name}' specified. Valid values are " . join(", ", map { qq("$_") } keys %db_map);
     }
     
-    my $db_path = "/vol/patric3/kma_db/$db_dir";
+    my $db_path = kma_db . "/$db_dir";
 
     my $kma_identity = 70;
 
