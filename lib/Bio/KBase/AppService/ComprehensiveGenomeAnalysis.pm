@@ -537,7 +537,8 @@ sub compute_tree
     my $max_allowed_dups = 1;
     my $max_genomes_missing = 2;
     my $bootstrap_reps = 100;
-    my $n_threads = 4;
+    my $n_threads = $ENV{P3_ALLOCATED_CPU} // 2;
+
     my $exe = "raxmlHPC-PTHREADS-SSE3";
     
     @cmd = ("p3x-build-codon-tree",
@@ -579,8 +580,9 @@ sub compute_tree
 	   [$tree_svg, 'svg'],
 	   [$ingroup_file, 'txt'],
 	   [$nexus_file, 'txt'],
-	   ["$tree_dir/CodonTree.stats", 'txt'],
-	   ["$tree_dir/CodonTree.nwk", 'nwk']);
+	   (map { [$_, 'txt'] } <$tree_dir/detail_files/*.txt>),
+	   (map { [$_, 'nwk'] } <$tree_dir/*.nwk>),
+	   );
     
 }
 

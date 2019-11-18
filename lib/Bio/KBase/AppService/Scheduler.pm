@@ -20,7 +20,7 @@ use DateTime::TimeZone;
 use DateTime::Format::ISO8601::Format;
 use DBIx::Class::ResultClass::HashRefInflator;
 
-__PACKAGE__->mk_accessors(qw(schema specs json
+__PACKAGE__->mk_accessors(qw(schema specs json db
 			     task_start_timer task_start_interval
 			     queue_check_timer queue_check_interval
 			     default_cluster policies
@@ -465,10 +465,33 @@ sub task_start_check
     {
 	return;
     }
+    my $cluster_id = $cluster->id;
 
     my $rs = $self->schema->resultset("Task")->search(
 						    { state_code => 'Q' },
 						    { order_by => { -asc => 'submit_time' } });
+
+    #
+    # Also query for the number of submitted jobs per user, and apply a limit there.
+    # The returns here are the users who have too many jobs submitted already.
+    #
+    my $per_user_limit = 10;
+    my $res = $self->db->dbh->selectall_arrayref(qq(SELECT t.owner, COUNT(t.id)
+						    FROM Task t
+						       JOIN TaskExecution te ON t.id = te.task_id
+						       JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+						    WHERE t.state_code = 'S' AND cj.cluster_id = ?
+						    GROUP BY t.owner
+						    HAVING COUNT(t.id) > ?), undef, $cluster_id, $per_user_limit);
+
+    my %user_restricted;
+    for my $ent (@$res)
+    {
+	my($user, $count) = @$ent;
+	print STDERR "User $user restricted due to $count jobs submitted\n";
+	$user_restricted{$user} = 1;
+    }
+
 
     my %warned;
     while (my $cand = $rs->next())
@@ -477,6 +500,7 @@ sub task_start_check
 	# we use get_column here to avoid the ORM pulling the owner class; we just need the id.
 	#
 	my $owner = $cand->get_column("owner");
+	
 	if ($jobs_released_per_owner{$owner} > $max_per_owner_release)
 	{
 	    if (!$warned{$owner}++)
@@ -485,6 +509,14 @@ sub task_start_check
 	    }
 	    next;
 	}
+	elsif ($user_restricted{$owner})
+	{
+	    if (!$warned{$owner}++)
+	    {
+		warn "Skipping additional submissions for $owner - restricted by jobs submitted\n";
+	    }
+	    next;
+	}	    
 	$jobs_released_per_owner{$owner}++;
 
 	$cluster->submit_tasks([$cand]);
