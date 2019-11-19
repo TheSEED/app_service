@@ -293,7 +293,7 @@ sub assemble
 	    }
 	    else
 	    {
-		$ws->upload_folder($path, "$output_folder/$f", { type_map => $type_map });
+		$ws->upload_folder($path, "$output_folder", { type_map => $type_map });
 	    }
 	}
 	closedir(DIR);
