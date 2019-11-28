@@ -168,3 +168,11 @@ CREATE TABLE TaskToken
 	expiration TIMESTAMP DEFAULT 0,
 	FOREIGN KEY (task_id) REFERENCES Task(id)
 );
+
+CREATE VIEW TaskWithActiveJob AS
+SELECT t.*, cj.id as cluster_job_id, cj.cluster_id, cj.job_id as cluster_job, cj.job_status, cj.exitcode,
+       cj.nodelist, cj.maxrss
+FROM Task t 
+     JOIN TaskExecution te ON t.id = te.task_id
+     JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+WHERE te.active = 1;

@@ -34,13 +34,16 @@ export TMPDIR=[% kb_tempdir %]
 export TEMPDIR=[% kb_tempdir %]
 [% END %]
 pid_file=$KB_SERVICE_LOG_DIR/service.pid
+status_file=$KB_SERVICE_LOG_DIR/service.status
 
 
 [% IF kb_starman_workers -%]
 workers="--workers [% kb_starman_workers %]"
+monoceros_workers="--max-workers=[% kb_starman_workers %]"
 [% END -%]
 [% IF kb_starman_max_requests -%]
 max_requests="--max-requests [% kb_starman_max_requests %]"
+monoceros_max_requests="--max-reqs_per_child=[% kb_starman_max_requests %]"
 [% END -%]
 
 twiggy_params="--listen :[% kb_service_port %] --pid $pid_file"
@@ -54,6 +57,37 @@ starman_params="$starman_params --daemonize"
 
 twiggy_params="$twiggy_params --error-log $KB_SERVICE_LOG_DIR/error.log"
 twiggy_params="$twiggy_params --access-log $KB_SERVICE_LOG_DIR/access.log"
+
+#
+# Set up for Monoceros
+#
+
+[% IF 0 %]
+
+plackup -s Monoceros \
+    --listen :[% kb_service_port %] \
+    --max-keepalive-reqs=10000 \
+    $monoceros_max_requests $monoceros_workers \
+    --access-log "$KB_SERVICE_LOG_DIR/access.log" \
+    -a $KB_TOP/lib/[% kb_psgi %]
+
+
+[% ELSE %]
+
+start_server --port [% kb_service_port %] \
+    --daemonize \
+    --log-file $KB_SERVICE_LOG_DIR/error.log \
+    --pid-file $pid_file \
+    --status-file $status_file \
+    -- \
+plackup -s Monoceros \
+    --max-keepalive-reqs=10000 \
+    $monoceros_max_requests $monoceros_workers \
+    --access-log "$KB_SERVICE_LOG_DIR/access.log" \
+    -a $KB_TOP/lib/[% kb_psgi %]
+[% END %]
+
+[% IF 0 %]
 
 twiggy_params="$twiggy_params --daemonize"
 
@@ -75,3 +109,4 @@ child=`pstree -l -a -p $pid | grep -v start_service | grep -v multilog | cut -d,
 
 echo $child > $pid_file
 
+[% END %]

@@ -15,15 +15,18 @@ $sched->{task_start_disable} = 0;
 $sched->load_apps();
 
 my $cluster = Bio::KBase::AppService::SlurmCluster->new('P3Slurm',
+							scheduler => $sched,
 							schema => $sched->schema);
 
 my $shared_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
+							scheduler => $sched,
 							schema => $sched->schema,
 							resources => ["-p bdws",
 								      "-N 1",
 								      "--ntasks-per-node 1",
 								      "--time 1:00:00"]);
 my $bebop_cluster = Bio::KBase::AppService::SlurmCluster->new('Bebop',
+							scheduler => $sched,
 							schema => $sched->schema,
 							resources => [
 								      "-p bdwd",

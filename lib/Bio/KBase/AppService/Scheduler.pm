@@ -67,11 +67,27 @@ sub new
     print "redis ready\n";
     undef $cv;
 
+    my $cmd_redis;
+    $cv = AnyEvent->condvar;
+    $cmd_redis = EV::Hiredis->new(host => redis_host,
+				  (redis_port ? (port => redis_port) : ()),
+				  on_connect => sub {
+				      print "Connect\n";
+				      $cmd_redis->command("select", redis_db, sub {
+					  print  "cmd select finished\n";
+					  $cv->send();
+				      })
+				      },);
+    $cv->wait();
+    print "cmd_redis ready\n";
+    undef $cv;
+
     $schema->storage->ensure_connected();
     my $self = {
 	schema => $schema,
 	db => $sched_db,
 	redis => $redis,
+	cmd_redis => $cmd_redis,
 	json => JSON::XS->new->pretty(1)->canonical(1),
 	task_start_interval => 120,
 	queue_check_interval => 120,
@@ -492,8 +508,8 @@ sub task_start_check
 	$user_restricted{$user} = 1;
     }
 
-
     my %warned;
+
     while (my $cand = $rs->next())
     {
 	#
@@ -521,6 +537,10 @@ sub task_start_check
 
 	$cluster->submit_tasks([$cand]);
     }
+    #
+    # Invalidate cache for users that had jobs released.
+    #
+    $self->invalidate_user_cache($_) foreach keys %jobs_released_per_owner;
 }
 
 #
@@ -954,7 +974,23 @@ sub shutdown
     exit(0);
 }
 
+=item B<invalidate_user_cache>
+
+Invalidate the user app service cache for the given user.
+    
+=cut
+
+sub invalidate_user_cache
+{
+    my($self, $user) = @_;
+    my $key = $user. ":app_service_cache";
+    $self->{cmd_redis}->command("del", $key, sub {
+	print STDERR "Cleared cache for $key\n";
+    });
+}
+
 =back
+
 
 =cut    
 

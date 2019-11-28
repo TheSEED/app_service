@@ -33,6 +33,7 @@ sub new
 	pass => sched_db_pass,
 	dsn => $dsn,
 	json => JSON::XS->new->pretty(1)->canonical(1),
+	state_code_cache => {},
     };
     return bless $self, $class;
 }
@@ -327,15 +328,30 @@ sub query_task_summary
 {
     my($self, $user_id) = @_;
 
-    my $res = $self->dbh->selectall_arrayref(qq(SELECT count(id) as count, service_status
-						FROM Task JOIN TaskState ON state_code = code
+    my $res = $self->dbh->selectall_arrayref(qq(SELECT count(id) as count, state_code
+						FROM Task 
 						WHERE owner = ?
 						GROUP BY state_code), undef, $user_id);
 
     my $ret = {};
-    $ret->{$_->[1]} = $_->[0] foreach @$res;
+    $ret->{$self->state_code_name($_->[1])} = int($_->[0]) foreach @$res;
 
     return $ret;
+}
+
+sub state_code_name
+{
+    my($self, $code) = @_;
+    my $name = $self->{state_code_cache}->{$code};
+    if (!$name)
+    {
+	my $c = $self->{state_code_cache};
+	my $res = $self->dbh->selectall_arrayref(qq(SELECT code, service_status FROM TaskState));
+	$c->{$_->[0]} = $_->[1] foreach @$res;
+	$name = $c->{$code};
+	# print Dumper($res, $self);
+    }
+    return $name;
 }
 
 =item B<query_task_summary_async>
@@ -349,15 +365,35 @@ sub query_task_summary_async
     my($self, $user_id, $cb) = @_;
     
     my $async = $self->async;
-    $async->selectall_arrayref(qq(SELECT count(id) as count, service_status
-				      FROM Task JOIN TaskState ON state_code = code
+    $async->selectall_arrayref(qq(SELECT count(id) as count, state_code
+				      FROM Task 
 				      WHERE owner = ?
-				      GROUP BY code), undef, $user_id, sub {
+				      GROUP BY state_code), undef, $user_id, sub {
 					  my($res) = @_;
 					  my $ret = {};
 					  $async;
-					  $ret->{$_->[1]} = int($_->[0]) foreach @$res;
+					  $ret->{$self->state_code_name($_->[1])} = int($_->[0]) foreach @$res;
 					  &$cb([$ret])});
+}
+
+=item B<query_app_summary>
+
+Return a summary of the counts of the apps for the specified user, asynchronous version.
+
+=cut
+
+sub query_app_summary
+{
+    my($self, $user_id) = @_;
+    
+    my $res = $self->dbh->selectall_arrayref(qq(SELECT count(id) as count, application_id
+						FROM Task 
+						WHERE owner = ?
+						GROUP BY application_id), undef, $user_id);
+    
+    my $ret = {};
+    $ret->{$_->[1]} = int($_->[0]) foreach @$res;
+    return $ret;
 }
 
 =item B<query_app_summary_async>
@@ -577,6 +613,108 @@ sub enumerate_tasks_filtered_async
     $cv->end();
 }
 
+=item B<enumerate_tasks_filtered>
+
+Enumerate the given user's tasks.
+
+The $simple_filter is a hash with keys start_time, end_time, app, search.
+
+=cut
+
+sub enumerate_tasks_filtered
+{
+    my($self, $user_id, $offset, $count, $simple_filter, $cb) = @_;
+
+    my @cond;
+    my @param;
+
+    push(@cond, "owner = ?");
+    push(@param, $user_id);
+
+    if (my $t = $simple_filter->{start_time})
+    {
+	my $dt = DateTime::Format::DateParse->parse_datetime($t);
+	if ($dt)
+	{
+	    push(@cond, "t.submit_time >= ?");
+	    push(@param, DateTime::Format::MySQL->format_datetime($dt));
+	}
+    }
+
+    if (my $t = $simple_filter->{end_time})
+    {
+	my $dt = DateTime::Format::DateParse->parse_datetime($t);
+	if ($dt)
+	{
+	    push(@cond, "t.submit_time <= ?");
+	    push(@param, DateTime::Format::MySQL->format_datetime($dt));
+	}
+    }
+
+    if (my $app = $simple_filter->{app})
+    {
+	if ($app =~ /^[0-aA-Za-z]+$/)
+	{
+	    push(@cond, "t.application_id = ?");
+	    push(@param, $app);
+	}
+    }
+
+    if (my $st = $simple_filter->{status})
+    {
+	if ($st =~ /^[-0-aA-Za-z]+$/)
+	{
+	    push(@cond, "ts.service_status = ?");
+	    push(@param, $st);
+	}
+
+    }
+    if (my $search_text = $simple_filter->{search})
+    {
+	push(@cond, "MATCH t.search_terms AGAINST (?)");
+	push(@param, $search_text);
+    }
+    
+    my $cond = join(" AND ", map { "($_)" } @cond);
+
+    my $ret_fields = "t.id, t.parent_task, t.application_id, t.params, t.owner, ";
+    for my $x (qw(submit_time start_time finish_time))
+    {
+	$ret_fields .= "DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ') as $x, ";
+    }
+    $ret_fields .= "t.finish_time - t.start_time as elapsed_time, ts.service_status";
+
+    my $qry = qq(SELECT $ret_fields
+		 FROM Task t JOIN TaskState ts on t.state_code = ts.code
+		 WHERE $cond
+		 ORDER BY t.submit_time DESC
+		 LIMIT ?
+		 OFFSET ?);
+    my $count_qry = qq(SELECT COUNT(t.id)
+		       FROM Task t JOIN TaskState ts on t.state_code = ts.code
+		       WHERE $cond);
+
+    my $dbh = $self->dbh;
+
+    my $sth = $dbh->prepare($qry);
+    $sth->execute(@param, $count, $offset);
+
+    my $tasks = [];
+    while (my $task = $sth->fetchrow_hashref())
+    {
+	push(@$tasks, $self->format_task_for_service($task));
+    }
+
+    $sth = $dbh->prepare($count_qry);
+    $sth->execute(@param);
+
+    my $row = $sth->fetchrow_arrayref();
+    print Dumper($row);
+    my $count = int($row->[0]);
+
+    return ($tasks, $count);
+}
+
 sub format_task_for_service
 {
     my($self, $task) = @_;
@@ -584,7 +722,7 @@ sub format_task_for_service
     my $params = eval { decode_json($task->{params}) };
     if ($@)
     {
-	warn "Error parsing params for task $task->{id}: '$task->{params}'\n";
+	# warn "Error parsing params for task $task->{id}: '$task->{params}'\n";
 	$params = {};
     }
     #die Dumper($task);

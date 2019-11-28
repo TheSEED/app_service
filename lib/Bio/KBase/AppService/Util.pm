@@ -6,6 +6,7 @@ use File::Basename;
 use Data::Dumper;
 use AnyEvent;
 use AnyEvent::Run;
+use IPC::Run;
 
 use base 'Class::Accessor';
 
@@ -142,6 +143,62 @@ sub continue_submit
     {
 	print STDERR "No task tmp file $task_tmp generated\n";
 	$cb->([]);
+    }
+}
+
+# synchronous version
+
+sub start_app_with_preflight_sync
+{
+    my($self, $ctx, $app_id, $task_params, $start_params) = @_;
+
+    if (!$self->submissions_enabled($app_id, $ctx))
+    {
+	die "App service submissions are disabled\n";
+    }
+
+    my $task_params_tmp = File::Temp->new();
+    print $task_params_tmp $self->json->encode($task_params);
+    close($task_params_tmp);
+
+    my $start_params_tmp = File::Temp->new();
+    print $start_params_tmp $self->json->encode($start_params);
+    close($start_params_tmp);
+
+    my $task_tmp = File::Temp->new();
+    close($task_tmp);
+
+    my $cmd = ["p3x-submit-job", $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
+    print STDERR "cmd: @$cmd\n";
+    
+    my $output;
+    my $error;
+
+    my $ok = IPC::Run::run($cmd,
+			   ">", \$output,
+			   "2>", \$error);
+    if (!$ok)
+    {
+	die "Error submittting job: $error";
+    }
+
+    if (-f "$task_tmp")
+    {
+	my $data = read_file("$task_tmp");
+	
+	my $ret_task = eval { $self->json->decode($data) };
+	if ($@)
+	{
+	    die "Error parsing generated task data:\n$data\n";
+	}
+	else
+	{
+	    return $ret_task;
+	}
+    }
+    else
+    {
+	die "No task tmp file $task_tmp generated\n";
     }
 }
 

@@ -16,7 +16,7 @@ AppService
 
 #BEGIN_HEADER
 
-use EV::Hiredis;
+use Redis::Fast;
 use Bio::KBase::AppService::AppConfig qw(redis_host redis_port redis_db);
 use JSON::XS;
 use MongoDB;
@@ -33,7 +33,31 @@ use Plack::Request;
 use IO::File;
 use IO::Handle;
 use MIME::Base64;
-use EV::Hiredis;
+use Carp::Always;
+
+sub _redis_get_or_compute
+{
+    my($self, $user, $hkey, $code) = @_;
+
+    my $val;
+    my $key = $user . ":app_service_cache";
+    my $val_txt = $self->{redis}->hget($key, $hkey);
+    if ($val_txt)
+    {
+	$val = decode_json($val_txt);
+	# print STDERR "From cache key=$key hkey=$hkey" . Dumper($val);
+    }
+    else
+    {
+	$val = &$code;
+	$self->{redis}->hset($key, $hkey, encode_json($val), sub {});
+	$self->{redis}->expire($key, 300, sub {});
+	$self->{redis}->wait_all_responses();
+	# print STDERR "computed " . Dumper($val);
+    }
+    return $val;
+
+}
 
 sub _task_info
 {
@@ -222,7 +246,8 @@ sub _task_info
 	    print STDERR "have exitcode, trying queue check\n";
 	    
 	    # prod the scheduler. Fire & forget.
-	    $self->{redis}->command("publish", "task_completion", $task, sub { print STDERR "Publish complete\n";});
+	    # $self->{redis}->command("publish", "task_completion", $task, sub { print STDERR "Publish complete\n";});
+	    $self->{redis}->publish("task_completion", $task);
 	}
 	return $res->finalize();
     }
@@ -265,25 +290,12 @@ sub new
     #
     # Connect to redis
     #
-    # Do this carefully. The early async stuff here messed with the
-    # twiggy middleware initialization.
-    #
+    my $redis = Redis::Fast->new(reconnect => 1,
+				 server => join(":", redis_host, redis_port),
+				 );
+    $redis->select(redis_db);
+    $self->{redis} = $redis;
 
-    my $w;
-    $w = AnyEvent->idle(cb => sub {
-	undef $w;
-	my $redis;
-	$redis = EV::Hiredis->new(host => redis_host,
-				  (redis_port ? (port => redis_port) : ()),
-				  on_connect => sub {
-				      print "Connect\n";
-				      $redis->command("select", redis_db, sub {
-					  print  "select finished\n";
-					  $self->{redis} = $redis;
-				      })
-				      },);
-    });
-	
     #END_CONSTRUCTOR
 
     if ($self->can('_init_instance'))
@@ -426,11 +438,11 @@ sub enumerate_apps
 
     push(@$return, $self->{util}->enumerate_apps());
 
-    return sub {
-	my($cb) = @_;
-	print STDERR "Got cb=$cb\n";
-	$cb->($return);
-    };
+#    return sub {
+#	my($cb) = @_;
+#	print STDERR "Got cb=$cb\n";
+#	$cb->($return);
+#    };
     
     #END enumerate_apps
     my @_bad_returns;
@@ -540,8 +552,7 @@ sub start_app
     #BEGIN start_app
 
     print STDERR "start_app\n";
-    my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, { workspace => $workspace });
-    return $cb;
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, { workspace => $workspace });
     
     #END start_app
     my @_bad_returns;
@@ -657,8 +668,9 @@ sub start_app2
     #BEGIN start_app2
     print STDERR "start_app2\n";
     # $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
-    my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, $start_params);
-    return $cb;
+    # my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, $start_params);
+    # return $cb;
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, $start_params);
 
     #END start_app2
     my @_bad_returns;
@@ -816,13 +828,11 @@ sub query_task_summary
     my($status);
     #BEGIN query_task_summary
 
-    return sub {
-	my($cb) = @_;
-	$self->{scheduler_db}->query_task_summary_async($ctx->user_id, $cb);
-    };
-						  
-#    $status = $self->{scheduler_db}->query_task_summary($ctx->user_id);
-    
+    $status = $self->_redis_get_or_compute($ctx->user_id, 'query_task_summary',
+					   sub { 
+					       return $self->{scheduler_db}->query_task_summary($ctx->user_id);
+					   });
+
     #END query_task_summary
     my @_bad_returns;
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
@@ -876,11 +886,11 @@ sub query_app_summary
     my($status);
     #BEGIN query_app_summary
 
-    return sub {
-	my($cb) = @_;
-	$self->{scheduler_db}->query_app_summary_async($ctx->user_id, $cb);
-    };
-
+    # $status = $self->{scheduler_db}->query_app_summary($ctx->user_id);
+    $status = $self->_redis_get_or_compute($ctx->user_id, 'query_app_summary',
+					  sub {
+					      return $self->{scheduler_db}->query_app_summary($ctx->user_id);
+					  });
 
     #END query_app_summary
     my @_bad_returns;
@@ -1083,12 +1093,11 @@ sub enumerate_tasks
     my($return);
     #BEGIN enumerate_tasks
 
-    return sub {
-	my($cb) = @_;
-	print STDERR "enumerate_tasks $offset $count got cb\n";
-	$self->{scheduler_db}->enumerate_tasks_async($ctx->user_id, $offset, $count, $cb);
-    };
-	
+    $return = $self->_redis_get_or_compute($ctx->user_id, join(":", "enumerate_tasks", $offset, $count),
+					  sub {
+					      return $self->{scheduler_db}->enumerate_tasks($ctx->user_id, $offset, $count);
+					  });
+
     # $return = $self->{scheduler_db}->enumerate_tasks($ctx->user_id, $offset, $count);
 
     #END enumerate_tasks
@@ -1211,12 +1220,8 @@ sub enumerate_tasks_filtered
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($tasks, $total_tasks);
     #BEGIN enumerate_tasks_filtered
-
-    return sub {
-	my($cb) = @_;
-	print STDERR "enumerate_tasks $offset $count got cb\n";
-	$self->{scheduler_db}->enumerate_tasks_filtered_async($ctx->user_id, $offset, $count, $simple_filter, $cb);
-    };
+    
+    ($tasks, $total_tasks) = $self->{scheduler_db}->enumerate_tasks_filtered($ctx->user_id, $offset, $count, $simple_filter);
 
     #END enumerate_tasks_filtered
     my @_bad_returns;
@@ -1470,8 +1475,10 @@ sub rerun_task
     my $params = decode_json($task_obj->params);
     my $workspace = "";
 
-    my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, { workspace => $workspace });
-    return $cb;
+    # my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, { workspace => $workspace });
+    # return $cb;
+
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, { workspace => $workspace });
     
     #END rerun_task
     my @_bad_returns;

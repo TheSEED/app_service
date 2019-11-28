@@ -18,7 +18,7 @@ use IPC::Run qw(run);
 use IO::Handle;
 use List::Util qw(max);
 
-__PACKAGE__->mk_accessors(qw(id schema json slurm_path
+__PACKAGE__->mk_accessors(qw(id schema json slurm_path scheduler
 			    ));
 
 # value is true if it is a terminal state; the value is the
@@ -811,7 +811,6 @@ sub queue_check
 	warn "Error $? on sstat\n";
     }
     
-	
     for my $cj (@jobs)
     {
 	my $job_id = $cj->job_id;
@@ -843,6 +842,7 @@ sub queue_check
 	    #
 	    for my $task ($cj->tasks)
 	    {
+		$self->scheduler->invalidate_user_cache($task->owner);
 		$task->update({
 		    state_code => $code,
 		    start_time => $vals->{Start},
@@ -869,6 +869,16 @@ sub queue_check
 		    job_status => $vals->{State},
 		    ($vals->{NodeList} ne '' ? (nodelist => $vals->{NodeList}) : ()),
 		});
+		if ($vals->{Start})
+		{
+		    for my $task ($cj->tasks)
+		    {
+			$self->scheduler->invalidate_user_cache($task->owner);
+			$task->update({
+			    start_time => $vals->{Start},
+			});
+		    }
+		}
 	    }
 	}
     }

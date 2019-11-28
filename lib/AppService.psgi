@@ -5,6 +5,7 @@ use Bio::KBase::AppService::Quick;
 use Bio::KBase::AppService::Service;
 use Plack::Middleware::CrossOrigin;
 use Plack::Builder;
+use Data::Dumper;
 
 my @dispatch;
 
@@ -17,7 +18,10 @@ my $server = Bio::KBase::AppService::Service->new(instance_dispatch => { @dispat
 				allow_get => 0,
 			       );
 
-my $rpc_handler = sub { $server->handle_input(@_) };
+my $rpc_handler = sub {
+#    print STDERR Dumper(@_);
+    $server->handle_input(@_);
+};
 
 $handler = builder {
     mount "/ping" => sub { $server->ping(@_); };
@@ -28,4 +32,4 @@ $handler = builder {
     mount "/" => $rpc_handler;
 };
 
-$handler = Plack::Middleware::CrossOrigin->wrap( $handler, origins => "*", headers => "*");
+$handler = Plack::Middleware::CrossOrigin->wrap( $handler, origins => "*", headers => "*", max_age => 86400);

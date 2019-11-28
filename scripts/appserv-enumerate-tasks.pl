@@ -29,7 +29,7 @@ else
 {
     while (1)
     {
-	my $tasks = $client->enumerate_tasks($offset, $limit);
+	my $tasks = $client->enumerate_tasks($offset, $opt->limit // $limit);
 	
 	last unless @$tasks;
 	

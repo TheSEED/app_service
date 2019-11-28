@@ -17,7 +17,7 @@ my $json = JSON::XS->new->utf8(0);
 my $cfg = Bio::P3::DeploymentConfig->new("AppService");
 
 #print Dumper($cfg);
-my $mongo = MongoDB::MongoClient->new(host => $cfg->setting("awe-mongo-host"),
+my $mongo = MongoDB::MongoClient->new(host => $cfg->setting("awe-mongo-host") // 'walnut.mcs.anl.gov',
 				      port => ($cfg->setting("awe-mongo-port") // 27017),
 				      db_name => $cfg->setting("awe-mongo-db"),
 				      (defined($cfg->setting("awe-mongo-user")) ? (username => $cfg->setting("awe-mongo-user")) : ()),
@@ -30,8 +30,8 @@ my @q = (state => 'completed');
 #@q = ();
 
 #my $begin = DateTime->new(year => 2015, month => 10, day => 1)->set_time_zone( 'America/Chicago' );
-my $end = DateTime->new(year => 2019, month => 9, day => 15)->set_time_zone( 'America/Chicago' );
-my $begin = DateTime->new(year => 2018, month => 9, day => 1)->set_time_zone( 'America/Chicago' );
+my $end = DateTime->new(year => 2019, month => 12, day => 31)->set_time_zone( 'America/Chicago' );
+my $begin = DateTime->new(year => 2019, month => 9, day => 15)->set_time_zone( 'America/Chicago' );
 my @end;
 @end = ('$lt' => $end );
 
@@ -54,8 +54,8 @@ while (my $job = $jobs->next)
     
     next if $skip{$user};
 
-say $id,$submit->time_zone;
-die "$submit\n";
+#say $id,$submit->time_zone;
+#die "$submit\n";
 
     my $elap = $finish->epoch - $start->epoch;
 

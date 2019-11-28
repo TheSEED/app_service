@@ -18,7 +18,12 @@ fi
 
 pid=`cat $pid_file`
 
-kill -QUIT $pid
+#
+# TERM for server_start, QUIT for twiggy
+#
+
+kill -TERM $pid
+#kill -QUIT $pid
 
 while kill -0 $pid ; do 
 	echo "Waiting for $pid to complete"
