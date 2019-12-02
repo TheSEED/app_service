@@ -377,8 +377,8 @@ sub prepare_ref_data {
 	my $api = P3DataAPI->new();
 	my $gto = $api->gto_of($gid);
 	$gto or die "Could not retreive GTO for $gid\n";
-	$gto->destroy_to_file("$dir/gid.gto");
-	-f "$dir/gid.gto" or die "Could not create $dir/$gid.gto from gto\n";
+	$gto->destroy_to_file("$dir/$gid.gto");
+	-f "$dir/$gid.gto" or die "Could not create $dir/$gid.gto from gto\n";
     }
     sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
 
