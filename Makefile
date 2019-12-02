@@ -96,6 +96,7 @@ TPAGE_ARGS = \
 	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
 	--define app_directory=$(APP_DIRECTORY) \
 	--define app_service_url=$(SERVICE_URL) \
+	--define metagenome_dbs=$(METAGENOME_DBS) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 
