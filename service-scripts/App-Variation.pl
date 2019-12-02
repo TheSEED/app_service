@@ -10,6 +10,7 @@ use File::Temp;
 use File::Basename;
 use IPC::Run 'run';
 use JSON;
+use P3DataAPI;
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -371,7 +372,14 @@ sub prepare_ref_data {
     # my $has_gbk = $out ? 1 : 0;
 
     #Generate genbank file
-    sysrun("p3-extract-gto", "$gid", "-o", "$dir/$gid.gto");
+
+    {
+	my $api = P3DataAPI->new();
+	my $gto = $api->gto_of($gid);
+	$gto or die "Could not retreive GTO for $gid\n";
+	$gto->destroy_to_file("$dir/gid.gto");
+	-f "$dir/gid.gto" or die "Could not create $dir/$gid.gto from gto\n";
+    }
     sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
 
     my $has_gbk = 0;    
