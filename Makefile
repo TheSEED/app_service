@@ -38,6 +38,7 @@ GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
 SEEDTK = /disks/patric-common/seedtk-2019-0405
+P3_DATA = $(SEEDTK)/data
 
 REFERENCE_DATA_DIR = /tmp
 
@@ -84,6 +85,7 @@ TPAGE_ARGS = \
 	--define slurm_path=$(SLURM_PATH) \
 	--define slurm_control_task_partition=$(SLURM_CONTROL_TASK_PARTITION) \
 	--define seedtk=$(SEEDTK) \
+	--define p3_data=$(P3_DATA) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
