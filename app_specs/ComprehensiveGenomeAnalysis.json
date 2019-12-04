@@ -131,7 +131,7 @@
                   "nanopore"
                ]
             }
-         ],
+         ]
       },
       {
          "label" : "SRR ID",
@@ -166,16 +166,41 @@
          "label" : "Assembly recipe",
          "default" : "auto",
          "enum" : [
-            "auto",
-            "full_spades",
-            "fast",
-            "miseq",
-            "smart",
-            "kiki"
+        "auto",
+        "unicycler",
+        "canu",
+        "spades",
+        "meta-spades",
+        "plasmid-spades",
+        "single-cell"
          ],
          "desc" : "Recipe used for assembly",
          "required" : 0
       },
+    {
+      "id": "racon_iter",
+      "label": "Racon iterations",
+      "required": 0,
+      "default": 2,
+      "desc": "Racon polishing iterations (for long reads)",
+      "type": "int"
+    },
+    {
+      "id": "pilon_iter",
+      "label": "Pilon iterations",
+      "required": 0,
+      "default": 2,
+      "desc": "Pilon polishing iterations (for short reads)",
+      "type": "int"
+    },
+    {
+      "id": "trim",
+      "label": "trim_reads",
+      "required": 0,
+      "default": false,
+      "desc": "Trim reads before assembly",
+      "type": "boolean"
+    },
       {
          "label" : "Minimal output contig length",
          "type" : "int",
@@ -192,6 +217,14 @@
          "required" : 0,
          "desc" : "Filter out contigs with low read depth in final assembly"
       },
+    {
+      "id": "genome_size",
+      "label": "Genome Size",
+      "required": 0,
+      "default": "5M",
+      "desc": "Estimated genome size (for canu)",
+      "type": "string"
+    },
       #
       # Annotation parameters. Exactly one of reads, contigs, or genbank file input is required.
       #
@@ -311,7 +344,16 @@
          "default" : null,
          "required" : 0,
          "desc" : "If enabled, run quality analysis on genome"
-      }
+      },
+    {
+      "id": "debug_level",
+      "label": "Debug level",
+      "required": 0,
+      "default": 0,
+      "desc": "Debugging level.",
+      "type": "int"
+    }
+
    ],
    "script" : "App-ComprehensiveGenomeAnalysis"
 }
