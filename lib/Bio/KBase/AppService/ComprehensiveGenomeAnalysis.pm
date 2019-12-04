@@ -147,8 +147,8 @@ sub process_reads
 	print STDERR "inline assemble: @cmd\n";
 
 	my $start = time;
-	# my $rc = system(@cmd);
-	my $rc = 0;
+	my $rc = system(@cmd);
+	#my $rc = 0;
 	my $end = time;
 	if ($rc != 0)
 	{
@@ -310,9 +310,9 @@ sub process_contigs
 	print STDERR "inline annotate: @cmd\n";
 
 	my $start = time;
-	#my $rc = system(@cmd);
+	my $rc = system(@cmd);
 	# my $rc = system("bash", "-c", "source /vol/patric3/production/P3Slurm2/tst_deployment/user-env.sh; @cmd");
-	my $rc = 0;
+	#my $rc = 0;
 	my $end = time;
 	if ($rc != 0)
 	{
