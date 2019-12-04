@@ -177,14 +177,6 @@
          "required" : 0
       },
       {
-         "id" : "pipeline",
-         "type" : "string",
-         "label" : "Assembly pipeline arguments",
-         "default" : null,
-         "desc" : "Advanced assembly pipeline arguments that overrides recipe",
-         "required" : 0
-      },
-      {
          "label" : "Minimal output contig length",
          "type" : "int",
          "id" : "min_contig_len",

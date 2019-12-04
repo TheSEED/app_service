@@ -568,18 +568,7 @@ sub compute_annotations
     # Need to find our app specs. Different locations if we are in production or development.
     #
 
-    my $top = $ENV{KB_TOP};
-    my $specs = "$top/services/app_service/app_specs";
-    if (! -d $specs)
-    {
-	$specs = "$top/modules/app_service/app_specs";
-    }
-    if (! -d $specs)
-    {
-	die "compute_annotations: cannot find specs file in $specs\n";
-    }
-    my $app_spec = "$specs/GenomeAnnotation.json";
-    -f $app_spec or die "Spec file $app_spec does not exist\n";
+    my $app_spec = $self->find_app_spec("GenomeAnnotation");
 
     my @good_results;
 
@@ -592,7 +581,7 @@ sub compute_annotations
 	close($tmp);
 	my @cmd = ("App-GenomeAnnotation", "xx", $app_spec, "$tmp");
 	# my @cmd = ("bash", "-c", "source /vol/patric3/production/P3Slurm2/tst_deployment/user-env.sh; App-GenomeAnnotation xx $app_spec $tmp");
-	print STERR "Run annotation: @cmd\n";
+	print STDERR "Run annotation: @cmd\n";
 	my $start = time;
 	my $rc = system(@cmd);
 	my $end = time;
@@ -813,5 +802,32 @@ sub write_summary_report
     }
 
 }
+
+sub find_app_spec
+{
+    my($self, $app) = @_;
+    
+    my $top = $ENV{KB_TOP};
+    my $specs_deploy = "$top/services/app_service/app_specs";
+    my $specs_dev = "$top/modules/app_service/app_specs";
+    my $specs;
+    
+    if (-d $specs_deploy)
+    {
+	$specs = $specs_deploy
+    }
+    elsif (-d $specs_dev)
+    {
+	$specs = $specs_dev
+    }
+    else
+    {
+	die "cannot find specs file in $specs_deploy or $specs_dev\n";
+    }
+    my $app_spec = "$specs/$app.json";
+    -f $app_spec or die "Spec file $app_spec does not exist\n";
+    return $app_spec;
+}
+
 
 1;
