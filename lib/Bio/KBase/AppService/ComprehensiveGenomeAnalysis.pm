@@ -193,15 +193,16 @@ sub process_reads
     #
 
     my @assemblies;
+    my $run_details;
     eval {
 
 	my $result_path = join("/", $self->output_folder, ".assembly");
-	my $details = $self->app->workspace->download_json("$result_path/details/assembly_run_details.json");
+	my $run_details = $self->app->workspace->download_json("$result_path/details/assembly_run_details.json");
 	
 	#
 	# Quast report path is named in the details.
 	#
-	my $tsv_path = $details->{quast_transposed_tsv};
+	my $tsv_path = $run_details->{quast_transposed_tsv};
 	my $tsv_txt = $self->app->workspace->download_file_to_string("$result_path/$tsv_path", $self->token);
 
 	print STDERR Dumper(T=>$tsv_txt);
@@ -243,6 +244,7 @@ sub process_reads
 		chosen_assembly => $qtask->{parameters}->{recipe},
 	    },
 	    parameters => $qtask->{parameters},
+	    run_details => $run_details,
 	});
     }
 
