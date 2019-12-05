@@ -47,10 +47,10 @@ sub preflight
     #
     # Size estimate based on conservative 500 bytes/second aggregate
     # compute rate for contig size, with a minimum allocated
-    # time of 5 minutes.
+    # time of 60 minutes (to account for non-annotation portions).
     #
     my $time = $res->size / 500;
-    $time = 300 if $time < 300;
+    $time = 3600 if $time < 3600;
 
     #
     # Request 8 cpus for some of the fatter bits of the compute.
