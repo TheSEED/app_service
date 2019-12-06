@@ -324,6 +324,7 @@ sub run
     my $shcmd = join(" ", map { "'$_'" }  @$cmd);
     
     my $new = ["ssh",
+	       "-o", "StrictHostKeyChecking=no",
 	       ($self->user ? ("-l", $self->user) : ()),
 	       ($self->key ? ("-i", $self->key) : ()),
 	       $self->host,
