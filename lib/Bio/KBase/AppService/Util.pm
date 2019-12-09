@@ -186,7 +186,7 @@ sub start_app_with_preflight_sync
 	  
     if (!$ok)
     {
-	my $out = read_file($user_tmp);
+	my $out = read_file("$user_tmp");
 	die "Error submitting job: $out\n";
     }
 
