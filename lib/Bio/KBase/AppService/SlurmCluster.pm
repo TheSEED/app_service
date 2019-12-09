@@ -501,6 +501,9 @@ END
     {
 	my $appserv_url = $task->monitor_url;
 	$appserv_url =~ s,/task_info,,;
+
+	# hack
+	$appserv_url = "http://holly.mcs.anl.gov:5001";
 	
 	my $tvar = {
 	    id => $task->id,
