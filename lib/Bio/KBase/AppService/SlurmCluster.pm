@@ -493,11 +493,15 @@ END
 	$vars{environment_config} = $self->{environment_config};
     }
 
+
     #
     # Configure a task var for each task and add to template variables.
     #
     for my $task (@$tasks)
     {
+	my $appserv_url = $task->monitor_url;
+	$appserv_url =~ s,/task_info,,;
+	
 	my $tvar = {
 	    id => $task->id,
 	    app => $task->application,
@@ -507,6 +511,7 @@ END
 	    # use the token with the longest expiration
 	    token => $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single()->token,
 	    monitor_url => $task->monitor_url,
+	    appserv_url => $appserv_url,
 	};
 		
 	push(@{$vars{tasks}}, $tvar);
