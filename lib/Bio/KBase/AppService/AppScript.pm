@@ -230,7 +230,7 @@ sub run
     do {
 	local @ARGV = @$args;
 	($opt, my $usage) = describe_options("%c %o app-service-url app-definition.json param-values.json",
-					     ["user-error-fd=i", "File descriptor to which user-readable errors are written"],
+					     ["user-error-file=s", "File to which user-readable errors are written"],
 					     ["preflight=s", "Run the app in preflight mode. Write a JSON object to the file specified representing the expected runtime, requested CPU count, and memory use for this application invocation."],
 					     
 					     ["help|h", "Show this help message."]);
@@ -260,10 +260,10 @@ sub run
     };
     
     my $error_fh;
-    open($error_fh, ">&=", $opt->user_error_fd);
+    open($error_fh, ">>", $opt->user_error_file);
     $self->{error_fh} = $error_fh;
     $error_fh->autoflush(1);
-    
+
     $self->preprocess_parameters($app_def_file, $params_file);
 
     $self->{workspace} = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);

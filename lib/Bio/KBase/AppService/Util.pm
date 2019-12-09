@@ -169,9 +169,10 @@ sub start_app_with_preflight_sync
     close($task_tmp);
 
     my $user_tmp = File::Temp->new();
+    close($user_tmp);
 
     my $cmd = ["p3x-submit-job",
-	       "--user-error-fd", fileno($user_tmp),
+	       "--user-error-file", "$user_tmp",
 	       $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
     print STDERR "cmd: @$cmd\n";
     

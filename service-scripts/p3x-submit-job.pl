@@ -28,12 +28,13 @@ use Bio::KBase::AppService::SchedulerDB;
 use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name
 					 app_directory app_service_url redis_host redis_port redis_db);
 use P3AuthToken;
+use IO::File;
 use File::Slurp;
 use File::Temp;
 use Getopt::Long::Descriptive;
 
 my($opt, $usage) = describe_options("%c %o token app-id task-params start-params output-task",
-				    ["user-error-fd=i" => "File descriptor to write user-level error", { default => 2}],
+				    ["user-error-file=s" => "File to write user-level error", { default => "/dev/null"}],
 				    ["help|h" => "Show this help message."],
 				    );
 print($usage->text), exit 0 if $opt->help;
@@ -48,7 +49,7 @@ my $start_params_file = shift;
 my $output_task_file = shift;
 
 my $error_fh;
-open($error_fh, ">&=", $opt->user_error_fd);
+open($error_fh, ">>", $opt->user_error_file);
 $error_fh->autoflush(1);
 
 my $db = Bio::KBase::AppService::SchedulerDB->new();
@@ -80,7 +81,7 @@ close($preflight_tmp);
 $ENV{P3_AUTH_TOKEN} = $ENV{KB_AUTH_TOKEN} = $token;
 
 my @preflight = ($app->{script},
-		 "--user-error-fd", $opt->user_error_fd,
+		 "--user-error-file", $opt->user_error_file,
 		 "--preflight", "$preflight_tmp",
 		 $appserv_info_url, "$app_tmp", $task_params_file);
 my $rc = system(@preflight);
