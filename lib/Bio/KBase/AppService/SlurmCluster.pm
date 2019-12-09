@@ -504,6 +504,7 @@ END
 
 	# hack
 	# $appserv_url = "http://holly.mcs.anl.gov:5001";
+	$appserv_url = "http://p3.theseed.org/services_test/app_service_test";
 	
 	my $tvar = {
 	    id => $task->id,
