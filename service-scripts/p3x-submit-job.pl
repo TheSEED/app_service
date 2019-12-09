@@ -49,6 +49,7 @@ my $output_task_file = shift;
 
 my $error_fh;
 open($error_fh, ">&=", $opt->user_error_fd);
+$error_fh->autoflush(1);
 
 my $db = Bio::KBase::AppService::SchedulerDB->new();
 

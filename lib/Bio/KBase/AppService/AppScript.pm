@@ -262,6 +262,7 @@ sub run
     my $error_fh;
     open($error_fh, ">&=", $opt->user_error_fd);
     $self->{error_fh} = $error_fh;
+    $error_fh->autoflush(1);
     
     $self->preprocess_parameters($app_def_file, $params_file);
 
