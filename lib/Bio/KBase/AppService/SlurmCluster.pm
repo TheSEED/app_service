@@ -535,7 +535,6 @@ END
 	print FTMP $batch;
 	close(FTMP);
     }
-    exit;
 
     #
     # Run the submit.
