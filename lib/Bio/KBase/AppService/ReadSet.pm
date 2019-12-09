@@ -63,7 +63,7 @@ sub create_from_asssembly_params
     }
     for my $srr (@{$params->{srr_ids}})
     {
-	if ($srr =~ /^\s+([A-Z]+\d+)\s+$/)
+	if ($srr =~ /^\s*([A-Z]+\d+)\s*$/)
 	{
 	    push(@libs, SRRLibrary->new($1));
 	}
