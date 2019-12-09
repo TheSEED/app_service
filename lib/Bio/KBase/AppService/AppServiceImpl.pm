@@ -33,7 +33,7 @@ use Plack::Request;
 use IO::File;
 use IO::Handle;
 use MIME::Base64;
-use Carp::Always;
+# use Carp::Always;
 
 sub _redis_get_or_compute
 {

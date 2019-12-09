@@ -62,7 +62,14 @@ sub preflight
     my $token = $app->token();
     my $ws = $app->workspace();
 
-    my $readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params);
+    my $readset;
+    eval {
+	$readset = Bio::KBase::AppService::ReadSet->create_from_asssembly_params($params);
+    };
+    if ($@)
+    {
+	die "Error parsing assembly parameters: $@";
+    }
 
     my($ok, $errs, $comp_size, $uncomp_size) = $readset->validate($ws);
 

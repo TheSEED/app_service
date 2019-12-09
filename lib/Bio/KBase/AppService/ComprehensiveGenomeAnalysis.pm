@@ -5,7 +5,7 @@
 
 package Bio::KBase::AppService::ComprehensiveGenomeAnalysis;
 
-use Carp::Always;
+# use Carp::Always;
 
 use Bio::KBase::AppService::AssemblyParams;
 use Bio::KBase::AppService::Client;
