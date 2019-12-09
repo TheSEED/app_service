@@ -168,7 +168,11 @@ sub start_app_with_preflight_sync
     my $task_tmp = File::Temp->new();
     close($task_tmp);
 
-    my $cmd = ["p3x-submit-job", $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
+    my $user_tmp = File::Temp->new();
+
+    my $cmd = ["p3x-submit-job",
+	       "--user-error-fd", fileno($user_tmp),
+	       $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
     print STDERR "cmd: @$cmd\n";
     
     my $output;
@@ -177,9 +181,13 @@ sub start_app_with_preflight_sync
     my $ok = IPC::Run::run($cmd,
 			   ">", \$output,
 			   "2>", \$error);
+
+    close($user_tmp);
+	  
     if (!$ok)
     {
-	die "Error submittting job: $error";
+	my $out = read_file($user_tmp);
+	die "Error submitting job: $out\n";
     }
 
     if (-f "$task_tmp")

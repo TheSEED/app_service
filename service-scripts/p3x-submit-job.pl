@@ -33,6 +33,7 @@ use File::Temp;
 use Getopt::Long::Descriptive;
 
 my($opt, $usage) = describe_options("%c %o token app-id task-params start-params output-task",
+				    ["user-error-fd=i" => "File descriptor to write user-level error", { default => 2}],
 				    ["help|h" => "Show this help message."],
 				    );
 print($usage->text), exit 0 if $opt->help;
@@ -45,6 +46,9 @@ my $app_id = shift;
 my $task_params_file = shift;
 my $start_params_file = shift;
 my $output_task_file = shift;
+
+my $error_fh;
+open($error_fh, ">&=", $opt->user_error_fd);
 
 my $db = Bio::KBase::AppService::SchedulerDB->new();
 
@@ -75,11 +79,13 @@ close($preflight_tmp);
 $ENV{P3_AUTH_TOKEN} = $ENV{KB_AUTH_TOKEN} = $token;
 
 my @preflight = ($app->{script},
+		 "--user-error-fd", $opt->user_error_fd,
 		 "--preflight", "$preflight_tmp",
 		 $appserv_info_url, "$app_tmp", $task_params_file);
 my $rc = system(@preflight);
 if ($rc != 0)
 {
+
     die "Preflight @preflight failed with rc=$rc\n";
 }
 

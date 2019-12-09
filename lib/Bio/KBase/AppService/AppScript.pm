@@ -230,6 +230,7 @@ sub run
     do {
 	local @ARGV = @$args;
 	($opt, my $usage) = describe_options("%c %o app-service-url app-definition.json param-values.json",
+					     ["user-error-fd=i", "File descriptor to which user-readable errors are written"],
 					     ["preflight=s", "Run the app in preflight mode. Write a JSON object to the file specified representing the expected runtime, requested CPU count, and memory use for this application invocation."],
 					     
 					     ["help|h", "Show this help message."]);
@@ -257,7 +258,11 @@ sub run
 	    $self->app_service_url($appserv_url);
 	}
     };
-
+    
+    my $error_fh;
+    open($error_fh, ">&=", $opt->user_error_fd);
+    $self->{error_fh} = $error_fh;
+    
     $self->preprocess_parameters($app_def_file, $params_file);
 
     $self->{workspace} = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);
@@ -265,7 +270,18 @@ sub run
     if ($opt->preflight)
     {
 	open(my $fh, ">", $opt->preflight) or die "Cannot write preflight to " . $opt->preflight . ": $!";
-	my $data = $self->run_preflight();
+
+	my $data;
+
+	eval {
+	    $data = $self->run_preflight();
+	};
+	if ($@)
+	{
+	    print $error_fh "Error running preflight checks: $@";
+	    die $@;
+	}
+	    
 	if (ref($data) eq 'HASH')
 	{
 	    print $fh $self->json->encode($data);
