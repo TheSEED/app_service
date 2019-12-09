@@ -2,6 +2,8 @@ package Bio::KBase::AppService::SlurmCluster;
 
 use 5.010;
 use strict;
+use Template;
+use Module::Metadata;
 use Bio::KBase::AppService::Schema;
 use Bio::KBase::AppService::AppConfig qw(slurm_control_task_partition);
 use base 'Class::Accessor';
@@ -375,19 +377,32 @@ sub submit_tasks
     }
 
     #
+    # Template vars. Populate this, then instantiate the template to submit.
+    #
+
+    my %vars = (resources => [],
+		tasks => [],
+		sbatch_account => $account,
+		sbatch_job_name => $name,
+		);
+
+    if ($ENV{P3_CONTAINER})
+    {
+	$vars{container_image} = $ENV{P3_CONTAINER};
+	$vars{data_directory} = $ENV{P3_DATA_DIRECTORY};
+    }
+
+    #
     # compute resource request information.
     # $alloc_env sets the allocation environment vars for the batch
     #
-
-    my $alloc_env;
-    my $resource_request;
     my $resources = $self->{resources};
     if (@$tasks > 1 || $resources)
     {
-	$resource_request = join("\n", map { "#SBATCH $_" } @$resources);
+	push(@{$vars{resources}}, map { "#SBATCH $_" } @$resources);
 
 	my $ntasks = @$tasks;
-	$alloc_env = <<EAL;
+	$vars{p3_allocation} = <<EAL;
 mem_total=`free -b | grep Mem | awk '{print \$2}'`
 proc_total=`nproc`
 export P3_ALLOCATED_MEMORY=`expr \$mem_total / $ntasks`
@@ -402,6 +417,9 @@ EAL
 	my $ram = $task->req_memory // $app->default_memory // "100G";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
 
+	$vars{sbatch_job_mem} = $ram;
+	$vars{n_cpus} = $cpu;
+
 	#
 	# Choose a partition.
 	#
@@ -414,33 +432,19 @@ EAL
 	# Additionally, if the cluster configuration defines a submit_cluster
 	# specify that.
 	#
-	my $partition = "";
+
 	if ($task->req_is_control_task)
 	{
-	    $partition = "#SBATCH --oversubscribe --partition " . slurm_control_task_partition;
+	    $vars{sbatch_partition} = "#SBATCH --oversubscribe --partition " . slurm_control_task_partition;
 	}
 	elsif ($cinfo->submit_queue)
 	{
-	    $partition = "#SBATCH --partition " . $cinfo->submit_queue;
+	    $vars{sbatch_partition} = "#SBATCH --partition " . $cinfo->submit_queue;
 	}
 	if ($cinfo->submit_cluster)
 	{
-	    $partition .= "\n#SBATCH --clusters " . $cinfo->submit_cluster;
+	    $vars{sbatch_clusters} = "#SBATCH --clusters " . $cinfo->submit_cluster;
 	}
-
-	# database has requested time in seconds
-
-	$alloc_env = <<EAL;
-export P3_ALLOCATED_MEMORY="\${SLURM_MEM_PER_NODE}M"
-export P3_ALLOCATED_CPU=\$SLURM_JOB_CPUS_PER_NODE
-EAL
-	
-	$resource_request = <<EREQ
-#SBATCH --mem $ram
-#SBATCH --nodes 1-1 --ntasks $cpu
-#SBATCH --export NONE
-$partition
-EREQ
     }
     
     my $time = max map { int($_->req_runtime / 60) } @$tasks;
@@ -456,21 +460,17 @@ EREQ
 	$err = "slurm-%j.err";
     }
 
+    $vars{sbatch_output} = $out;
+    $vars{sbatch_error} = $err;
+    $vars{sbatch_time} = $time;
+
     my $top = $cinfo->p3_deployment_path;
     my $rt = $cinfo->p3_runtime_path;
 
     print STDERR "CLUSTER: top=$top rt=$rt\n";
-    my $temp = $cinfo->temp_path;
+    my $temp = $vars{cluster_temp} = $cinfo->temp_path;
 
-    my $batch = <<END;
-#!/bin/sh
-#SBATCH --account $account
-#SBATCH --job-name $name
-$resource_request
-#SBATCH --output $out
-#SBATCH --err $err
-#SBATCH --time $time
-
+    $vars{configure_deployment} = <<END;
 export KB_TOP=$top
 export KB_RUNTIME=$rt
 export PATH=\$KB_TOP/bin:\$KB_RUNTIME/bin:\$PATH
@@ -486,88 +486,56 @@ export PERL_LWP_SSL_VERIFY_HOSTNAME=0
 export TEMPDIR=$temp
 export TMPDIR=$temp
 
-$alloc_env
 END
 
     if ($self->{environment_config})
     {
-	$batch .= "$_\n" foreach @{$self->{environment_config}};
+	$vars{environment_config} = $self->{environment_config};
     }
 
+    #
+    # Configure a task var for each task and add to template variables.
+    #
     for my $task (@$tasks)
     {
-        my $task_id = $task->id;
-	my $app = $task->application;
-	my $script = $app->script;
-	my $spec = $task->app_spec;
-	my $params = $task->params;
-	# use the token with the longest expiration
-	my $token = $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single()->token;
-	
-	my $monitor_url = $task->monitor_url;
-
-	$batch .= <<END
-
-# Run task $task_id - $script
-
-export P3_AUTH_TOKEN="$token"
-export KB_AUTH_TOKEN="$token"
-
-export WORKDIR=$temp/task-$task_id
-mkdir \$WORKDIR
-cd \$WORKDIR
-
-cat > app_spec <<'EOSPEC'
-$spec
-EOSPEC
-
-cat > params <<'EOPARAMS'
-$params
-EOPARAMS
-
-echo "Running script $script"
-p3x-app-shepherd --task-id $task_id $script $monitor_url app_spec params &
-pid_$task_id=\$!
-echo "Task $task_id has pid \$pid_$task_id"
-
-END
+	my $tvar = {
+	    id => $task->id,
+	    app => $task->application,
+	    script => $task->application->script,
+	    spec => $task->app_spec,
+	    params => $task->params,
+	    # use the token with the longest expiration
+	    token => $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single()->token,
+	    monitor_url => $task->monitor_url,
+	};
+		
+	push(@{$vars{tasks}}, $tvar);
     }
 
-    #
-    # Now generate the waits.
-    #
 
-    for my $task (@$tasks)
+    #
+    # Instantiate the template.
+    #
+    my $templ = Template->new(ABSOLUTE => 1);
+    my $mod_path = Module::Metadata->find_module_by_name(__PACKAGE__);
+    my $template_path = dirname($mod_path) . "/slurm_batch.tt";
+    -f $template_path or die "Cannot find slurm batch template at $template_path";
+
+    my $batch;
+
+    my $ok = $templ->process($template_path, \%vars, \$batch);
+    if (!$ok)
     {
-	my $task_id = $task->id;
-	
-	$batch .= <<END;
-echo "Wait for task $task_id \$pid_$task_id"
-wait \$pid_$task_id
-rc_$task_id=\$?
-echo "Task $task_id exited with \$rc_$task_id"
-END
+	die "Error processing template" . $templ->error() . "\n" . Dumper(\%vars);
     }
-
-    #
-    # If we have multiple tasks, return success. Otherwise return
-    # status of the one task.
-    #
-    if (@$tasks == 1)
-    {
-	my $task_id = $tasks->[0]->id;
-	$batch .= "exit \$rc_$task_id\n";
-    }
-    else
-    {
-	$batch .= "exit 0\n";
-    }
+    
     print $batch;
     if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
     {
 	print FTMP $batch;
 	close(FTMP);
     }
+    exit;
 
     #
     # Run the submit.

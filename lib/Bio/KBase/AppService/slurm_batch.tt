@@ -1,0 +1,102 @@
+#!/bin/sh
+#SBATCH --account [% sbatch_account %]
+#SBATCH --job-name [% sbatch_job_name %]
+#SBATCH --mem [% sbatch_job_mem %]
+#SBATCH --nodes 1-1 --ntasks [% n_cpus %]
+#SBATCH --export NONE
+[% sbatch_partition %]
+[% sbatch_clusters %]
+
+#SBATCH --output [% sbatch_output %]
+#SBATCH --err [% sbatch_error %]
+#SBATCH --time [% sbatch_time %]
+
+[% FOR r IN resources -%]
+[% r %]
+[% END -%]
+
+[%# For a Singularity invocation, we will have variables 
+    data_directory (location of data to be bound into /opt/patric-common-data) and
+    container_image (location of image to run) 
+    defined. Here we will not configure deployment environment details because
+    these will be configured internal to the image. 
+    We will also bind the job working directory into /tmp in the image, and not
+    set any global temp variables. 
+-%]
+
+[% IF not container_image -%]
+[% configure_deployment %]
+[% END -%]
+
+[% IF p3_allocation -%]
+[% p3_allocation %]
+[% ELSE -%]
+export P3_ALLOCATED_MEMORY="${SLURM_MEM_PER_NODE}M"
+export P3_ALLOCATED_CPU=$SLURM_JOB_CPUS_PER_NODE
+[% END -%]
+
+[% IF environment_config -%]
+[% FOR ent IN environment_config -%]
+[% ent %]
+[% END -%]
+[% END -%]
+
+[% FOR task IN tasks -%]
+
+export P3_AUTH_TOKEN="[% task.token %]"
+export KB_AUTH_TOKEN="[% task.token %]"
+
+export WORKDIR=[% cluster_temp %]/task-[% task.id %]
+mkdir $WORKDIR
+cd $WORKDIR
+
+cat > app_spec <<'EOSPEC'
+[% task.spec %]
+EOSPEC
+
+cat > params <<'EOPARAMS'
+[% task.params %]
+EOPARAMS
+
+[% IF container_image -%]
+
+echo "Running script [% task.script %] in container [% container_image %]"
+
+singularity run \
+	    -H $WORKDIR \
+	    -B $WORKDIR:/tmp,[% data_directory %]:/opt/patric-common/data \
+	    [% container_image %] \
+	    p3x-app-shepherd --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
+pid_[% task.id %]=$!
+echo "Task [% task.id %] has pid $pid_[% task.id %]"
+
+[% ELSE -%]
+
+export TEMPDIR=[% cluster_temp %]
+export TMPDIR=[% cluster_temp %]
+
+echo "Running script [% task.script %]"
+p3x-app-shepherd --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
+pid_[% task.id %]=$!
+echo "Task [% task.id %] has pid $pid_[% task.id %]"
+
+[% END -%]
+
+[% END -%]
+
+[% FOR task IN tasks -%]
+
+pid=$pid_[% task.id %]
+echo "Wait for task [% task.id %] $pid"
+wait $pid
+rc_[% $task.id %]=$?
+echo "Task $task_id exited with $rc_[% task.id %]"
+
+[% END -%]
+
+[% IF tasks.size == 1 -%]
+exit $rc_[% tasks.0.id %]
+[% ELSE -%]
+exit 0
+[% END -%]
+
