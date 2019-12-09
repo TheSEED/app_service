@@ -63,7 +63,14 @@ sub create_from_asssembly_params
     }
     for my $srr (@{$params->{srr_ids}})
     {
-	push(@libs, SRRLibrary->new($srr));
+	if ($srr =~ /^\s+([A-Z]+\d+)\s+$/)
+	{
+	    push(@libs, SRRLibrary->new($1));
+	}
+	else
+	{
+	    die "Invalid SRR identifer $srr\n";
+	}
     }
 
     my $self = {
