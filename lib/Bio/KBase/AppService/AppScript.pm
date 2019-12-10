@@ -290,6 +290,17 @@ sub run
 	close($fh) or die "Cannot close preflight fh for file " . $opt->preflight . ": $!";
 	return;
     }
+
+    if (open(T, "<", "/.singularity.d/labels.json"))
+    {
+	print STDERR "Running in Singularity image. labels.json:\n";
+	while (<T>)
+	{
+	    print STDERR $_;
+	}
+	print STDERR "\n";
+	close(T);
+    }
     
     #
     # If we are running at the terminal or are running under the shepherd, 
