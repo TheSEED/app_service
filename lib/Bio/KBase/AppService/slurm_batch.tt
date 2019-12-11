@@ -94,8 +94,8 @@ echo "Task [% task.id %] has pid $pid_[% task.id %]"
 pid=$pid_[% task.id %]
 echo "Wait for task [% task.id %] $pid"
 wait $pid
-rc_[% $task.id %]=$?
-echo "Task $task_id exited with $rc_[% task.id %]"
+rc_[% task.id %]=$?
+echo "Task [% task.id %] exited with $rc_[% task.id %]"
 
 [% END -%]
 
