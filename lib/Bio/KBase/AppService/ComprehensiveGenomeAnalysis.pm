@@ -49,16 +49,19 @@ sub new
 # time waiting on other applications.
 # Mark it a control task in the preflight.
 #
+# Revise that - tree build is expensive. We may want to move this to
+# run the underlying apps inline by default.
+#
 sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
     my $pf = {
-	cpu => 1,
+	cpu => 4,
 	memory => "10G",
 	runtime => 0,
 	storage => 0,
-	is_control_task => 1,
+	is_control_task => 0,
     };
     return $pf;
 }
