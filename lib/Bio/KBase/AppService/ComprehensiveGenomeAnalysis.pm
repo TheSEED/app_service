@@ -200,7 +200,7 @@ sub process_reads
     eval {
 
 	my $result_path = join("/", $self->output_folder, ".assembly");
-	my $run_details = $self->app->workspace->download_json("$result_path/details/assembly_run_details.json");
+	$run_details = $self->app->workspace->download_json("$result_path/details/assembly_run_details.json");
 	
 	#
 	# Quast report path is named in the details.
