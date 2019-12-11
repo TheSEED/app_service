@@ -62,9 +62,12 @@ EOPARAMS
 
 echo "Running script [% task.script %] in container [% container_image %]"
 
+cd /
+
 singularity run \
 	    -H $WORKDIR \
 	    -B $WORKDIR:/tmp,[% data_directory %]:/opt/patric-common/data \
+	    --pwd /tmp \
 	    [% container_image %] \
 	    p3x-app-shepherd --app-service [% task.appserv_url %] --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
 pid_[% task.id %]=$!
