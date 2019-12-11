@@ -723,8 +723,10 @@ sub format_paths
 
     # print Dumper(@p);
     # if we are anonymous, return separate items.
+    #
+    # RDO 2019-1211 - anonymous pairs OK per Allan
 
-    if ($self->p3_assembly_library_type eq 'anonymous')
+    if (0 && $self->p3_assembly_library_type eq 'anonymous')
     {
 	return @p;
     }
