@@ -63,6 +63,8 @@ EOPARAMS
 echo "Running script [% task.script %] in container [% container_image %]"
 
 cd /
+export TMPDIR=/tmp
+export TEMPDIR=/tmp
 
 singularity run \
 	    -H $WORKDIR \
