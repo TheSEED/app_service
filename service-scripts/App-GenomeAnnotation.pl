@@ -57,7 +57,7 @@ sub preflight
     #
     return {
 	cpu => 8,
-	memory => "32G",
+	memory => "8G",
 	runtime => int($time),
 	storage => 10 * $res->size,
     };
