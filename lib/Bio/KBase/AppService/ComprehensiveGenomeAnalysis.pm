@@ -10,6 +10,7 @@ package Bio::KBase::AppService::ComprehensiveGenomeAnalysis;
 use Bio::KBase::AppService::AssemblyParams;
 use Bio::KBase::AppService::Client;
 
+use File::Slurp;
 use P3DataAPI;
 use gjoseqlib;
 use POSIX;
@@ -31,6 +32,10 @@ __PACKAGE__->mk_accessors(qw(app app_def params token
 			     contigs app_params
 			     assembly_statistics annotation_statistics
 			    ));
+
+our $assembly_app = "GenomeAssembly2";
+our $annotation_app = "GenomeAnnotation";
+our $inline = $ENV{P3_CGA_TASKS_INLINE} ? 1 : 0;
 
 sub new
 {
@@ -54,15 +59,61 @@ sub new
 #
 sub preflight
 {
-    my($app, $app_def, $raw_params, $params) = @_;
+    my($self, $app, $app_def, $raw_params, $params) = @_;
 
-    my $pf = {
-	cpu => 4,
-	memory => "10G",
-	runtime => 0,
-	storage => 0,
-	is_control_task => 0,
-    };
+    my $pf_txt;
+    my $pf;
+    if ($inline)
+    {
+	#
+	# Invoke either the assembly preflight or the annotation preflight,
+	# depending on what we need to do.
+	#
+
+	my $param_tmp = File::Temp->new();
+	print $param_tmp encode_json($raw_params);
+	close($param_tmp);
+	my $tmp = File::Temp->new();
+	close($tmp);
+	if ($params->{input_type} eq 'reads')
+	{
+	    my $spec = &find_app_spec(undef, $assembly_app);
+	    my @cmd = ("App-$assembly_app", "--preflight", "$tmp", "xx", $spec, "$param_tmp");
+	    my $rc = system(@cmd);
+	    if ($rc != 0)
+	    {
+		die "Nested preflight @cmd failed with $rc\n";
+	    }
+	}
+	elsif ($params->{input_type} eq 'contigs')
+	{
+	    my $spec = &find_app_spec(undef, $annotation_app);
+	    my @cmd = ("App-$annotation_app", "--preflight", "$tmp", "xx", $spec, "$param_tmp");
+	    my $rc = system(@cmd);
+	    if ($rc != 0)
+	    {
+		die "Nested preflight @cmd failed with $rc\n";
+	    }
+	}
+
+	$pf_txt = read_file("$tmp");
+    }
+	
+    if ($pf_txt)
+    {
+	$pf = decode_json($pf_txt);
+	$pf->{runtime} += 3600;
+    }
+    else
+    {
+	$pf = {
+	    cpu => 4,
+	    memory => "10G",
+	    runtime => 0,
+	    storage => 0,
+	    is_control_task => 0,
+	};
+    }
     return $pf;
 }
 
@@ -134,9 +185,6 @@ sub process_reads
     my $client = Bio::KBase::AppService::Client->new();
     my $task;
 
-    my $inline = $ENV{P3_CGA_TASKS_INLINE};
-    my $assembly_app = "GenomeAssembly2";
-
     my $qtask;
     if ($inline)
     {
@@ -162,7 +210,7 @@ sub process_reads
 	    id => "assembly_$$",
 	    app => $assembly_app,
 	    parameters => $assembly_input,
-	    user_id => 'inline_user',
+	    user_id => $self->app->token()->user_id(),
 	    submit_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
 	    start_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
 	    completed_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $end),
@@ -299,9 +347,8 @@ sub process_contigs
 
     print "Annotate with " . Dumper($annotation_input);
 
-    my $annotation_app = "GenomeAnnotation";
     my $qtask;
-    if ($ENV{P3_CGA_TASKS_INLINE})
+    if ($inline)
     {
 	my $app_spec = $self->find_app_spec($annotation_app);
 	my $tmp = File::Temp->new();
@@ -326,7 +373,7 @@ sub process_contigs
 	    id => "annotation_$$",
 	    app => $annotation_app,
 	    parameters => $annotation_input,
-	    user_id => 'inline_user',
+	    user_id => $self->app->token()->user_id(),
 	    submit_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
 	    start_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
 	    completed_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $end),
