@@ -493,7 +493,7 @@ END
 	$vars{environment_config} = $self->{environment_config};
     }
 
-    if ($account eq 'olson@patricbrc.org')
+    if (1 || $account eq 'olson@patricbrc.org')
     {
 	push(@{$vars{environment_config}}, "export P3_CGA_TASKS_INLINE=1");
     }
