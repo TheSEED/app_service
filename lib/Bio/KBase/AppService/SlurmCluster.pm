@@ -822,7 +822,7 @@ sub queue_check
 		$task->update({
 		    state_code => $code,
 		    start_time => $vals->{Start},
-		    finish_time => $vals->{End},
+		    ($vals->{End} ? (finish_time => $vals->{End}) : ()),
 		    search_terms => join(" ",
 					 $task->owner,
 					 $self->{code_description}->{$code},
