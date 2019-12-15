@@ -42,7 +42,7 @@ our $global_ws;
 our $global_token;
 our $data_api_module;
 
-sub preflight
+sub preflight_cb
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
