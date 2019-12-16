@@ -46,7 +46,7 @@ export P3_ALLOCATED_CPU=$SLURM_JOB_CPUS_PER_NODE
 export P3_AUTH_TOKEN="[% task.token %]"
 export KB_AUTH_TOKEN="[% task.token %]"
 
-export WORKDIR=[% cluster_temp %]/task-[% task.id %]
+export WORKDIR=[% cluster_temp %]/task-[% task.id %]-$SLURM_JOB_ID
 mkdir $WORKDIR
 cd $WORKDIR
 
