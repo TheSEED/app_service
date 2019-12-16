@@ -102,7 +102,6 @@ sub preflight
     if ($pf_txt)
     {
 	$pf = decode_json($pf_txt);
-	$pf->{runtime} += 3600;
     }
     else
     {
@@ -114,6 +113,7 @@ sub preflight
 	    is_control_task => 0,
 	};
     }
+    $pf->{runtime} += 3600 * 4;
     return $pf;
 }
 
