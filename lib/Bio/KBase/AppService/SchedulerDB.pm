@@ -742,6 +742,49 @@ sub format_task_for_service
     return $rtask;
 }
 
+#
+# Maintenance routines
+#
 
+
+#
+# Reset a job back to queued status.
+#
+
+sub reset_job
+{
+    my($self, $job) = @_;
+
+    my $res = $self->dbh->selectall_arrayref(qq(SELECT  t.state_code, t.owner, te.active
+						FROM Task t,  TaskExecution te
+						WHERE t.id = te.task_id AND
+							id = ?), undef, $job);
+    
+    if (@$res)
+    {
+	my $skip;
+	print STDERR "Job records for $job:\n";
+	for my $ent (@$res)
+	{
+	    my($state, $owner, $active) = @$ent;
+	    print STDERR "\t$state\t$owner\t$active\n";
+	    if ($state eq 'Q')
+	    {
+		$skip++;
+	    }
+	}
+	if ($skip)
+	{
+	    print STDERR "Job $job is already in state Q, not changing\n";
+	    return;
+	}
+	my $res = $self->dbh->do(qq(UPDATE Task t,  TaskExecution te
+				    SET t.state_code='Q', te.active = 0
+				    WHERE t.id = te.task_id AND
+				    	id = ?), undef, $job);
+	print STDERR "Update returns $res\n";
+    }
+							    
+}
 
 1;
