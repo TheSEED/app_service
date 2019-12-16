@@ -24,6 +24,7 @@ use Getopt::Long::Descriptive;
 
 my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["application|A=s" => "Limit results to the given application"],
+				    ["status|s=s" => "Limit results to jobs with the given status code"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["n-jobs|n=i" => "Limit to the given number of jobs", { default => 50 } ],
@@ -57,6 +58,11 @@ if ($opt->cluster)
     push(@params, $opt->cluster);
 }
  
+if ($opt->status)
+{
+    push(@conds, "t.state_code = ?");
+    push(@params, $opt->status);
+}
 
 if (my $u = $opt->user)
 {
