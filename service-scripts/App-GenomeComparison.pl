@@ -57,7 +57,7 @@ sub preflight_cb
 	memory => "32G",
 	runtime => $time,
 	storage => 0,
-	is_control_task => 1,
+	is_control_task => 0,
     };
     return $pf;
 }
