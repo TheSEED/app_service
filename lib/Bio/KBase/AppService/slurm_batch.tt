@@ -97,6 +97,10 @@ wait $pid
 rc_[% task.id %]=$?
 echo "Task [% task.id %] exited with $rc_[% task.id %]"
 
+if [ $rc_[% task.id %] = 0 ] ; then
+   rm -rf [% cluster_temp %]/task-[% task.id %]-$SLURM_JOB_ID
+fi
+
 [% END -%]
 
 [% IF tasks.size == 1 -%]
