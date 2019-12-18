@@ -1,0 +1,50 @@
+{
+  "id": "RASTJob",
+  "script": "App-RASTJob",
+  "label": "Annotate genome for RAST",
+  "description": "RAST worker app.",
+  "default_memory": "100G",
+  "parameters": [
+    {
+      "id": "genome_object",
+      "required": 1,
+      "default": null,
+      "label": "Genome object",
+      "desc": "Input set of DNA contigs for annotation",
+      "wstype": "string",
+      "type": "wstype"
+    },
+    {
+      "id": "output_path",
+      "label": "Output Folder",
+      "required": 0,
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
+      "type": "folder"
+    },
+    {
+      "id": "output_file",
+      "label": "File Basename",
+      "required": 0,
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
+      "type": "wsid"
+    },
+    {
+      "id": "workflow",
+      "label": "Custom workflow",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a custom workflow document (expert).",
+      "type": "string"
+    },
+    {
+      "id": "recipe",
+      "label": "Annotation recipe",
+      "required": 0,
+      "default": null,
+      "desc": "Specifies a non-default annotation recipe",
+      "type": "string"
+    }
+  ]
+}
