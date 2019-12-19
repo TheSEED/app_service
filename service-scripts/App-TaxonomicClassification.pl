@@ -309,7 +309,7 @@ sub preflight
     #
     if (lc($params->{database}) eq 'kraken2')
     {
-	$mem = "80G";
+	$mem = "100G";
     }
     
     my $time = 60 * 60 * 10;
