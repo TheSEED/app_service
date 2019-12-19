@@ -302,10 +302,20 @@ sub preflight
     {
 	die "Readset failed to validate. Errors:\n\t" . join("\n\t", @$errs);
     }
+
+    my $mem = "32G";
+    #
+    # Kraken DB requires a lot more memory.
+    #
+    if (lc($params->{database}) eq 'kraken2')
+    {
+	$mem = "80G";
+    }
+    
     my $time = 60 * 60 * 10;
     my $pf = {
 	cpu => 8,
-	memory => "32G",
+	memory => $mem,
 	runtime => $time,
 	storage => 1.1 * ($comp_size + $uncomp_size),
     };
