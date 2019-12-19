@@ -37,7 +37,7 @@ sub preflight
     my $pf = {
 	cpu => 1,
 	memory => "32G",
-	runtime => 0,
+	runtime => 30*60-1,
 	storage => 0,
 	is_control_task => 0,
     };
