@@ -86,6 +86,8 @@ CREATE TABLE ServiceUser
 	last_name VARCHAR(255),
 	email VARCHAR(255),
 	affiliation VARCHAR(255),
+	is_staff BOOLEAN,
+	is_collaborator BOOLEAN,
 	FOREIGN KEY (project_id) REFERENCES Project(id)
 );
 
@@ -176,3 +178,46 @@ FROM Task t
      JOIN TaskExecution te ON t.id = te.task_id
      JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 WHERE te.active = 1;
+
+CREATE VIEW MergedTaskStatus AS
+SELECT t.id, t.owner, t.state_code, cj.job_status
+FROM Task t
+     LEFT OUTER JOIN TaskExecution te ON t.id = te.task_id
+     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+WHERE te.active = 1 OR te.active IS NULL;
+
+DROP VIEW StatsGatherNonCollab;
+CREATE VIEW StatsGatherNonCollab AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(t.id) AS job_count
+FROM Task t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id NOT IN ('Date', 'Sleep') AND
+      u.is_collaborator = 0 AND
+      u.is_staff = 0 AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
+
+DROP VIEW StatsGatherCollab;
+CREATE VIEW StatsGatherCollab AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) as year, 
+       CONCAT(t.application_id, '-collab') AS application_id, COUNT(t.id) as job_count
+FROM Task t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id IN ('GenomeAssembly', 'GenomeAssembly2', 'GenomeAnnotation') AND
+      u.is_collaborator = 1 AND
+      u.is_staff = 0 AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
+
+CREATE VIEW StatsGather
+AS SELECT * FROM StatsGatherCollab UNION SELECT * FROM StatsGatherNonCollab
+   ORDER BY year, month, application_id;
+
+DROP VIEW StatsGatherAll;
+CREATE VIEW StatsGatherAll AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(t.id) AS job_count
+FROM Task t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id NOT IN ('Date', 'Sleep') AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
