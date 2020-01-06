@@ -400,10 +400,6 @@ sub kill_tasks
 {
     my($self, $user_id, $tasks) = @_;
 
-    #
-    # FIXME
-    #
-    die;
     return $self->scheduler->kill_tasks($user_id, $tasks);
 }
 
