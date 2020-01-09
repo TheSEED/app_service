@@ -491,7 +491,7 @@ sub task_start_check
     # Also query for the number of submitted jobs per user, and apply a limit there.
     # The returns here are the users who have too many jobs submitted already.
     #
-    my $per_user_limit = 10;
+    my $per_user_limit = 20;
     my $res = $self->db->dbh->selectall_arrayref(qq(SELECT t.owner, COUNT(t.id)
 						    FROM Task t
 						       JOIN TaskExecution te ON t.id = te.task_id
