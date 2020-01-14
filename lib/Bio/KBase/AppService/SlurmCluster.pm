@@ -510,7 +510,15 @@ END
 	# hack
 	# $appserv_url = "http://holly.mcs.anl.gov:5001";
 	$appserv_url = "http://p3.theseed.org/services_test/app_service_test";
-	
+
+	my $token_obj = $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single();
+	if (!$token_obj)
+	{
+	    warn "Cannot find token for task " . $task->id . "\n";
+	    $task->update( { state_code => 'F' });
+	    next;
+	}
+
 	my $tvar = {
 	    id => $task->id,
 	    app => $task->application,
@@ -518,7 +526,7 @@ END
 	    spec => $task->app_spec,
 	    params => $task->params,
 	    # use the token with the longest expiration
-	    token => $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single()->token,
+	    token => $token,
 	    monitor_url => $task->monitor_url,
 	    appserv_url => $appserv_url,
 	};

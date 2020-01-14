@@ -171,9 +171,10 @@ CREATE TABLE TaskToken
 	FOREIGN KEY (task_id) REFERENCES Task(id)
 );
 
+DROP VIEW TaskWithActiveJob;
 CREATE VIEW TaskWithActiveJob AS
 SELECT t.*, cj.id as cluster_job_id, cj.cluster_id, cj.job_id as cluster_job, cj.job_status, cj.exitcode,
-       cj.nodelist, cj.maxrss
+       cj.nodelist, cj.maxrss, cj.cancel_requested
 FROM Task t 
      JOIN TaskExecution te ON t.id = te.task_id
      JOIN ClusterJob cj ON cj.id = te.cluster_job_id

@@ -15,7 +15,7 @@ Queries the PATRIC application service queue.
 use 5.010;    
 use strict;
 use DBI;
-#use Data::Dumper;
+use Data::Dumper;
 #use JSON::XS;
 use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name);
 
@@ -114,7 +114,7 @@ my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,
 	     ORDER BY $sort
 	     $limit
 	     );
-
+print Dumper($qry);
 my @cols;
 push(@cols,
  { title => "Job ID" },

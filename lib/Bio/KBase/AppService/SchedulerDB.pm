@@ -753,7 +753,7 @@ sub format_task_for_service
 
 sub reset_job
 {
-    my($self, $job) = @_;
+    my($self, $job, $reset_params) = @_;
 
     my $res = $self->dbh->selectall_arrayref(qq(SELECT  t.state_code, t.owner, te.active
 						FROM Task t,  TaskExecution te
@@ -778,10 +778,26 @@ sub reset_job
 	    print STDERR "Job $job is already in state Q, not changing\n";
 	    return;
 	}
+	my @params;
+	my $reset;
+	if ($reset_params)
+	{
+	    if ($reset_params->{time})
+	    {
+		push(@params, $reset_params->{time});
+		$reset .= ", t.req_runtime = ?";
+	    }
+	    if ($reset_params->{memory})
+	    {
+		push(@params, $reset_params->{memory});
+		$reset .= ", t.req_memory = ?";
+	    }
+	}
+	
 	my $res = $self->dbh->do(qq(UPDATE Task t,  TaskExecution te
-				    SET t.state_code='Q', te.active = 0
+				    SET t.state_code='Q', te.active = 0 $reset
 				    WHERE t.id = te.task_id AND
-				    	id = ?), undef, $job);
+				    	id = ?), undef,  @params, $job);
 	print STDERR "Update returns $res\n";
     }
 							    
