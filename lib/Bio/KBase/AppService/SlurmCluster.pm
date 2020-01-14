@@ -526,7 +526,7 @@ END
 	    spec => $task->app_spec,
 	    params => $task->params,
 	    # use the token with the longest expiration
-	    token => $token,
+	    token => $token_obj->token,
 	    monitor_url => $task->monitor_url,
 	    appserv_url => $appserv_url,
 	};
