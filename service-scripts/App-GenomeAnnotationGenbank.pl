@@ -44,14 +44,14 @@ sub preflight_cb
     # time of 5 minutes.
     #
     my $time = $res->size / 500;
-    $time = 300 if $time < 300;
+    $time = 3600 if $time < 3600;
 
     #
     # Request 8 cpus for some of the fatter bits of the compute.
     #
     return {
 	cpu => 8,
-	memory => "32G",
+	memory => "8G",
 	runtime => int($time),
 	storage => 10 * $res->size,
     };
