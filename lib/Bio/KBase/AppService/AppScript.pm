@@ -469,6 +469,10 @@ sub set_task_id
     {
 	$task_id = $ENV{AWE_TASK_ID};
     }
+    elsif ($ENV{P3_TASK_ID})
+    {
+	$task_id = $ENV{P3_TASK_ID};
+    }
     elsif ($ENV{SLURM_JOB_ID})
     {
 	$task_id = $ENV{SLURM_JOB_ID};

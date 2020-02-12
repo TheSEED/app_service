@@ -58,6 +58,8 @@ cat > params <<'EOPARAMS'
 [% task.params %]
 EOPARAMS
 
+export P3_TASK_ID=[% task.id %]
+
 [% IF container_image -%]
 
 echo "Running script [% task.script %] in container [% container_image %]"
