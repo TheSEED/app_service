@@ -89,6 +89,7 @@ sub preflight
     # Unicycler etc is a brave new world.
     #
     $est_time *= 10;
+    $est_time = 3600 if $est_time < 3600;
 
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
     my $est_storage = int(1.3e6 * $est_comp / 0.75);
