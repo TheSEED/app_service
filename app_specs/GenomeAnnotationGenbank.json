@@ -55,6 +55,14 @@
       "type": "wsid"
     },
     {
+      "id": "reference_virus_name",
+      "required": 0,
+      "default": null,
+      "label": "Reference virus name",
+      "desc": "Reference virus name",
+      "type": "string"
+    },
+    {
       "id": "workflow",
       "label": "Custom workflow",
       "required": 0,

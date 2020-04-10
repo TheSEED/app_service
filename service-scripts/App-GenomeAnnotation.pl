@@ -232,10 +232,14 @@ sub process_genome
     my $override;
     if (my $ref = $params->{reference_genome_id})
     {
-	$override = {
-	    evaluate_genome => {
-		evaluate_genome_parameters => { reference_genome_id => $ref },
-	    }
+	$override->{evaluate_genome} =  {
+	    evaluate_genome_parameters => { reference_genome_id => $ref },
+	};
+    }
+    if (my $ref = $params->{reference_virus_name})
+    {
+	$override->{call_features_vigor4} =  {
+	    vigor4_parameters => { reference_name => $ref },
 	};
     }
     
@@ -251,8 +255,11 @@ sub process_genome
     # quality summarization.
     #
 
-    $ws->save_data_to_file($json->encode($result->{quality}),
+    if (ref($result->{quality}))
+    {
+	$ws->save_data_to_file($json->encode($result->{quality}),
 		           {}, "$output_folder/quality.json", "json", 1, 1, $core->token);
+    }
 
     #
     # Determine if we are one of a peer group of jobs that was started

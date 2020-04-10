@@ -101,6 +101,7 @@ my($opt, $usage) =
 		     ["phage", "Set defaults for phage annotation."],
 		     ["recipe=s", "Use the given non-default recipe for this annotation"],
 		     ["reference-genome=s", "The PATRIC identifier of a reference genome whose annotations will be propagated as part of this annotation."],
+		     ["reference-virus=s", "The name of a virus from the VIGOR_DB collection to use as the reference for a vigor4 viral annotation."],
 		     [],
 		     ["The following options describe the genome to be annotated."],
 		     ["In each case where the value for the specified option may be drawn"],
@@ -266,6 +267,7 @@ my $params = {
     ($opt->recipe ? (recipe => $opt->recipe) : ()),
     (defined($workflow) ? (workflow => $workflow_txt) : ()),
     ($opt->no_index ? (skip_indexing => 1) : ()),
+    ($opt->reference_virus ? (reference_virus_name => $opt->reference_virus) : ()),
 };
 
 if ($input_mode eq 'genbank')

@@ -386,10 +386,34 @@ sub submit_tasks
 		sbatch_job_name => $name,
 		);
 
+    #
+    # Determine the container for this task.
+    # The envar P3_CONTAINER is a global override (initially this was the only
+    # way to set the container, but when the container support was added to
+    # the database we disabled the production use of it).
+    #
+    # If P3_CONTAINER is set, assume the file has been placed and that
+    # a dynamic download is NOT to be attempted.
+    #
+
+    local $Data::Dumper::Maxdepth = 1;
+    
     if ($ENV{P3_CONTAINER})
     {
 	$vars{container_image} = $ENV{P3_CONTAINER};
 	$vars{data_directory} = $ENV{P3_DATA_DIRECTORY};
+    }
+    else
+    {
+	my $container = $cinfo->default_container;
+	if ($container)
+	{
+	    $vars{container_repo_url} = $cinfo->container_repo_url;
+	    $vars{container_cache_dir} = $cinfo->container_cache_dir;
+	    $vars{container_filename} = $container->filename;
+	    $vars{container_image} = $cinfo->container_cache_dir . "/" . $container->filename;
+	    $vars{data_directory} = $cinfo->default_data_directory;
+	}
     }
 
     #
@@ -538,20 +562,23 @@ END
     #
     # Instantiate the template.
     #
-    my $templ = Template->new(ABSOLUTE => 1);
-    my $mod_path = Module::Metadata->find_module_by_name(__PACKAGE__);
-    my $template_path = dirname($mod_path) . "/slurm_batch.tt";
+    my $mod_path = dirname(Module::Metadata->find_module_by_name(__PACKAGE__));
+    my $templ = Template->new(INCLUDE_PATH => $mod_path);
+    print "INCLUDE $mod_path\n";
+    my $templ_file = "slurm_batch.tt";
+    my $template_path = "$mod_path/$templ_file";
     -f $template_path or die "Cannot find slurm batch template at $template_path";
 
     my $batch;
 
-    my $ok = $templ->process($template_path, \%vars, \$batch);
+    my $ok = $templ->process($templ_file, \%vars, \$batch);
     if (!$ok)
     {
-	die "Error processing template" . $templ->error() . "\n" . Dumper(\%vars);
+	die "Error processing template $templ_file: " . $templ->error() . "\n" . Dumper(\%vars);
     }
     
     print $batch;
+
     if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
     {
 	print FTMP $batch;

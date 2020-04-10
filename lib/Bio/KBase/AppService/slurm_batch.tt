@@ -24,8 +24,17 @@
     set any global temp variables. 
 -%]
 
-[% IF not container_image -%]
-[% configure_deployment %]
+[% IF container_image -%]
+[% IF container_repo_url -%]
+[% INSERT batch_utils.tt %]
+download_compute_image \
+	[% container_repo_url %] \
+	[% cluster_temp %] \
+	[% container_filename %] \
+	[% container_cache_dir %]
+[% END -%]
+[% ELSE -%]
+[% configure_deployment -%]
 [% END -%]
 
 [% IF p3_allocation -%]
@@ -61,6 +70,11 @@ EOPARAMS
 export P3_TASK_ID=[% task.id %]
 
 [% IF container_image -%]
+
+if [[ ! -s [% container_image %] ]] ; then
+   echo "Container image file [% container_image %] is missing" 1>&2
+   exit 1
+fi
 
 echo "Running script [% task.script %] in container [% container_image %]"
 

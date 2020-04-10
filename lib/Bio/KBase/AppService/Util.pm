@@ -400,7 +400,11 @@ sub kill_tasks
 {
     my($self, $user_id, $tasks) = @_;
 
-    return $self->scheduler->kill_tasks($user_id, $tasks);
+    #
+    # Kill means to mark the cluster job with a cancel request.
+    #
+    
+    #return $self->scheduler->kill_tasks($user_id, $tasks);
 }
 
 1;

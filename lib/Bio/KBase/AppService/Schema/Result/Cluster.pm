@@ -115,6 +115,31 @@ __PACKAGE__->table("Cluster");
   is_nullable: 1
   size: 255
 
+=head2 container_repo_url
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 container_cache_dir
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
+=head2 default_container_id
+
+  data_type: 'varchar'
+  is_foreign_key: 1
+  is_nullable: 1
+  size: 255
+
+=head2 default_data_directory
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -145,6 +170,14 @@ __PACKAGE__->add_columns(
   "submit_queue",
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "submit_cluster",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "container_repo_url",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "container_cache_dir",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
+  "default_container_id",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
+  "default_data_directory",
   { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
@@ -177,6 +210,26 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 default_container
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::Container>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "default_container",
+  "Bio::KBase::AppService::Schema::Result::Container",
+  { id => "default_container_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
 =head2 type
 
 Type: belongs_to
@@ -198,8 +251,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-07-03 16:07:13
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8DjHVHU4A6Yn21V2YV2Z3Q
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-10 12:21:17
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:NRy0wQ46/VI27c9BoBw4ZA
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

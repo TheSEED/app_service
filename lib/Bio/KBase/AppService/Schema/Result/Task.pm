@@ -152,6 +152,13 @@ __PACKAGE__->table("Task");
   default_value: 0
   is_nullable: 1
 
+=head2 container_id
+
+  data_type: 'varchar'
+  is_foreign_key: 1
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -210,6 +217,8 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "hidden",
   { data_type => "tinyint", default_value => 0, is_nullable => 1 },
+  "container_id",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -238,6 +247,26 @@ __PACKAGE__->belongs_to(
   "application",
   "Bio::KBase::AppService::Schema::Result::Application",
   { id => "application_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+=head2 container
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::Container>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "container",
+  "Bio::KBase::AppService::Schema::Result::Container",
+  { id => "container_id" },
   {
     is_deferrable => 1,
     join_type     => "LEFT",
@@ -352,8 +381,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-10-17 12:28:49
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:q7lBps11CGRahGtKp4YpNQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-09 23:30:46
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cFN4iDvwZMnNxK7S5u23HA
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

@@ -103,6 +103,14 @@
       "type": "string"
     },
     {
+      "id": "reference_virus_name",
+      "required": 0,
+      "default": null,
+      "label": "Reference virus name",
+      "desc": "Reference virus name",
+      "type": "string"
+    },
+    {
       "id": "_parent_job",
       "label": "(Internal) Parent job for this annotation",
       "desc": "(Internal) Parent job for this annotation",

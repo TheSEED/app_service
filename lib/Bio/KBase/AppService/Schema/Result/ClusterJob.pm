@@ -76,6 +76,12 @@ __PACKAGE__->table("ClusterJob");
   is_nullable: 1
   size: 255
 
+=head2 cancel_requested
+
+  data_type: 'tinyint'
+  default_value: 0
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -93,6 +99,8 @@ __PACKAGE__->add_columns(
   { data_type => "text", is_nullable => 1 },
   "exitcode",
   { data_type => "varchar", is_nullable => 1, size => 255 },
+  "cancel_requested",
+  { data_type => "tinyint", default_value => 0, is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -145,8 +153,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2019-05-14 18:31:21
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Pa07zfG1eP3aBu914yNl1A
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-09 23:30:45
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:TgQzJWkBkvXWdPmMRzQlxw
 
 __PACKAGE__->many_to_many(tasks => 'task_executions', 'task');
 

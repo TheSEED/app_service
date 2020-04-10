@@ -232,7 +232,15 @@ sub process_genome
 	$workflow = JSON::XS->new->pretty(1)->encode($core->import_workflow());
     }
 
-    my $result = $core->run_pipeline($genome, $workflow, $params->{recipe});
+    my $pipeline_override;
+    if (my $ref = $params->{reference_virus_name})
+    {
+	$pipeline_override->{call_features_vigor4} =  {
+	    vigor4_parameters => { reference_name => $ref },
+	};
+    }
+
+    my $result = $core->run_pipeline($genome, $workflow, $params->{recipe}, $pipeline_override);
     
     #
     # TODO fill in metadata?

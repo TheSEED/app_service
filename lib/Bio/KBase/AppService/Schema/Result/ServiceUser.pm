@@ -72,6 +72,18 @@ __PACKAGE__->table("ServiceUser");
   is_nullable: 1
   size: 255
 
+=head2 is_staff
+
+  data_type: 'tinyint'
+  default_value: 0
+  is_nullable: 1
+
+=head2 is_collaborator
+
+  data_type: 'tinyint'
+  default_value: 0
+  is_nullable: 1
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -87,6 +99,10 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "affiliation",
   { data_type => "varchar", is_nullable => 1, size => 255 },
+  "is_staff",
+  { data_type => "tinyint", default_value => 0, is_nullable => 1 },
+  "is_collaborator",
+  { data_type => "tinyint", default_value => 0, is_nullable => 1 },
 );
 
 =head1 PRIMARY KEY
@@ -139,8 +155,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2018-09-12 15:51:03
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:0l2uhC15unJrCeoYnnnCWQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-09 23:30:45
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:uCDrbvg4TOktvWIP4ZZRgg
 
 use overload '""' => sub {
     my $self = shift;

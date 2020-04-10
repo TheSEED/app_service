@@ -16,6 +16,13 @@ CREATE TABLE ClusterType
 );
 INSERT INTO ClusterType VALUES ('AWE'), ('Slurm');
 
+CREATE TABLE Container
+(
+	id VARCHAR(255) PRIMARY KEY,
+	filename VARCHAR(255),	
+	creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE Cluster
 (
 	id varchar(255) PRIMARY KEY,
@@ -32,7 +39,12 @@ CREATE TABLE Cluster
 	max_allowed_jobs int,
 	submit_queue varchar(255),
 	submit_cluster varchar(255),
-	FOREIGN KEY (type) REFERENCES ClusterType(type)
+	container_repo_url varchar(255),
+	container_cache_dir varchar(255),
+	default_container_id varchar(255),
+	default_data_directory varchar(255),
+	FOREIGN KEY (type) REFERENCES ClusterType(type),
+	FOREIGN KEY (default_container_id) REFERENCES Container(id)
 ) ;
 INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path, 
        remote_host, account, remote_user, remote_keyfile) VALUES 
@@ -113,10 +125,12 @@ CREATE TABLE Task
 	req_is_control_task BOOLEAN,
 	search_terms text,
 	hidden BOOLEAN default FALSE,
+	container_id VARCHAR(255),
 	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
 	FOREIGN KEY (state_code) REFERENCES TaskState(code),
 	FOREIGN KEY (application_id) REFERENCES Application(id),
 	FOREIGN KEY (parent_task) REFERENCES Task(id),
+	FOREIGN KEY (container_id) REFERENCES Container(id),
 	FULLTEXT KEY search_idx(search_terms)
 );
 

@@ -15,8 +15,7 @@ Deletes a job or jobs from the PATRIC application service.
 use strict;
 use Data::Dumper;
 use JSON::XS;
-use Bio::KBase::AppService::Schema;
-use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_user sched_db_pass sched_db_name);
+use Bio::KBase::AppService::SchedulerDB;
 
 use Text::Table;
 use Getopt::Long::Descriptive;
@@ -35,13 +34,39 @@ foreach (@ARGV)
     push(@task_ids, $_);
 }
 
-my $schema = Bio::KBase::AppService::Schema->connect("dbi:mysql:" . sched_db_name . ";host=" . sched_db_host,
-						     sched_db_user, sched_db_pass);
-$schema or die "Cannot connect to database: " . Bio::KBase::AppService::Schema->errstr;
+my $db = Bio::KBase::AppService::SchedulerDB->new();
+
+my $qs = join(", ", map { "?" } @task_ids);
 
 #
-# Enumerate the requested jobs.
+# Mark queued jobs as terminated.
 #
+my $res = $db->dbh->do(qq(UPDATE Task
+			  SET state_code = 'T'
+			  WHERE state_code = 'Q' AND id IN ($qs)), undef, @task_ids);
+print "Changed: $res\n";
+
+#
+# Running tasks
+#
+
+
+my $res = $db->dbh->selectall_arrayref(qq(SELECT t.id, t.state_code, cj.job_id, cj.job_status
+					  FROM Task t LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id
+					  LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+					  WHERE t.state_code IN ('S', 'Q') AND t.id IN ($qs)), undef, @task_ids);
+
+my @to_cancel = map { $_->[2] } @$res;
+print "cancel: @to_cancel\n";
+my $rc = system("scancel", @to_cancel);
+if ($rc != 0)
+{
+    warn "scancel failed with rc=$rc\n";
+}
+
+__END__
+
+
 
 my $tasks = $schema->resultset('Task')->search(
 					   {
