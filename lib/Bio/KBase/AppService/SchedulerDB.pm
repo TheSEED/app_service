@@ -180,6 +180,7 @@ sub create_task
 	req_runtime => $preflight->{runtime},
 	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
+	(defined($task_parameters->{container_id}) ? (container_id => $task_parameters->{container_id}) : ()),
 	};
 
     my $fields = join(", ", keys %$task);

@@ -111,6 +111,14 @@
       "type": "string"
     },
     {
+      "id": "container_id",
+      "label": "(Internal) Container to use for this run",
+      "desc": "(Internal) Container to use for this run",
+      "required": 0,
+      "default": null,
+      "type": "string"
+    },
+    {
       "id": "_parent_job",
       "label": "(Internal) Parent job for this annotation",
       "desc": "(Internal) Parent job for this annotation",
