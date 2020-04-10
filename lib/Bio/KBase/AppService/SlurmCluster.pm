@@ -405,7 +405,10 @@ sub submit_tasks
     }
     else
     {
-	my $container = $cinfo->default_container;
+	#
+	# If we do batching, we will need to fix the selection of container. Assume a single task for now.
+	#
+	my $container = $tasks->[0]->container // $cinfo->default_container;
 	if ($container)
 	{
 	    $vars{container_repo_url} = $cinfo->container_repo_url;
