@@ -245,10 +245,10 @@ sub process_genome
     
     $result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
 
-    my $gto_path = $core->write_output($genome, $result, {}, undef,
-				       $params->{public} ? 1 : 0,
-				       $params->{queue_nowait} ? 1 : 0,
-				       $params->{skip_indexing} ? 1 : 0);
+    my($gto_path, $index_queue_id) = $core->write_output($genome, $result, {}, undef,
+							 $params->{public} ? 1 : 0,
+							 $params->{queue_nowait} ? 1 : 0,
+							 $params->{skip_indexing} ? 1 : 0);
 
     #
     # Write the genome quality data as a standalone JSON file to aid in downstream
@@ -354,6 +354,11 @@ sub process_genome
     &$run_last if $run_last;
 
     $core->ctx->stderr(undef);
+
+    return {
+	gto_path => $gto_path,
+	index_queue_id => $index_queue_id,
+    };
 }
 
 sub open_contigs
