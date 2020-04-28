@@ -209,11 +209,12 @@ sub run_rna_rocket {
     my $labels   = $params->{experimental_conditions};
     my $ref_id   = $params->{reference_genome_id} or die "Reference genome is required for RNA-Rocket\n";
     my $output_name = $params->{output_file} or die "Output name is required for RNA-Rocket\n";
+    my $host_ftp = defined($params->{host_ftp}) ? $params->{host_ftp} : undef;
     my $dsuffix = "_diffexp";
     my $diffexp_name = ".$output_name$dsuffix";
     my $diffexp_folder = "$outdir/.$output_name$dsuffix";
     my $diffexp_file = "$outdir/$output_name$dsuffix";
-    my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir, $host);
+    my $ref_dir  = prepare_ref_data_rocket($ref_id, $tmpdir, $host, $host_ftp);
     
     print "Run rna_rocket ", Dumper($exps, $labels, $tmpdir);
     
@@ -318,6 +319,7 @@ sub run_rockhopper {
     my $exps     = params_to_exps($params);
     my $labels   = $params->{experimental_conditions};
     my $stranded = defined($params->{strand_specific}) && !$params->{strand_specific} ? 0 : 1;
+
     my $ref_id   = $params->{reference_genome_id};
     my $ref_dir  = prepare_ref_data($ref_id, $tmpdir) if $ref_id;
     
@@ -473,19 +475,29 @@ sub merge_rockhoppper_results {
 }
 
 sub prepare_ref_data_rocket {
-    my ($gid, $basedir, $host) = @_;
+    my ($gid, $basedir, $host, $host_ftp) = @_;
     $gid or die "Missing reference genome id\n";
     
     my $dir = "$basedir/$gid";
     system("mkdir -p $dir");
     
     if ($host){
-        my $tar_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.ht2.tar";
-        my $out = curl_file($tar_url,"$dir/$gid.RefSeq.ht2.tar");
-        my $fna_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.fna";
-        $out = curl_file($fna_url,"$dir/$gid.RefSeq.fna");
-        my $gff_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.gff";
-        $out = curl_file($gff_url,"$dir/$gid.RefSeq.gff");
+        if ($host_ftp){
+            my $tar_url = "$host_ftp" . "_genomic.ht2.tar" ;
+            my $out = curl_file($tar_url, basename $tar_url);
+            my $fna_url = "$host_ftp" . "_genomic.fna" ;
+            $out = curl_file($fna_url, basename $fna_url);
+            my $gff_url = "$host_ftp" . "_genomic.gff" ;
+            $out = curl_file($gff_url, basename $gff_url);
+        }
+        else{
+            my $tar_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.ht2.tar";
+            my $out = curl_file($tar_url,"$dir/$gid.RefSeq.ht2.tar");
+            my $fna_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.fna";
+            $out = curl_file($fna_url,"$dir/$gid.RefSeq.fna");
+            my $gff_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.gff";
+            $out = curl_file($gff_url,"$dir/$gid.RefSeq.gff");
+        }
     }
     
     else{
