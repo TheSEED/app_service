@@ -36,6 +36,7 @@ export TEMPDIR=[% kb_tempdir %]
 pid_file=$KB_SERVICE_LOG_DIR/service.pid
 status_file=$KB_SERVICE_LOG_DIR/service.status
 
+export P3_CGA_TASKS_INLINE=1
 
 [% IF kb_starman_workers -%]
 workers="--workers [% kb_starman_workers %]"
