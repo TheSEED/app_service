@@ -120,6 +120,7 @@ my($opt, $usage) =
 		     ["index-nowait", "Do not wait for indexing to complete before the job is marked as complete."],
 		     ["no-index", "Do not index this genome. If this option is selected the genome will not be visible on the PATRIC website."],
 		     ["dry-run", "Dry run. Upload files and validate input but do not submit annotation"],
+		     ["container-id=s", "Container id for non-default container execution", { hidden => 1 }],
 		     [],
 		     ["help|h", "Show this help message"],
 		    );
@@ -268,6 +269,7 @@ my $params = {
     (defined($workflow) ? (workflow => $workflow_txt) : ()),
     ($opt->no_index ? (skip_indexing => 1) : ()),
     ($opt->reference_virus ? (reference_virus_name => $opt->reference_virus) : ()),
+    ($opt->container_id ? (container_id => $opt->container_id) : ()),
 };
 
 if ($input_mode eq 'genbank')

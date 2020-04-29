@@ -360,6 +360,7 @@ sub write_output
     # Assume here that AWE has placed us into a directory into which we can write.
     #
 
+    my $queue_id;
     if (!$no_index)
     {
 	if (write_load_files($ws, $tmp_genome, $genbank_file, $public_flag))
@@ -367,10 +368,10 @@ sub write_output
 	    my $load_folder = "$output_folder/load_files";
 	    
 	    $ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	    $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
+	    $queue_id = $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
 	}
     }
-    return $gto_path;
+    return($gto_path, $queue_id);
 }
 
 
@@ -453,7 +454,7 @@ sub submit_load_files
 
     print "Submitted indexing job $queue_id\n";
 
-    return if $queue_nowait;
+    return $queue_id if $queue_nowait;
 
     my $solr = SolrAPI->new($data_api_url);
 
@@ -481,6 +482,7 @@ sub submit_load_files
 	}
 	sleep 60;
     }
+    return $queue_id;
 }
 
 #
