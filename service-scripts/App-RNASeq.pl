@@ -484,11 +484,14 @@ sub prepare_ref_data_rocket {
     if ($host){
         if ($host_ftp){
             my $tar_url = "$host_ftp" . "_genomic.ht2.tar" ;
-            my $out = curl_file($tar_url, basename $tar_url);
+            my $out_file = basename $tar_url;
+            my $out = curl_file($tar_url, "$dir/$out_file");
             my $fna_url = "$host_ftp" . "_genomic.fna" ;
-            $out = curl_file($fna_url, basename $fna_url);
+            $out_file = basename $fna_url;
+            $out = curl_file($fna_url, "$dir/$out_file");
             my $gff_url = "$host_ftp" . "_genomic.gff" ;
-            $out = curl_file($gff_url, basename $gff_url);
+            $out_file = basename $gff_url;
+            $out = curl_file($gff_url, "$dir/$out_file");
         }
         else{
             my $tar_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.ht2.tar";
