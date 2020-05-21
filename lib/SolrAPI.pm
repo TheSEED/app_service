@@ -421,7 +421,7 @@ sub query_solr
 	if ($code == 502)
 	{
 	    print STDERR "Retrying due to $code $what\n";
-	    sleep 3;
+	    sleep 60;
 	}
 	elsif ($code != 200)
 	{
