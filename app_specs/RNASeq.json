@@ -145,6 +145,14 @@
             "enum": ["RNA-Rocket", "Rockhopper", "Host"]
         },
         {
+            "id": "host_ftp",
+            "label": "Host FTP",
+            "required": 0,
+            "default": null,
+            "desc": "Host FTP prefix for obtaining files",
+            "type": "string"
+        },
+        {
             "id": "output_path",
             "label": "Output Folder",
             "required": 1,
