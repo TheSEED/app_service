@@ -390,16 +390,47 @@ sub query_solr
 
     #print STDERR "$solrQ\n";
 
-    if (!open($fh, "-|", "curl", "-s", "-k", $solrQ))
+    my $hdrs = File::Temp->new;
+    $hdrs->close();
+
+    my $try_until = time + 60*60*3;
+    while (time < $try_until)
     {
-	die "Error $! retrieving $solrQ";
-    }
-    else
-    {
-	local $/;
-	undef $/;
-	$result = <$fh>;
-	close($fh);
+	if (!open($fh, "-|", "curl", "-D", "$hdrs", "-s", "-k", $solrQ))
+	{
+	    die "Error $! retrieving $solrQ";
+	}
+	else
+	{
+	    local $/;
+	    undef $/;
+	    $result = <$fh>;
+	    close($fh);
+	}
+
+	my $hfh;
+	if (!open($hfh, "<", "$hdrs"))
+	{
+	    die "Error $! openings headers $hdrs";
+	}
+	$_ = <$hfh>;
+	chomp;
+	close($hfh);
+
+	my($http, $code, $what) = split(/\s+/);
+	if ($code == 502)
+	{
+	    print STDERR "Retrying due to $code $what\n";
+	    sleep 3;
+	}
+	elsif ($code != 200)
+	{
+	    die "Bad response $code $what to query $solrQ\n";
+	}
+	else
+	{
+	    last;
+	}
     }
 
     my $resultObj = eval { decode_json($result); };
