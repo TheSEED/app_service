@@ -8,8 +8,9 @@ use Cwd qw(abs_path getcwd);
 use Data::Dumper;
 use File::Temp;
 use File::Basename;
-use IPC::Run 'run';
+use File::Slurp;
 use JSON;
+use IPC::Run 'run';
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -52,6 +53,7 @@ sub process_variation_data {
     my $run_dir = getcwd();
 
     my $tmpdir = File::Temp->newdir();
+    # my $tmpdir = "/tmp/tmp";
     # my $tmpdir = File::Temp->newdir( CLEANUP => 0 );
     # my $tmpdir = "/tmp/oIGe_LLBbt";
     # my $tmpdir = "/disks/tmp/var_bam";
@@ -108,9 +110,58 @@ sub process_variation_data {
         print LIBS $lib."\t".basename($_->{read})."\n";
         run_cmd(\@cmd, 1);
     }
+   # SRR is a special case; we will need to pull metadata.
+    # my $total_comp_size = 0;
+    for my $srr (@{$params->{srr_ids}})
+    	{
+	    my $tmp = File::Temp->new();
+	    close($tmp);
+	    # my $file_name = "$srr" . "_metadata.txt";
+	    # my $tmp = "$tmpdir/$file_name";
+	    print STDERR "Downloading $srr\n";
+	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $srr);
+	    if ($rc != 0) 
+	    	{
+	    	print "p3-sra failed: $rc";
+	    	}
+	    else
+		    {
+			my $mtxt = read_file("$tmp");
+			my $meta = eval { JSON::decode_json($mtxt); };
+			$meta or die "Error loading or evaluating json metadata: $mtxt";
+			print Dumper(MD => $meta);
+			my($me) = grep { $_->{accession} eq $srr } @$meta;
+			my $rc = system("p3-sra", "--out", "$tmpdir", "--id", $srr);
+			# print STDERR lc $me->{library_layout} . "\n";
+			if ((lc $me->{library_layout}) eq "paired") {
+				my $lib = "PE". ++$pe_no;
+        		my $outdir = "$tmpdir/$lib";
+        		push @libs, $lib;
+        		my @cmd = @basecmd;
+        		push @cmd, ("-o", $outdir);
+        		push @cmd, ($tmpdir . "/" . $srr . "_1.fastq", $tmpdir . "/" . $srr . "_2.fastq");
+        		print LIBS $lib."\t".join(",", basename($srr . "_1.fastq"), basename($srr . "_2.fastq"))."\n";
+        		run_cmd(\@cmd, 1);
+			} else {
+				my $lib = "SE". ++$se_no;
+        		my $outdir = "$tmpdir/$lib";
+        		push @libs, $lib;
+				my @cmd = @basecmd;
+        		push @cmd, ("-o", $outdir);
+        		push @cmd, $tmpdir . "/" . $srr . ".fastq";
+        		print LIBS $lib."\t".basename($srr . ".fastq")."\n";
+        		run_cmd(\@cmd, 1);
+			}
+			# $total_comp_size += $me->{size};
+		    }
+	    next;
+	    }
+    
     close(LIBS);
-
+		
+	# All done getting alignments and variants.
     for (@libs) {
+    	print STDERR "GBK existence: $has_gbk \n";
         run_snpeff($tmpdir, $ref_id, $_) if $has_gbk;
         run_var_annotate($tmpdir, $ref_id, $_);
         link_snpeff_annotate($tmpdir, $ref_id, $_) if $has_gbk;
@@ -248,8 +299,15 @@ sub run_var_combine {
     my @files = map { -s "$tmpdir/$_/var.annotated.tsv" ? "$tmpdir/$_/var.annotated.tsv" :
                       -s "$tmpdir/$_/var.annotated.raw.tsv" ? "$tmpdir/$_/var.annotated.raw.tsv" :
                       undef } @$libs;
-    if (@files == 0) {
-        print STDERR "No var.annotated.[raw.]tsv files to combine\n";
+    my $bool = 1;
+    for (@files) {
+    	if (defined $_) {
+    		$bool = 0;
+    		last;
+    	}
+    }
+    if (@files == 0 or $bool) {
+        print STDERR "No var.annotated.[raw.]tsv files to combine.  The GBK file could be empty.\n";
         return;
     }
     my $cmd = join(" ", @files);
@@ -352,8 +410,8 @@ sub prepare_ref_data {
     # my $has_gbk = $out ? 1 : 0;
 
     #Generate genbank file
-    sysrun("p3-extract-gto", "$gid", "-o", "$dir/$gid.gto");
-    sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+    sysrun("p3-gto", "$gid", "-o", "$dir/$gid.gto");
+    sysrun("rast_export_genome", "-i", "$dir/$gid.gto/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
 
     my $has_gbk = 0;    
     $has_gbk = 1 if -s "$dir/genes.gbk";
@@ -436,6 +494,10 @@ sub count_params_files {
     if (ref($params->{single_end_libs}))
     {
 	$count += @{$params->{single_end_libs}};
+    }
+    if (ref($params->{srr_ids}))
+    {
+    $count += @{$params->{srr_ids}};
     }
     return $count;
 }
