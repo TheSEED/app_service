@@ -5,7 +5,7 @@ use strict;
 use Data::Dumper;
 use LWP::UserAgent;
 use HTTP::Headers;
-use JSON::XS;
+use JSON::XS qw//;
 use File::Spec;
 use Bio::KBase::AppService::Awe;
 
@@ -15,7 +15,7 @@ our $json = JSON::XS->new->pretty;
 set views => path(dirname(__FILE__), 'templates');
 set layout => 'main';
 
-print Dumper(Monitor => config);
+print STDERR Dumper(Monitor => config);
 
 sub set_impl
 {
@@ -38,7 +38,7 @@ get '/' => sub {
     my $count = 200;
     my $offset = 0;
     my $awe = Bio::KBase::AppService::Awe->new($impl->{awe_server}, session('token'));
-    print Dumper($impl, session('token'));
+    print STDERR Dumper($impl, session('token'));
     my $q = "/job?query&info.pipeline=AppService&limit=$count&offset=$offset&state=suspend&info.name=GenomeAnnotation";
     print STDERR "Query tasks: $q\n";
     my ($res, $error) = $awe->GET($q);
@@ -106,7 +106,7 @@ post '/login' => sub {
 		       %headers);
     if ($res->is_success)
     {
-	my $token = decode_json($res->content);
+	my $token = JSON::XS::decode_json($res->content);
 	session user => $token->{user_name};
 	session token => $token->{access_token};
 	redirect param('path') || '/';

@@ -2,6 +2,9 @@
 export KB_TOP=[% kb_top %]
 export KB_RUNTIME=[% kb_runtime %]
 export PATH=$KB_TOP/bin:$KB_RUNTIME/bin:$KB_TOP/services/[% kb_service_name %]/bin:$KB_TOP/services/cdmi_api/bin:$PATH:$KB_RUNTIME/seedtk/bin
+[% IF slurm_path -%]
+export PATH=$PATH:[% slurm_path %]/bin
+[% END -%]
 export PERL5LIB=$KB_TOP/lib
 export KB_SERVICE_NAME="[% kb_service_name %]"
 [% IF kb_service_log_dir -%]
@@ -31,14 +34,20 @@ export TMPDIR=[% kb_tempdir %]
 export TEMPDIR=[% kb_tempdir %]
 [% END %]
 pid_file=$KB_SERVICE_LOG_DIR/service.pid
+status_file=$KB_SERVICE_LOG_DIR/service.status
 
+export P3_CGA_TASKS_INLINE=1
 
 [% IF kb_starman_workers -%]
 workers="--workers [% kb_starman_workers %]"
+monoceros_workers="--max-workers=[% kb_starman_workers %]"
 [% END -%]
 [% IF kb_starman_max_requests -%]
 max_requests="--max-requests [% kb_starman_max_requests %]"
+monoceros_max_requests="--max-reqs_per_child=[% kb_starman_max_requests %]"
 [% END -%]
+
+twiggy_params="--listen :[% kb_service_port %] --pid $pid_file"
 
 starman_params="--listen :[% kb_service_port %] --pid $pid_file $workers $max_requests"
 
@@ -47,5 +56,58 @@ starman_params="$starman_params --access-log $KB_SERVICE_LOG_DIR/access.log"
 
 starman_params="$starman_params --daemonize"
 
-exec $KB_RUNTIME/bin/perl $KB_RUNTIME/bin/starman $starman_params $KB_TOP/lib/[% kb_psgi %]
+twiggy_params="$twiggy_params --error-log $KB_SERVICE_LOG_DIR/error.log"
+twiggy_params="$twiggy_params --access-log $KB_SERVICE_LOG_DIR/access.log"
 
+#
+# Set up for Monoceros
+#
+
+[% IF 0 %]
+
+plackup -s Monoceros \
+    --listen :[% kb_service_port %] \
+    --max-keepalive-reqs=10000 \
+    $monoceros_max_requests $monoceros_workers \
+    --access-log "$KB_SERVICE_LOG_DIR/access.log" \
+    -a $KB_TOP/lib/[% kb_psgi %]
+
+
+[% ELSE %]
+
+start_server --port [% kb_service_port %] \
+    --daemonize \
+    --log-file $KB_SERVICE_LOG_DIR/error.log \
+    --pid-file $pid_file \
+    --status-file $status_file \
+    -- \
+plackup -s Monoceros \
+    --max-keepalive-reqs=10000 \
+    $monoceros_max_requests $monoceros_workers \
+    --access-log "$KB_SERVICE_LOG_DIR/access.log" \
+    -a $KB_TOP/lib/[% kb_psgi %]
+[% END %]
+
+[% IF 0 %]
+
+twiggy_params="$twiggy_params --daemonize"
+
+mkdir -p $KB_SERVICE_LOG_DIR/output
+logsize=1000000000
+
+($KB_RUNTIME/bin/perl $KB_RUNTIME/bin/twiggy $twiggy_params $KB_TOP/lib/[% kb_async_psgi %] 2>&1 | \
+    multilog t s$logsize n100 $KB_SERVICE_LOG_DIR/output) &
+pid=$!
+
+
+#
+# Find the twiggy in the children of the backgrounded subshell, for use in stopping later.
+# Sleep to let the procesess settle in
+#
+sleep 1
+
+child=`pstree -l -a -p $pid | grep -v start_service | grep -v multilog | cut -d, -f2 | sed 's/ .*$//'`
+
+echo $child > $pid_file
+
+[% END %]

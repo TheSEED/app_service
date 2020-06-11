@@ -1,6 +1,6 @@
 {
 	"id":"Date",
-	"script":"App-Date_bob",
+	"script":"App-Date",
 	"label":"Date",
 	"description":"Returns the current date and time.",
 	"parameters":[

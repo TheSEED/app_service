@@ -15,11 +15,28 @@ use IPC::Run qw(run);
 use Cwd;
 use Clone;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq, \&preflight);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 86400;
+
+    my $pf = {
+	cpu => 1,
+	memory => "128G",
+	runtime => $time,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
 
 sub process_tnseq
 {

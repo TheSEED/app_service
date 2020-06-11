@@ -26,13 +26,13 @@ my $params = decode_json(scalar read_file($params_data));
 if ($params->{output_path} && $opt->output_path)
 {
     print "Change output path from $params->{output_path} to " . $opt->output_path . "\n";
-    $params->{output_path} = opt->output_path;
+    $params->{output_path} = $opt->output_path;
 }
 
 if ($params->{output_file} && $opt->output_file)
 {
     print "Change output file from $params->{output_file} to " . $opt->output_file . "\n";
-    $params->{output_file} = opt->output_file;
+    $params->{output_file} = $opt->output_file;
 }
 
 my $task = $client->start_app($app_id, $params, $workspace);

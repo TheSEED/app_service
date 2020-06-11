@@ -15,8 +15,8 @@ Submit a set of one or more read libraries to the PATRIC genome assembly service
 
            --workspace-path-prefix STR   Prefix for workspace pathnames as given
     	   			   	 to library parameters.
-           --workspace-upload-path STR	 If local pathnames are given as library or
-	   			   	 reference assembly parameters, upload the
+           --workspace-upload-path STR	 If local pathnames are given as library parameters,
+    					 upload the
     					 files to this directory in the workspace.
            --overwrite			 If a file to be uploaded already exists in
     	   				 the workspace, overwrite it on upload. Otherwise
@@ -25,34 +25,30 @@ Submit a set of one or more read libraries to the PATRIC genome assembly service
     	   --interleaved-lib LIB	 An interleaved paired end read library. May be repeated.
            --single-end-lib LIB	 	 A single end read library. May be repeated.
 	   --srr-id STR		 	 Sequence Read Archive Run ID. May be repeated.
-           --reference-assembly STR      Reference set of assembled DNA contigs.
 
     	The following options describe the processing requested:
 
            --recipe                      Assembly recipe. Defaults to auto.
-	   				 Valid values are auto, full_spades, fast, 
-					 miseq, smart, kiki
+	   				 Valid values are auto, unicycler, canu,
+    					 spades, meta-spades, plasmid-spades, single-cell
+     	   --trim-reads			 Trim reads before assembly
+    	   --racon-iter			 Number of racon polishing iterations (for long reads)
+    	   --pilon-iter			 Number of pilon polishing iterations (for short reads)
 	   --min-contig-len		 Filter out short contigs in the final
 					 assembly.
 	   --min-contig-cov		 Filter out contigs with low read depth 
 					 in the final assembly.
+    	   --genome-size		 Estimated genome size (for canu)
 
     The following options describe the read libraries:
 	
            --platform STR		 The sequencing platform for the next read 
     					 library or libraries. Valid values are
-					 infer, illumina, pacbio, nanopore
+					 infer, illumina, pacbio, nanopore, iontorrent
 	   --read-orientation-inward	 The reads in the next read library face 
 					 inward (defaults to true)
 	   --read-orientation-outward	 The reads in the next read library face 
 					 outward (defaults to false)
-    	   --insert-size-mean NUM	 Average insert size
-    	   --insert-size-stdev NUM	 Average insert size standard deviation
-
-	Advanced options:
-
-	   --pipeline STR		 Advanced assembly pipeline arguments that
-					 override recipe
 
 =cut
 
@@ -84,10 +80,11 @@ my $params = {
     min_contig_len => 300,
     min_contig_cov => 5,
     pipeline => undef,
+    pilon_iter => undef,
+    racon_iter => undef,
+    trim_reads => 0,
 };
 
-my $insert_mean;
-my $insert_stddev;
 my @cur_pair = ();
 my $read_orientation_outward = 0;
 my $platform = "infer";
@@ -108,11 +105,11 @@ if (!$token->token())
 my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
 my $app_service = Bio::KBase::AppService::Client->new();
 
-GetOptions("insert-size-mean=i" => \$insert_mean,
-	   "insert-size-stdev=i" => \$insert_stddev,
+GetOptions("pilon-iter=i" => \ $params->{pilon_iter},
+	   "racon-iter=i" => \ $params->{racon_iter},
+	   "trim-reads" => \ $params->{trim_reads},
 	   "read-orientation-outward" => \$read_orientation_outward,
 	   "read-orientation-inward" => sub { $read_orientation_outward = 0 },
-	   "platform=s" => \$platform,
 	   "recipe=s" => \$params->{recipe},
 	   "pipeline=s" => \ $params->{pipeline},
 	   "min-contig-len=i" => \ $params->{min_contig_len},
@@ -140,8 +137,6 @@ GetOptions("insert-size-mean=i" => \$insert_mean,
 		       platform => $platform,
 		       interleaved => 0,
 		       read_orientation_outward => $read_orientation_outward,
-		       insert_size_mean => $insert_mean,
-		       insert_size_stdev => $insert_stddev,
 		   };
 		   push(@{$params->{paired_end_libs}}, $lib);
 		   @cur_pair = ();
@@ -155,8 +150,6 @@ GetOptions("insert-size-mean=i" => \$insert_mean,
 		   platform => $platform,
 		   interleaved => 1,
 		   read_orientation_outward => $read_orientation_outward,
-		   insert_size_mean => $insert_mean,
-		   insert_size_stdev => $insert_stddev,
 	       };
 	       push(@{$params->{paired_end_libs}}, $lib);
 	   },
@@ -171,10 +164,6 @@ GetOptions("insert-size-mean=i" => \$insert_mean,
 	   "srr-id=s" => sub {
 	       my($opt_name, $opt_value) = @_;
 	       push(@{$params->{srr_ids}}, $opt_value);
-	   },
-	   "reference-assembly=s" => sub {
-	       my($opt_name, $opt_value) = @_;
-	       $params->{reference_assembly} = process_filename($opt_value);
 	   },
 	   "overwrite" => \$overwrite,
 	   "dry-run" => \$dry_run,
@@ -313,7 +302,7 @@ if ($dry_run)
 }
 else
 {
-    my $app = "GenomeAssembly";
+    my $app = "GenomeAssembly2";
     my $task = eval { $app_service->start_app($app, $params, '') };
     if ($@)
     {

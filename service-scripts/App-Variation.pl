@@ -10,7 +10,9 @@ use File::Temp;
 use File::Basename;
 use File::Slurp;
 use JSON;
+use P3DataAPI;
 use IPC::Run 'run';
+
 
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
@@ -18,12 +20,30 @@ use Bio::KBase::AppService::AppScript;
 my $script_dir = abs_path(dirname(__FILE__));
 my $data_url = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_url = "https://www.patricbrc.org/api";
-my $script = Bio::KBase::AppService::AppScript->new(\&process_variation_data);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_variation_data, \&preflight);
 my $rc = $script->run(\@ARGV);
 exit $rc;
 
 our $global_ws;
 our $global_token;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 86400 * 2;
+
+    my $pf = {
+	cpu => 4,
+	memory => "128G",
+	runtime => $time,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
+
 
 sub process_variation_data {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -78,11 +98,12 @@ sub process_variation_data {
 
     my $map = "$script_dir/var-map.pl"; verify_cmd($map);
 
+    my $threads = $ENV{P3_ALLOCATED_CPU} // 2;
+
     my @basecmd = ($map);
     push @basecmd, ("-a", $mapper);
     push @basecmd, ("--vc", $caller);
-    push @basecmd, ("--threads", 2);
-    # push @basecmd, ("--threads", 16);
+    push @basecmd, ("--threads", $threads);
     push @basecmd, "$tmpdir/$ref_id/$ref_id.fna";
 
     my $lib_txt = "$tmpdir/libs.txt";
@@ -410,8 +431,18 @@ sub prepare_ref_data {
     # my $has_gbk = $out ? 1 : 0;
 
     #Generate genbank file
-    sysrun("p3-gto", "$gid", "-o", "$dir/$gid.gto");
-    sysrun("rast_export_genome", "-i", "$dir/$gid.gto/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+    {
+	  my $api = P3DataAPI->new();
+	  my $gto = $api->gto_of($gid);
+	  $gto or die "Could not retreive GTO for $gid\n";
+	  $gto->destroy_to_file("$dir/$gid.gto");
+	  -f "$dir/$gid.gto" or die "Could not create $dir/$gid.gto from gto\n";
+    }
+    sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+
+    # sysrun("p3-gto", "$gid", "-o", "$dir/$gid.gto");
+    # sysrun("rast_export_genome", "-i", "$dir/$gid.gto/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+
 
     my $has_gbk = 0;    
     $has_gbk = 1 if -s "$dir/genes.gbk";

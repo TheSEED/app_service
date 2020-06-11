@@ -1,5 +1,5 @@
 #
-# The Genome Annotation application.
+# The RunProbModelSEEDJob application.
 #
 
 use Bio::KBase::AppService::AppScript;
@@ -14,7 +14,7 @@ eval {
     $get_time = sub { Time::HiRes::gettimeofday };
 };
 
-my $script = Bio::KBase::AppService::AppScript->new(\&run_probmodelseed_job);
+my $script = Bio::KBase::AppService::AppScript->new(\&run_probmodelseed_job, \&preflight);
 Bio::KBase::ObjectAPI::config::load_config({
 	filename => $ENV{KB_DEPLOYMENT_CONFIG},
 	service => "ProbModelSEED"
@@ -32,6 +32,20 @@ $script->{donot_create_job_result} = 1;
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "32G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
 
 sub run_probmodelseed_job
 {

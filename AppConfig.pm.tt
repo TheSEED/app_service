@@ -15,15 +15,40 @@ use constant	    mash_reference_sketch => '[% mash_reference_sketch %]';
 use constant	    binning_spades_threads => '[% binning_spades_threads %]';
 use constant	    binning_spades_ram => '[% binning_spades_ram %]';
 
+use constant	    kma_db => '[% kma_db %]';
+use constant	    metagenome_dbs => '[% metagenome_dbs %]';
+
+use constant	    sched_db_host => '[% sched_db_host %]';
+use constant	    sched_db_port => '[% sched_db_port %]';
+use constant	    sched_db_user => '[% sched_db_user %]';
+use constant	    sched_db_pass => '[% sched_db_pass %]';
+use constant	    sched_db_name => '[% sched_db_name %]';
+
+use constant	    redis_host => '[% redis_host %]';
+use constant	    redis_port => '[% redis_port %]';
+use constant	    redis_db => '[% redis_db %]';
+
+use constant	    slurm_control_task_partition => '[% slurm_control_task_partition %]';
+
 use constant	    bebop_binning_user => '[% bebop_binning_user %]';
 use constant	    bebop_binning_key => '[% bebop_binning_key %]';
 
+use constant	    app_directory => '[% app_directory %]';
+use constant	    app_service_url => '[% app_service_url %]';
+
 use base 'Exporter';
 our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name github_issue_token
-		    db_host db_user db_pass db_name seedtk reference_data_dir
+		    db_host db_user db_pass db_name 
+		    seedtk reference_data_dir
 		    bebop_binning_user bebop_binning_key
+		    sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name
+		    slurm_control_task_partition
 		    binning_spades_threads binning_spades_ram
-		    binning_genome_annotation_clientgroup mash_reference_sketch);
+		    binning_genome_annotation_clientgroup mash_reference_sketch
+		    app_directory app_service_url
+		    redis_host redis_port redis_db
+		    kma_db metagenome_dbs
+		    );
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 1;
 

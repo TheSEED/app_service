@@ -11,6 +11,7 @@ use P3DataAPI;
 use gjoseqlib;
 use strict;
 use Data::Dumper;
+use POSIX;
 use Cwd;
 use base 'Class::Accessor';
 use JSON::XS;
@@ -54,6 +55,27 @@ sub new
     }
 
     return bless $self, $class;
+}
+
+#
+# Preflight. The CGA app itself has fairly requirements; it spends most of its
+# time waiting on other applications.
+#
+# We don't mark as a control task, however, because it does have some signficant
+# cpu use.
+#
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "64G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
 }
 
 sub process
@@ -169,52 +191,60 @@ sub process
 
     my $app_service = Bio::KBase::AppService::ClientExt->new();
 
-    my @tasks;
-    if ($ENV{BINNING_TEST})
+    my @good_results;
+
+    my $annotations_inline = $ENV{P3_BINNING_ANNOTATIONS_INLINE};
+    if ($annotations_inline)
     {
-	@tasks = qw(0da446f2-8274-45f1-856b-2b06c0d4154e
-		    5ea8d032-1119-4713-836d-088e13848e2f
-		    15f43bdf-e1dc-45a8-8a1c-0b4561324d68);
+	@good_results = $self->compute_annotations();
     }
     else
     {
-	@tasks = $self->submit_annotations($app_service);
-    } 
-    print STDERR "Awaiting completion of $n_bins annotations\n";
-    my $results = $app_service->await_task_completion(\@tasks, 10, 0);
-    print STDERR "Tasks completed\n";
-
-    #
-    # Examine task output to ensure all succeeded
-    #
-    my $fail = 0;
-    my @good_results;
-    for my $res (@$results)
-    {
-	if ($res->{status} eq 'completed')
+	my @tasks;
+	if ($ENV{BINNING_TEST})
 	{
-	    push(@good_results, $res);
+	    @tasks = qw(0da446f2-8274-45f1-856b-2b06c0d4154e
+			5ea8d032-1119-4713-836d-088e13848e2f
+			15f43bdf-e1dc-45a8-8a1c-0b4561324d68);
 	}
 	else
 	{
-	    warn "Task $res->{id} resulted with unsuccessful status $res->{status}\n" . Dumper($res);
-	    $fail++;
-	}
-    }
-
-    if ($fail > 0)
-    {
-	if ($fail == @$results)
+	    @tasks = $self->submit_annotations($app_service);
+	} 
+	print STDERR "Awaiting completion of $n_bins annotations\n";
+	my $results = $app_service->await_task_completion(\@tasks, 10, 0);
+	print STDERR "Tasks completed\n";
+	
+	#
+	# Examine task output to ensure all succeeded
+	#
+	my $fail = 0;
+	for my $res (@$results)
 	{
-	    die "Annotation failed on all $fail bins\n";
+	    if ($res->{status} eq 'completed')
+	    {
+		push(@good_results, $res);
+	    }
+	    else
+	    {
+		warn "Task $res->{id} resulted with unsuccessful status $res->{status}\n" . Dumper($res);
+		$fail++;
+	    }
 	}
-	else
+	
+	if ($fail > 0)
 	{
-	    my $n = @$results;
-	    warn "Annotation failed on $fail of $n bins, continuing\n";
+	    if ($fail == @$results)
+	    {
+		die "Annotation failed on all $fail bins\n";
+	    }
+	    else
+	    {
+		my $n = @$results;
+		warn "Annotation failed on $fail of $n bins, continuing\n";
+	    }
 	}
-    }
-    
+    }	
     #
     # Annotations are complete. Pull data and write the summary report.
     #
@@ -349,7 +379,7 @@ sub compute_coverage
 {
     my($self) = @_;
 
-    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
+#    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_coverage",
 	       "--statistics-file", "coverage.stats.txt",
@@ -366,7 +396,7 @@ sub compute_bins
 {
     my($self) = @_;
 
-    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
+#    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
     my @cmd = ("bins_generate",
 	       "--statistics-file", "bins.stats.txt",
@@ -431,7 +461,10 @@ sub extract_fasta
 	my $taxon_id = $bin->{taxonID};
 	print "$bin->{name} $taxon_id\n";
 	my %want;
-	$want{$_} = 1 foreach @{$bin->{contigs}};
+	for my $c (@{$bin->{contigs}})
+	{
+	    $want{$c->[0]} = 1;
+	}
 
 	my $bin_base_name = "bin.$idx.$taxon_id";
 	my $bin_name = "$bin_base_name.fa";
@@ -496,7 +529,7 @@ sub extract_fasta
 
     close(SAMPLE);
     close(BINS);
-    print Dumper($self->app_params);
+    print STDERR Dumper($self->app_params);
 
     #
     # Return the bins so that we can cleanly terminate the job if no bins
@@ -520,6 +553,57 @@ sub write_db_record
 	     $json->encode($self->app_def), $json->encode($self->params));
     $dbh->commit();
 }
+
+#
+# Compute annotations inline by invoking the annotation script.
+# Mostly used for testing, but may be useful for standalone implementation.
+#
+# Returns a list of Task hashes.
+#
+sub compute_annotations
+{
+    my($self) = @_;
+
+    #
+    # Need to find our app specs. Different locations if we are in production or development.
+    #
+
+    my $app_spec = $self->find_app_spec("GenomeAnnotation");
+
+    my @good_results;
+
+    my $sub_time = time;
+    my $n = 1;
+    for my $task (@{$self->app_params})
+    {
+	my $tmp = File::Temp->new;
+	print $tmp encode_json($task);
+	close($tmp);
+	my @cmd = ("App-GenomeAnnotation", "xx", $app_spec, "$tmp");
+	# my @cmd = ("bash", "-c", "source /vol/patric3/production/P3Slurm2/tst_deployment/user-env.sh; App-GenomeAnnotation xx $app_spec $tmp");
+	print STDERR "Run annotation: @cmd\n";
+	my $start = time;
+	my $rc = system(@cmd);
+	my $end = time;
+	if ($rc != 0)
+	{
+	    warn "Annotation failed with rc=$rc\n";
+	    next;
+	}
+	push(@good_results, {
+	    id => $n++,
+	    app => "App-GenomeAnnotation",
+	    parameters => $task,
+	    user_id => 'immediate-user',
+	    submit_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $sub_time),
+	    start_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
+	    completed_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $end),
+	});
+    }
+print Dumper(GOOD => \@good_results);
+    return @good_results;
+}
+    
 
 sub submit_annotations
 {
@@ -668,7 +752,7 @@ sub write_summary_report
 		permission => "w",
 		overwrite => 1,
 	    });
-	    print Dumper(group_create => $res);
+	    print STDERR Dumper(group_create => $res);
 	}
 	else
 	{
@@ -718,5 +802,32 @@ sub write_summary_report
     }
 
 }
+
+sub find_app_spec
+{
+    my($self, $app) = @_;
+    
+    my $top = $ENV{KB_TOP};
+    my $specs_deploy = "$top/services/app_service/app_specs";
+    my $specs_dev = "$top/modules/app_service/app_specs";
+    my $specs;
+    
+    if (-d $specs_deploy)
+    {
+	$specs = $specs_deploy
+    }
+    elsif (-d $specs_dev)
+    {
+	$specs = $specs_dev
+    }
+    else
+    {
+	die "cannot find specs file in $specs_deploy or $specs_dev\n";
+    }
+    my $app_spec = "$specs/$app.json";
+    -f $app_spec or die "Spec file $app_spec does not exist\n";
+    return $app_spec;
+}
+
 
 1;

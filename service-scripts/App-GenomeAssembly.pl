@@ -16,10 +16,10 @@ my $ar_run = "ar-run";
 my $ar_get = "ar-get";
 my $ar_filter = "ar-filter";
 my $ar_stat = "ar-stat";
-# my $fastq_dump = "fastq-dump";
-my $fastq_dump = "/home/fangfang/programs/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump";
+my $fastq_dump = "fastq-dump";
+# my $fastq_dump = "/home/fangfang/programs/sratoolkit.2.8.2-1-ubuntu64/bin/fastq-dump";
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_reads);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_reads, \&preflight_cb);
 
 my @large_files;
 
@@ -29,6 +29,27 @@ exit $rc;
 
 our $global_ws;
 our $global_token;
+
+#
+# Preflight. The assembly app itself has low requirements; it spends most of its
+# time waiting on other applications.
+# Mark it a control task in the preflight.
+#
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "10G",
+	runtime => 0,
+	storage => 0,
+	is_control_task => 1,
+    };
+    return $pf;
+}
+
+
 
 sub process_reads {
     my($app, $app_def, $raw_params, $params) = @_;
@@ -57,7 +78,7 @@ sub process_reads {
 
     my @ai_params = parse_input($tmpdir, $params);
 
-    if (@large_files)
+    if (1 || @large_files)
     {
 	print STDERR "Enabling curl due to large files:\n";
 	print "\t$_->[0] $_->[1]\n" foreach @large_files;
@@ -96,6 +117,17 @@ sub process_reads {
     # Poll job status once per minute. Every 10 minutes or when the job status changes,
     # emit the status.
     #
+
+    #
+    # Set a signal handler; if we are killed, kill the queued job.
+    #
+    $SIG{TERM} = $SIG{INT} = $SIG{HUP} = sub {
+	my($sig) = @_;
+	print STDERR "Received signal $sig, killing ARAST job $arast_job\n";
+	my $rc = system("ar-kill", "-j", $arast_job);
+	print STDERR "Kill returned $rc\n";
+	exit 1;
+    };
 
     my $start = time;
     my $last_report;

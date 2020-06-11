@@ -24,11 +24,44 @@ use IO::File;
 use Module::Metadata;
 use GenomeTypeObject;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_genome, \&preflight);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    #
+    # Ensure the contigs are valid, and look up their size.
+    #
+
+    my $ctg = $params->{contigs};
+    $ctg or die "Contigs must be specified\n";
+
+    my $res = $app->workspace->stat($ctg);
+    $res->size > 0 or die "Contigs not found\n";
+
+    #
+    # Size estimate based on conservative 500 bytes/second aggregate
+    # compute rate for contig size, with a minimum allocated
+    # time of 60 minutes (to account for non-annotation portions).
+    #
+    my $time = $res->size / 500;
+    $time = 3600 if $time < 3600;
+
+    #
+    # Request 8 cpus for some of the fatter bits of the compute.
+    #
+    return {
+	cpu => 8,
+	memory => "8G",
+	runtime => int($time),
+	storage => 10 * $res->size,
+    };
+}
 
 sub process_genome
 {
@@ -119,7 +152,7 @@ sub process_genome
     my $n = 0;
     my @ids;
     my $too_long = 0;
-    my $max_id_len = 70;
+    my $max_id_len = 60;
     parse_fasta($contig_data_fh, undef, sub {
 	my($id, $seq) = @_;
 	push(@ids, $id);
@@ -196,50 +229,37 @@ sub process_genome
     # Run pipeline and scikit analysis inside eval to trap errors so we can
     # kill the checkm if need be.
     #
-    eval {
-
-	my $override;
-	if (my $ref = $params->{reference_genome_id})
-	{
-	    $override = {
-		evaluate_genome => {
-		    evaluate_genome_parameters => { reference_genome_id => $ref },
-		}
-	    };
-	}
-	
-	$result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
-
-	#
-	# Use the GenomeTypeObject code to compute overall genome metrics.
-	#
-
-	my $metrics = GenomeTypeObject::metrics($result);
-	%{$result->{quality}->{genome_metrics}} = %$metrics;
-    };
-    if ($@)
+    my $override;
+    if (my $ref = $params->{reference_genome_id})
     {
-	my $err = $@;
-	die $err;
+	$override->{evaluate_genome} =  {
+	    evaluate_genome_parameters => { reference_genome_id => $ref },
+	};
     }
-
+    if (my $ref = $params->{reference_virus_name})
     {
-	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
-	$result = $core->impl->compute_genome_quality_control($result);
+	$override->{call_features_vigor4} =  {
+	    vigor4_parameters => { reference_name => $ref },
+	};
     }
+    
+    $result = $core->run_pipeline($genome, $params->{workflow}, $params->{recipe}, $override);
 
-    my $gto_path = $core->write_output($genome, $result, {}, undef,
-				       $params->{public} ? 1 : 0,
-				       $params->{queue_nowait} ? 1 : 0,
-				       $params->{skip_indexing} ? 1 : 0);
+    my($gto_path, $index_queue_id) = $core->write_output($genome, $result, {}, undef,
+							 $params->{public} ? 1 : 0,
+							 $params->{queue_nowait} ? 1 : 0,
+							 $params->{skip_indexing} ? 1 : 0);
 
     #
     # Write the genome quality data as a standalone JSON file to aid in downstream
     # quality summarization.
     #
 
-    $ws->save_data_to_file($json->encode($result->{quality}),
-		           {}, "$output_folder/quality.json", "json", 1, 0, $core->token);
+    if (ref($result->{quality}))
+    {
+	$ws->save_data_to_file($json->encode($result->{quality}),
+		           {}, "$output_folder/quality.json", "json", 1, 1, $core->token);
+    }
 
     #
     # Determine if we are one of a peer group of jobs that was started
@@ -334,6 +354,11 @@ sub process_genome
     &$run_last if $run_last;
 
     $core->ctx->stderr(undef);
+
+    return {
+	gto_path => $gto_path,
+	index_queue_id => $index_queue_id,
+    };
 }
 
 sub open_contigs

@@ -12,5 +12,9 @@
 		"desc": "Time to sleep, in seconds.",
 		"type": "int"
 	    }
-	]
+	],
+	"default_ram": "1M",
+	"default_memory": 1,
+	"default_runtime": 60
+
 }

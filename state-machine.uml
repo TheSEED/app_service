@@ -1,0 +1,23 @@
+@startuml
+[*] --> Queued
+Queued --> SubmittedToCluster : submit to cluster
+state SubmittedToCluster {
+    [*] --> SC_Pending
+    SC_Pending --> SC_Running
+    SC_Running --> SC_Suspended
+    SC_Suspended --> SC_Running
+    SC_Running --> SC_Completed
+    SC_Running --> SC_Failed
+    SC_Completed --> [*]
+    SC_Failed --> [*]
+}
+SubmittedToCluster --> Completed
+SubmittedToCluster --> Failed
+Completed --> [*]
+Failed --> [*]
+Deleted --> [*]
+Queued --> Deleted
+SubmittedToCluster --> Deleted
+Completed --> Deleted
+Failed --> Deleted
+@enduml

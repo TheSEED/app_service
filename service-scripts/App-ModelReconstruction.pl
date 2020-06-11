@@ -1,5 +1,5 @@
 #
-# The Genome Annotation application.
+# The Model Reconstruction application.
 #
 
 use Bio::KBase::AppService::AppScript;
@@ -19,9 +19,36 @@ eval {
     $get_time = sub { Time::HiRes::gettimeofday };
 };
 
-my $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model);
-my $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
-my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
+our $script = Bio::KBase::AppService::AppScript->new(\&reconstruct_model, \&preflight);
+our $config = Bio::KBase::ObjectAPI::utilities::load_config({service => "ProbModelSEED"});
+
+$script->{workspace_url} = $config->{"workspace-url"};
+$script->{donot_create_result_folder} = 1;
+$script->{donot_create_job_result} = 1;
+
+my $rc = $script->run(\@ARGV);
+
+exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $pf = {
+	cpu => 1,
+	memory => "32G",
+	runtime => 30*60-1,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
+sub reconstruct_model
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
 	token => $script->token()->token(),
 	username => $script->token()->user_id(),
 	fbajobcache => $config->{fbajobcache},
@@ -33,17 +60,8 @@ my $helper = Bio::ModelSEED::ProbModelSEED::ProbModelSEEDHelper->new({
 	"shock-url" => $config->{"shock_url"},
 	method => "ModelReconstruction",
 });
-$script->{workspace_url} = $config->{"workspace-url"};
-$script->{donot_create_result_folder} = 1;
-$script->{donot_create_job_result} = 1;
 
-my $rc = $script->run(\@ARGV);
-
-exit $rc;
-
-sub reconstruct_model
-{
-    my($app, $app_def, $raw_params, $params) = @_;
+print Dumper($helper);
     print "Reconstructing model ", Dumper($app_def, $raw_params, $params);
 	$helper->ModelReconstruction($params);
 }

@@ -3,6 +3,7 @@
     "script": "App-GenomeAlignment",
     "label": "Multiple Whole Genome Alignment",
     "description": "Uses Mauve to perform multiple whole genome alignment with rearrangements.",
+  "default_memory": "100G",
     "parameters": [
         {
     	    "id": "genome_ids",

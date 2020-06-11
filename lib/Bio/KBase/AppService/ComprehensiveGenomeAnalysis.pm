@@ -5,13 +5,15 @@
 
 package Bio::KBase::AppService::ComprehensiveGenomeAnalysis;
 
-use Carp::Always;
+# use Carp::Always;
 
 use Bio::KBase::AppService::AssemblyParams;
 use Bio::KBase::AppService::Client;
 
+use File::Slurp;
 use P3DataAPI;
 use gjoseqlib;
+use POSIX;
 use strict;
 use File::Basename;
 use Data::Dumper;
@@ -31,6 +33,10 @@ __PACKAGE__->mk_accessors(qw(app app_def params token
 			     assembly_statistics annotation_statistics
 			    ));
 
+our $assembly_app = "GenomeAssembly2";
+our $annotation_app = "GenomeAnnotation";
+our $inline = $ENV{P3_CGA_TASKS_INLINE} ? 1 : 0;
+
 sub new
 {
     my($class) = @_;
@@ -41,6 +47,74 @@ sub new
 	annotation_statistics => {},
     };
     return bless $self, $class;
+}
+
+#
+# Preflight. The CGA app itself has low requirements; it spends most of its
+# time waiting on other applications.
+# Mark it a control task in the preflight.
+#
+# Revise that - tree build is expensive. We may want to move this to
+# run the underlying apps inline by default.
+#
+sub preflight
+{
+    my($self, $app, $app_def, $raw_params, $params) = @_;
+
+    my $pf_txt;
+    my $pf;
+    if ($inline)
+    {
+	#
+	# Invoke either the assembly preflight or the annotation preflight,
+	# depending on what we need to do.
+	#
+
+	my $param_tmp = File::Temp->new();
+	print $param_tmp encode_json($raw_params);
+	close($param_tmp);
+	my $tmp = File::Temp->new();
+	close($tmp);
+	if ($params->{input_type} eq 'reads')
+	{
+	    my $spec = &find_app_spec(undef, $assembly_app);
+	    my @cmd = ("App-$assembly_app", "--preflight", "$tmp", "xx", $spec, "$param_tmp");
+	    my $rc = system(@cmd);
+	    if ($rc != 0)
+	    {
+		die "Nested preflight @cmd failed with $rc\n";
+	    }
+	}
+	elsif ($params->{input_type} eq 'contigs')
+	{
+	    my $spec = &find_app_spec(undef, $annotation_app);
+	    my @cmd = ("App-$annotation_app", "--preflight", "$tmp", "xx", $spec, "$param_tmp");
+	    my $rc = system(@cmd);
+	    if ($rc != 0)
+	    {
+		die "Nested preflight @cmd failed with $rc\n";
+	    }
+	}
+
+	$pf_txt = read_file("$tmp");
+    }
+	
+    if ($pf_txt)
+    {
+	$pf = decode_json($pf_txt);
+    }
+    else
+    {
+	$pf = {
+	    cpu => 4,
+	    memory => "10G",
+	    runtime => 0,
+	    storage => 0,
+	    is_control_task => 0,
+	};
+    }
+    $pf->{runtime} += 3600 * 4;
+    return $pf;
 }
 
 sub run
@@ -111,62 +185,83 @@ sub process_reads
     my $client = Bio::KBase::AppService::Client->new();
     my $task;
 
-    if ($ENV{CGA_DEBUG})
+    my $qtask;
+    if ($inline)
     {
-	$task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+	my $app_spec = $self->find_app_spec($assembly_app);
+	my $tmp = File::Temp->new();
+	print $tmp encode_json($assembly_input);
+	close($tmp);
+
+	my @cmd = ("App-$assembly_app", "xx", $app_spec, $tmp);
+	
+	print STDERR "inline assemble: @cmd\n";
+
+	my $start = time;
+	my $rc = system(@cmd);
+	#my $rc = 0;
+	my $end = time;
+	if ($rc != 0)
+	{
+	    die "Inline assembly failed with rc=$rc\n";
+	}
+
+	$qtask = {
+	    id => "assembly_$$",
+	    app => $assembly_app,
+	    parameters => $assembly_input,
+	    user_id => $self->app->token()->user_id(),
+	    submit_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
+	    start_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
+	    completed_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $end),
+	};
     }
     else
     {
-	$task = $client->start_app("GenomeAssembly", $assembly_input, $self->output_folder);
-    }
-
-    print "Created task " . Dumper($task);
-
-    my $task_id = $task->{id};
-    my $qtask = $self->await_task_completion($client, $task_id);
-
-    if (!$qtask || $qtask->{status} ne 'completed')
-    {
-	die "ComprehensiveGenomeAnalysis: process_reads failed\n";
+	if ($ENV{CGA_DEBUG})
+	{
+	    $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+	}
+	else
+	{
+	    $task = $client->start_app("GenomeAssembly2", $assembly_input, $self->output_folder);
+	}
+	
+	print "Created task " . Dumper($task);
+	
+	my $task_id = $task->{id};
+	$qtask = $self->await_task_completion($client, $task_id);
+	
+	if (!$qtask || $qtask->{status} ne 'completed')
+	{
+	    die "ComprehensiveGenomeAnalysis: process_reads failed\n";
+	}
     }
 
     #
     # We have completed. Find the workspace path for the generated contigs and
     # store in our object.
     #
-    # Open the job result file to find our assembly job id; from that we can
-    # reliably find the analysis data.
-    #
-
-    my $result_path = join("/", $self->output_folder, "assembly");
-    my $asm_result = $self->app->workspace->download_json($result_path, $self->token);
-
-    my $arast_id = $asm_result->{job_output}->{arast_job_id};
-
-    #
-    # Report is named by the arast id.
-    # Download the report zip so we can read the quast report and determine
-    # the runs that completed and which was chosen.
-    #
 
     my @assemblies;
+    my $run_details;
     eval {
-	my $analysis_base = "${arast_id}_analysis";
-	my $analysis_zip = "${analysis_base}.zip";
-	my $analysis_path = join("/",$self->output_folder, ".assembly", $analysis_zip);
-	$self->app->workspace->download_file($analysis_path, $analysis_zip, 1, $self->token);
-	if (! -s $analysis_zip)
-	{
-	    die "Failed to download $analysis_path to $analysis_zip\n";
-	}
-    
-	my $zip = Archive::Zip->new();
-	system("ls", "-l", $analysis_zip);
-	$zip->read($analysis_zip) == AZ_OK or die "Cannot read $analysis_zip: $!";
-	my $fh = Archive::Zip::MemberRead->new($zip, "$analysis_base/transposed_report.tsv");
-	my $hdrs = $fh->getline();
-	print STDERR "Report headers from $analysis_path: $hdrs";
-	while (my $l = $fh->getline())
+
+	my $result_path = join("/", $self->output_folder, ".assembly");
+	$run_details = $self->app->workspace->download_json("$result_path/details/assembly_run_details.json");
+	
+	#
+	# Quast report path is named in the details.
+	#
+	my $tsv_path = $run_details->{quast_transposed_tsv};
+	my $tsv_txt = $self->app->workspace->download_file_to_string("$result_path/$tsv_path", $self->token);
+
+	print STDERR Dumper(T=>$tsv_txt);
+	my $fh;
+	open($fh, "<", \$tsv_txt) or die "Cannot open quast txt\n";
+	my $hdrs = <$fh>;
+	print STDERR "Report headers from $tsv_path: $hdrs";
+	while (my $l = <$fh>)
 	{
 	    chomp $l;
 	    print "Line: $l\n";
@@ -175,6 +270,7 @@ sub process_reads
 	    push(@assemblies, $assembly);
 	}
     };
+
     if ($@)
     {
 	die "Retrieval and analysis of assembly report failed:\n$@\n";
@@ -196,22 +292,22 @@ sub process_reads
 	    elapsed_time => $elap,
 	    app_name => $qtask->{app},
 	    attributes => {
-		arast_job_id => $arast_id,
-		chosen_assembly => $chosen_assembly,
-		other_assemblies => $other_assemblies,
+		chosen_assembly => $qtask->{parameters}->{recipe},
 	    },
 	    parameters => $qtask->{parameters},
+	    run_details => $run_details,
 	});
     }
 
     #
     # Determine our contigs location.
-    my $contigs_path = join("/", $self->output_folder, ".assembly", "contigs.fa");
-    my $stats = $self->app->workspace->get({ objects => [$contigs_path] , metadata_only => 1});
+    my $contigs_path = join("/", $self->output_folder, ".assembly", "assembly_contigs.fasta");
 
-    if (@$stats == 0)
+    my $stats = eval { $self->app->workspace->get({ objects => [$contigs_path] , metadata_only => 1}) };
+
+    if (!$stats || @$stats == 0)
     {
-	die "Could not find generated contigs in $contigs_path\n";
+	die "Could not find generated contigs in $contigs_path ($@)\n";
     }
     $stats = $stats->[0]->[0];
 
@@ -229,7 +325,7 @@ sub process_contigs
     #
 
     my $params = $self->params;
-    my @keys = qw(contigs scientific_name taxonomy_id code domain workflow analyze_quality);
+    my @keys = qw(contigs scientific_name taxonomy_id code domain workflow analyze_quality skip_indexing);
 
     my $annotation_input = { map { exists $params->{$_} ? ($_, $params->{$_}) : () } @keys };
 
@@ -251,26 +347,61 @@ sub process_contigs
 
     print "Annotate with " . Dumper($annotation_input);
 
-    my $client = Bio::KBase::AppService::Client->new();
-
-    my $task;
-    if ($ENV{CGA_DEBUG})
+    my $qtask;
+    if ($inline)
     {
-	$task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+	my $app_spec = $self->find_app_spec($annotation_app);
+	my $tmp = File::Temp->new();
+	print $tmp encode_json($annotation_input);
+	close($tmp);
+
+	my @cmd = ("App-$annotation_app", "xx", $app_spec, $tmp);
+	
+	print STDERR "inline annotate: @cmd\n";
+
+	my $start = time;
+	my $rc = system(@cmd);
+	# my $rc = system("bash", "-c", "source /vol/patric3/production/P3Slurm2/tst_deployment/user-env.sh; @cmd");
+	#my $rc = 0;
+	my $end = time;
+	if ($rc != 0)
+	{
+	    die "Inline annotation failed with rc=$rc\n";
+	}
+
+	$qtask = {
+	    id => "annotation_$$",
+	    app => $annotation_app,
+	    parameters => $annotation_input,
+	    user_id => $self->app->token()->user_id(),
+	    submit_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
+	    start_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $start),
+	    completed_time => strftime("%Y-%m-%dT%H:%M:%SZ", gmtime $end),
+	};
     }
     else
     {
-	$task = $client->start_app("GenomeAnnotation", $annotation_input, $self->output_folder);
-    }
-    
-    print "Created task " . Dumper($task);
-
-    my $task_id = $task->{id};
-    my $qtask = $self->await_task_completion($client, $task_id);
-
-    if (!$qtask || $qtask->{status} ne 'completed')
-    {
-	die "ComprehensiveGenomeAnalysis: process_reads failed\n";
+	my $client = Bio::KBase::AppService::Client->new();
+	
+	my $task;
+	if ($ENV{CGA_DEBUG})
+	{
+	    $task = {id => "0941e63f-7812-4602-98f2-858728e1e0d9"};
+	}
+	else
+	{
+	    $task = $client->start_app($annotation_app, $annotation_input, $self->output_folder);
+	}
+	
+	print "Created task " . Dumper($task);
+	
+	my $task_id = $task->{id};
+	$qtask = $self->await_task_completion($client, $task_id);
+	
+	if (!$qtask || $qtask->{status} ne 'completed')
+	{
+	    die "ComprehensiveGenomeAnalysis: process_reads failed\n";
+	}
     }
 
 
@@ -511,15 +642,15 @@ sub compute_tree
     my $rc = system(@cmd);
     if ($rc != 0)
     {
-	warn "Could not compute tree ingroup\n";
-	return undef;
+	die "Could not compute tree ingroup\n";
     }
 
     my $max_genes = 5;
     my $max_allowed_dups = 1;
     my $max_genomes_missing = 2;
     my $bootstrap_reps = 100;
-    my $n_threads = 4;
+    my $n_threads = $ENV{P3_ALLOCATED_CPU} // 2;
+
     my $exe = "raxmlHPC-PTHREADS-SSE3";
     
     @cmd = ("p3x-build-codon-tree",
@@ -536,19 +667,17 @@ sub compute_tree
     my $rc = system(@cmd);
     if ($rc != 0)
     {
-	warn "Error creating tree\n";
-	return undef;
+	die "Error creating tree\n";
     }
 
     #
     # We have our tree; use figtree to render SVG.
     #
     
-    my $nexus_file = "$tree_dir/CodonTree.nex";
+    my $nexus_file = "$tree_dir/detail_files/codontree.nex";
     if (! -f $nexus_file)
     {
-	warn "Codon tree $nexus_file does not exist";
-	return undef;
+	die "Codon tree $nexus_file does not exist";
     }
 
     $tree_svg = "CodonTree.svg";
@@ -556,17 +685,43 @@ sub compute_tree
     $rc = system(@cmd);
     if ($rc != 0)
     {
-	warn "Figtree failed with $rc: @cmd\n";
-	return undef;
+	die "Figtree failed with $rc: @cmd\n";
     }
 
     return($tree_svg,
 	   [$tree_svg, 'svg'],
 	   [$ingroup_file, 'txt'],
 	   [$nexus_file, 'txt'],
-	   ["$tree_dir/CodonTree.stats", 'txt'],
-	   ["$tree_dir/CodonTree.nwk", 'nwk']);
+	   (map { [$_, 'txt'] } <$tree_dir/detail_files/*.txt>),
+	   (map { [$_, 'nwk'] } <$tree_dir/*.nwk>),
+	   );
     
+}
+
+sub find_app_spec
+{
+    my($self, $app) = @_;
+    
+    my $top = $ENV{KB_TOP};
+    my $specs_deploy = "$top/services/app_service/app_specs";
+    my $specs_dev = "$top/modules/app_service/app_specs";
+    my $specs;
+    
+    if (-d $specs_deploy)
+    {
+	$specs = $specs_deploy
+    }
+    elsif (-d $specs_dev)
+    {
+	$specs = $specs_dev
+    }
+    else
+    {
+	die "cannot find specs file in $specs_deploy or $specs_dev\n";
+    }
+    my $app_spec = "$specs/$app.json";
+    -f $app_spec or die "Spec file $app_spec does not exist\n";
+    return $app_spec;
 }
 
 1;

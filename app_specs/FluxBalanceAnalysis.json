@@ -3,6 +3,7 @@
 	"script":"App-FluxBalanceAnalysis",
 	"label":"Run flux balance analysis",
 	"description":"Run flux balance analysis on model.",
+  "default_memory": "100G",
 	"parameters":[
 		{
 			"id":"model",

@@ -1,0 +1,60 @@
+#
+# Utilities for the slurm batch script
+#
+
+#
+# Pull a P3 compute image from the repository.
+# 
+# Use locking to carefully manage the possibility of multiple jobs trying
+# to pull the same image at the same time; we allow one to go through and then
+# release the others.
+# 
+# download_compute_image tmp-dir image-name destination-directory
+#
+
+download_compute_image () {
+
+    if [[ $# -ne 4 ]] ; then
+	echo "Usage: $0 source-url tmp-dir image-name destination-dir" 1>&2
+	return 1
+    fi
+    url_base=$1
+    lock_dir=$2
+    image=$3
+    dest_dir=$4
+
+    url=$url_base/$image
+
+    output_path=$dest_dir/$image
+
+    lock=$lock_dir/$image.lock
+    tmp=$image.tmp
+
+    output_tmp=$dest_dir/$tmp
+
+    # 
+    # This should probably be provided with at least the size
+    # of the file expected to be there, so we would lock, check size etc
+    # and immediately release the lock if the file was there and of
+    # the appropriate size.
+    #
+
+    if [[ ! -f "$output_path" ]] ; then  # If we already have the image, skip everything
+	(
+	    flock --exclusive 200 
+	    if [ ! -f "$output_path" ]; then   # do a second check once the lock has been released 
+		curl --retry 5 --fail -o $output_tmp -L $url
+		ret=$?
+		if [ $ret -ne 0 ] ; then
+    		    echo "Curl of $url to $output_tmp failed with $ret" 1>&2
+		    return $ret
+		fi
+		mv $output_tmp $output_path
+	    fi
+	) 200>$lock
+    fi
+    
+    rm -f $lock
+    
+    return 0
+}

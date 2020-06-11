@@ -3,6 +3,7 @@
   "script": "App-GenomeAnnotationGenbank",
   "label": "Annotate genome",
   "description": "Calls genes and functionally annotate input contig set.",
+  "default_memory": "100G",
   "parameters": [
     {
       "id": "genbank_file",
@@ -52,6 +53,14 @@
       "default": null,
       "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
       "type": "wsid"
+    },
+    {
+      "id": "reference_virus_name",
+      "required": 0,
+      "default": null,
+      "label": "Reference virus name",
+      "desc": "Reference virus name",
+      "type": "string"
     },
     {
       "id": "workflow",

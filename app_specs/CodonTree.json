@@ -1,8 +1,9 @@
 {
-  "script": "AppWrapper-CodonTree",
+  "script": "App-CodonTree",
   "label": "Compute phylogenetic tree from PGFam protein and DNA sequence",
   "id": "CodonTree",
   "description": "Computes a phylogenetic tree based on protein and DNA sequences of PGFams for a set of genomes",
+  "default_memory": "100G",
   "parameters": [
     {
       "required": 1,

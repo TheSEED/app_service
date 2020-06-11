@@ -3,7 +3,7 @@ include $(TOP_DIR)/tools/Makefile.common
 
 TARGET ?= /kb/deployment
 DEPLOY_TARGET ?= $(TARGET)
-DEPLOY_RUNTIME ?= /kb/runtime
+DEPLOY_RUNTIME ?= /disks/patric-common/runtime
 SERVER_SPEC = AppService.spec
 
 SERVICE_MODULE = lib/Bio/KBase/AppService/Service.pm
@@ -11,12 +11,16 @@ SERVICE_MODULE = lib/Bio/KBase/AppService/Service.pm
 SERVICE = app_service
 SERVICE_PORT = 7124
 
+SLURM_PATH = /disks/patric-common/slurm
+SLURM_CONTROL_TASK_PARTITION = watcher
+
 SERVICE_URL = http://p3.theseed.org/services/$(SERVICE)
 
 SERVICE_NAME = AppService
 SERVICE_NAME_PY = $(SERVICE_NAME)
 
 SERVICE_PSGI_FILE = $(SERVICE_NAME).psgi
+SERVICE_ASYNC_PSGI_FILE = $(SERVICE_NAME)Async.psgi
 
 SRC_SERVICE_PERL = $(wildcard service-scripts/*.pl)
 BIN_SERVICE_PERL = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_SERVICE_PERL))))
@@ -34,10 +38,13 @@ GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
 SEEDTK = /disks/patric-common/seedtk-2019-0405
+P3_DATA = $(SEEDTK)/data
 
 REFERENCE_DATA_DIR = /tmp
 
 MASH_REFERENCE_SKETCH = /vol/patric3/production/data/trees/listOfRepRefGenomeFnaFiles.txt.msh 
+
+APP_DIRECTORY = app_specs
 
 ifdef TEMPDIR
 TPAGE_TEMPDIR = --define kb_tempdir=$(TEMPDIR)
@@ -60,13 +67,25 @@ TPAGE_ARGS = \
 	--define kb_service_name=$(SERVICE) \
 	--define kb_service_port=$(SERVICE_PORT) \
 	--define kb_psgi=$(SERVICE_PSGI_FILE) \
+	--define kb_async_psgi=$(SERVICE_ASYNC_PSGI_FILE) \
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define data_api_url=$(DATA_API_URL) \
+	--define redis_host=$(REDIS_HOST) \
+	--define redis_port=$(REDIS_PORT) \
+	--define redis_db=$(REDIS_DB) \
 	--define db_host=$(DB_HOST) \
 	--define db_user=$(DB_USER) \
 	--define db_pass=$(DB_PASS) \
 	--define db_name=$(DB_NAME) \
+	--define sched_db_host=$(SCHED_DB_HOST) \
+	--define sched_db_port=$(SCHED_DB_PORT) \
+	--define sched_db_user=$(SCHED_DB_USER) \
+	--define sched_db_pass=$(SCHED_DB_PASS) \
+	--define sched_db_name=$(SCHED_DB_NAME) \
+	--define slurm_path=$(SLURM_PATH) \
+	--define slurm_control_task_partition=$(SLURM_CONTROL_TASK_PARTITION) \
 	--define seedtk=$(SEEDTK) \
+	--define p3_data=$(P3_DATA) \
 	--define github_issue_repo_owner=$(GITHUB_ISSUE_REPO_OWNER) \
 	--define github_issue_repo_name=$(GITHUB_ISSUE_REPO_NAME) \
 	--define github_issue_token=$(GITHUB_ISSUE_TOKEN) \
@@ -77,6 +96,10 @@ TPAGE_ARGS = \
 	--define bebop_binning_key=$(BEBOP_BINNING_KEY) \
 	--define bebop_binning_user=$(BEBOP_BINNING_USER) \
 	--define mash_reference_sketch=$(MASH_REFERENCE_SKETCH) \
+	--define app_directory=$(APP_DIRECTORY) \
+	--define app_service_url=$(SERVICE_URL) \
+	--define kma_db=$(KMA_DB) \
+	--define metagenome_dbs=$(METAGENOME_DBS) \
 	$(TPAGE_SERVICE_LOGDIR) \
 	$(TPAGE_TEMPDIR)
 

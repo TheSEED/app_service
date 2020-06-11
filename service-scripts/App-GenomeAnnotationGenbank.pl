@@ -18,11 +18,45 @@ use JSON::XS;
 use IPC::Run 'run';
 use IO::File;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_genome);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_genome, \&preflight_cb);
 
 my $rc = $script->run(\@ARGV);
 
 exit $rc;
+
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    #
+    # Ensure the contigs are valid, and look up their size.
+    #
+
+    my $gb = $params->{genbank_file};
+    $gb or die "Genbank file must be specified\n";
+
+    my $res = $app->workspace->stat($gb);
+    $res->size > 0 or die "Genbank file $gb not found\n";
+
+    #
+    # Size estimate based on conservative 500 bytes/second aggregate
+    # compute rate for contig size, with a minimum allocated
+    # time of 5 minutes.
+    #
+    my $time = $res->size / 500;
+    $time = 3600 if $time < 3600;
+
+    #
+    # Request 8 cpus for some of the fatter bits of the compute.
+    #
+    return {
+	cpu => 8,
+	memory => "8G",
+	runtime => int($time),
+	storage => 10 * $res->size,
+    };
+}
+
 
 sub process_genome
 {
@@ -198,17 +232,27 @@ sub process_genome
 	$workflow = JSON::XS->new->pretty(1)->encode($core->import_workflow());
     }
 
-
-    my $result = $core->run_pipeline($genome, $workflow, $params->{recipe});
-    
+    my $pipeline_override;
+    if (my $ref = $params->{reference_virus_name})
     {
-	local $Bio::KBase::GenomeAnnotation::Service::CallContext = $core->ctx;
-	$result = $core->impl->compute_genome_quality_control($result);
+	$pipeline_override->{call_features_vigor4} =  {
+	    vigor4_parameters => { reference_name => $ref },
+	};
     }
 
+    my $result = $core->run_pipeline($genome, $workflow, $params->{recipe}, $pipeline_override);
+    
     #
     # TODO fill in metadata?
-    $core->write_output($genome, $result, {}, $gb_file, $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
+    my($gto_path, $index_queue_id) = $core->write_output($genome,
+							 $result, {},
+							 $gb_file,
+							 $params->{public} ? 1 : 0, $params->{queue_nowait} ? 1 : 0);
 
     $core->ctx->stderr(undef);
+    return {
+	gto_path => $gto_path,
+	index_queue_id => $index_queue_id,
+    };
+
 }

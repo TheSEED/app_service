@@ -3,6 +3,7 @@
 	"script":"App-RunProbModelSEEDJob",
 	"label":"Runs a ProbModelSEED job",
 	"description":"Runs a ProbModelSEED modeling job",
+  "default_memory": "100G",
 	"parameters":[
 		{
 			"id":"command",

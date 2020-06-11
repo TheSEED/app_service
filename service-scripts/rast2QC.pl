@@ -94,7 +94,6 @@ sub genomeQuality
 	    {
 		$genomeObj->{ncbi_species} = $lineage_names->[$i];
 		$species = $solrh->getSpeciesInfo($lineage_ids->[$i]);
-		#$species = $solrh->getSpeciesInfo("817");
 	    }
 	    $genomeObj->{ncbi_genus} = $lineage_names->[$i] if $lineage_ranks->[$i] =~ /genus/i;
 	}
@@ -102,7 +101,8 @@ sub genomeQuality
 
     # Read the existing genome quality data
     my $qc = $genomeObj->{quality};
-    
+
+    $qc->{chromosomes} = $qc->{plasmids} = $qc->{contigs} = 0;
     # Compute assembly stats
     foreach my $seqObj (@{$genomeObj->{contigs}})
     {
@@ -113,16 +113,18 @@ sub genomeQuality
 	
     $qc->{gc_content} = $genomeObj->compute_contigs_gc();
 		
-		if ($qc->{contigs} == $qc->{chromosomes}+$qc->{plasmids})
-		{
-			$qc->{genome_status} = "Complete";
-		}elsif ($qc->{contigs} == $qc->{plasmids})
-		{
-			$qc->{genome_status} = "Plasmid";
-		}else
-		{
-			$qc->{genome_status} = "WGS";
-		}
+    if ($qc->{contigs} == $qc->{chromosomes}+$qc->{plasmids})
+    {
+	$qc->{genome_status} = "Complete";
+    }
+    elsif ($qc->{contigs} == $qc->{plasmids})
+    {
+	$qc->{genome_status} = "Plasmid";
+    }
+    else
+    {
+	$qc->{genome_status} = "WGS";
+    }
 
     # Compute L50 and N50
     #

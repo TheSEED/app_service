@@ -16,25 +16,56 @@ AppService
 
 #BEGIN_HEADER
 
+use Redis::Fast;
+use Bio::KBase::AppService::AppConfig qw(redis_host redis_port redis_db);
 use JSON::XS;
 use MongoDB;
 use Data::Dumper;
-use Bio::KBase::AppService::Awe;
-use Bio::KBase::AppService::Shock;
 use Bio::KBase::AppService::Util;
-use Bio::KBase::DeploymentConfig;
+use Bio::KBase::AppService::SchedulerDB;
+use Bio::P3::DeploymentConfig;
+use P3AuthToken;
+use P3AuthLogin;
+use P3TokenValidator;
 use File::Slurp;
 use Data::UUID;
 use Plack::Request;
 use IO::File;
 use IO::Handle;
+use MIME::Base64;
+# use Carp::Always;
+
+sub _redis_get_or_compute
+{
+    my($self, $user, $hkey, $code) = @_;
+
+    my $val;
+    my $key = $user . ":app_service_cache";
+    my $val_txt = $self->{redis}->hget($key, $hkey);
+    if ($val_txt)
+    {
+	$val = decode_json($val_txt);
+	# print STDERR "From cache key=$key hkey=$hkey" . Dumper($val);
+    }
+    else
+    {
+	$val = &$code;
+	$self->{redis}->hset($key, $hkey, encode_json($val), sub {});
+	$self->{redis}->expire($key, 300, sub {});
+	$self->{redis}->wait_all_responses();
+	# print STDERR "computed " . Dumper($val);
+    }
+    return $val;
+
+}
 
 sub _task_info
 {
     my($self, $env) = @_;
     my $req = Plack::Request->new($env);
     my $path = $req->path_info;
-    print "$path\n";
+    # print STDERR "$path\n";
+    # print STDERR Dumper($req);
 
     #
     # Ugly manual parsing of REST paths. If we do anything more complex this
@@ -46,7 +77,72 @@ sub _task_info
 	return $req->new_response(404)->finalize();
     }
     my $task = $1;
-    
+
+    #
+    # Authentication support.
+    #
+    # We require an auth token; failing that, we defer to HTTP basic
+    # authentication.
+    #
+
+    my $auth = $req->header("Authorization");
+    my $token;
+    if ($auth =~ /^OAuth\s+(.*)$/i)
+    {
+	my $token_str = $1;
+	$token = P3AuthToken->new(token => $token_str);
+	my($ok,$msg) = $self->{token_validator}->validate($token);
+	if (!$ok)
+	{
+	    print STDERR "Token did not validate: $msg\n";
+	    return $req->new_response(500)->finalize();
+	}
+    }
+    elsif ($auth =~ /^Basic\s+(.*)$/)
+    {
+	my $dec = decode_base64($1);
+	my($user, $pw) = split(/:/, $dec, 2);
+#	print STDERR "Got $user\n";
+	eval {
+	    my $token_str = P3AuthLogin::login_patric($user, $pw);
+	    $token = P3AuthToken->new(token => $token_str);
+	};
+	if ($@)
+	{
+	    warn "Login failed: $@";
+	}
+    }
+
+    if (!$token)
+    {
+	my $res = $req->new_response(401);
+	$res->header("WWW-Authenticate", "Basic realm=\"PATRIC Login\"");
+	return $res->finalize();
+    }
+
+    # print STDERR "Auth user=" . $token->user_id . " is-admin=" . $token->is_admin . "\n";
+
+    #
+    # Look up task record so we can authenticate.
+    #
+    my $task_obj = $self->{schema}->resultset("Task")->find({ id => $task },
+							    {
+								columnns => ['owner'],
+								result_class => 'DBIx::Class::ResultClass::HashRefInflator',
+							       });
+    if (!$task_obj)
+    {
+	print STDERR "not found: $task\n";
+	return $req->new_response(404)->finalize();
+    }
+    # print STDERR "Found task owner=" . $task_obj->{owner} . "\n";
+
+    if (!($task_obj->{owner} eq $token->user_id || $token->is_admin))
+    {
+	return $req->new_response(403)->finalize();
+    }
+    undef $task_obj;
+
     my $dir = $self->{task_status_dir};
 
     if ($req->method eq 'GET')
@@ -62,6 +158,9 @@ sub _task_info
 	    if (-f $file_path)
 	    {
 		my $fh = IO::Handle->new;
+		#
+		# Use sed to strip the signatures from any tokens.
+		#
 		if (open($fh, "-|", "sed", "-e", '/un=/s/sig=[a-z0-9]*/sig=XXX/', $file_path))
 		{
 		    my $res = $req->new_response(200);
@@ -88,6 +187,12 @@ sub _task_info
     }
     elsif ($req->method eq 'POST')
     {
+	# POST /task/file/<tag>
+	#
+	# if <tag> = 'data', append to file
+	# if <tag> = 'eof', mark eof
+	#
+	
 	my($file, $multi, $tpath);
 
 	my @parts = split('/', $path);
@@ -136,7 +241,15 @@ sub _task_info
 	}
 	
 	my $res = $req->new_response(200);
-	$res->finalize();
+	if ($file eq 'exitcode')
+	{
+	    print STDERR "have exitcode, trying queue check\n";
+	    
+	    # prod the scheduler. Fire & forget.
+	    # $self->{redis}->command("publish", "task_completion", $task, sub { print STDERR "Publish complete\n";});
+	    $self->{redis}->publish("task_completion", $task);
+	}
+	return $res->finalize();
     }
     else
     {
@@ -144,140 +257,6 @@ sub _task_info
     }
 }
     
-sub _lookup_task
-{
-    my($self, $awe, $task_id) = @_;
-
-    my $task;
-    my $q = "/job/$task_id";
-    # print STDERR "_lookup_task: $q\n";
-    my ($res, $error) = $awe->GET($q);
-    if ($res)
-    {
-	$task = $self->_awe_to_task($res->{data});
-    }
-    
-    return $task;
-}
-
-#
-# Map an AWE state to our status.
-# Mostly the same, but we map suspend to failed.
-# From https://github.com/MG-RAST/AWE/blob/master/lib/core/task.go#L14:
-#
-# const (
-#               TASK_STAT_INIT       = "init"
-#               TASK_STAT_QUEUED     = "queued"
-#               TASK_STAT_INPROGRESS = "in-progress"
-#               TASK_STAT_PENDING    = "pending"
-#               TASK_STAT_SUSPEND    = "suspend"
-#               TASK_STAT_COMPLETED  = "completed"
-#               TASK_STAT_SKIPPED    = "user_skipped"
-#               TASK_STAT_FAIL_SKIP  = "skipped"
-#               TASK_STAT_PASSED     = "passed"
-#       )
-
-sub _awe_state_to_status
-{
-    my($self, $state) = @_;
-
-    my $nstate = $state;
-    if ($state eq 'suspend')
-    {
-	$nstate = 'failed';
-    }
-    #
-    # Normalize dash/_ use.
-    #
-    $nstate =~ s/_/-/g;
-    return $nstate;
-}
-
-
-sub _awe_to_task
-{
-    my($self, $t) = @_;
-
-    my $id = $t->{id};
-    my $i = $t->{info};
-    my $u = $i->{userattr};
-    my $atask = $t->{tasks}->[0];
-
-    my $astat = $self->_awe_state_to_status($t->{state});
-
-    my $task = {
-	id => $id,
-	parent_id => $u->{parent_task},
-	app => $u->{app_id},
-	workspace => $u->{workspace},
-	parameters => decode_json($u->{parameters}),
-	user_id => $i->{user},
-	awe_status => $astat,
-	status => $astat,
-	submit_time => $i->{submittime},
-	start_time => $i->{startedtime},
-	completed_time => $i->{completedtime},
-	stdout_shock_node => $self->_lookup_output($atask, "stdout.txt"),
-	stderr_shock_node => $self->_lookup_output($atask, "stderr.txt"),
-	awe_stdout_shock_node => $self->_lookup_output($atask, "awe_stdout.txt"),
-	awe_stderr_shock_node => $self->_lookup_output($atask, "awe_stderr.txt"),
-	
-    };
-
-    #
-    # Check exit code if available. Overrides status returned from awe.
-    #
-
-    return $task if $astat eq 'deleted';
-    
-    my $rc = $self->{util}->get_task_exitcode($id);
-    if (defined($rc))
-    {
-	if ($rc == 0 && $astat ne 'completed')
-	{
-	    warn "Task $id: awe shows $astat but exitcode = 0. Setting to completed\n";
-	    $task->{status} = 'completed';
-	}
-	elsif ($rc != 0 && ($astat eq 'in-progress' || $astat eq 'completed'))
-	{
-	    warn "Task $id: awe shows $astat but exitcode=$rc. Setting to failed\n";
-	    $task->{status} = 'failed';
-	}
-    }
-    return $task;
-}
-
-sub _lookup_output
-{
-    my($self, $atask, $filename) = @_;
-    my $outputs = $atask->{outputs};
-
-
-    my $file;
-    #
-    # Support new job object.
-    # 
-    if (ref($outputs) eq 'ARRAY')
-    {
-       ($file) = grep { $_->{filename} eq $filename } @$outputs;
-    }
-    else
-    {
-       $file = $outputs->{$filename};
-    }
-    # print STDERR Dumper($atask);
-
-    if ($file)
-    {
-	my $h = $file->{host};
-	my $n = $file->{node};
-	if ($h && $n && $n ne '-')
-	{
-	    return "$h/node/$n";
-	}
-    }
-    return "";
-}
 #END_HEADER
 
 sub new
@@ -288,28 +267,35 @@ sub new
     bless $self, $class;
     #BEGIN_CONSTRUCTOR
 
-    my $cfg = Bio::KBase::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
-    my $awe_server = $cfg->setting("awe-server");
-    $self->{awe_server} = $awe_server;
-    my $shock_server = $cfg->setting("shock-server");
-    $self->{shock_server} = $shock_server;
+    my $cfg = Bio::P3::DeploymentConfig->new($ENV{KB_SERVICE_NAME} || "AppService");
     my $app_dir = $cfg->setting("app-directory");
     $self->{app_dir} = $app_dir;
 
-    $self->{awe_mongo_db} = $cfg->setting("awe-mongo-db") || "AWEDB";
-    $self->{awe_mongo_host} = $cfg->setting("awe-mongo-host") || "localhost";
-    $self->{awe_mongo_port} = $cfg->setting("awe-mongo-port") || 27017;
-    $self->{awe_mongo_user} = $cfg->setting("awe-mongo-user");
-    $self->{awe_mongo_pass} = $cfg->setting("awe-mongo-pass");
-    $self->{awe_clientgroup} = $cfg->setting("awe-clientgroup") || "";
+    $self->{redis_host} = $cfg->setting('redis-host') // 'localhost';
+    $self->{redis_port} = $cfg->setting('redis-port') // 6379;
+    $self->{redis_db} = $cfg->setting('redis-db') // 0;
 
     $self->{task_status_dir} = $cfg->setting("task-status-dir");
     $self->{service_url} = $cfg->setting("service-url");
 
     $self->{util} = Bio::KBase::AppService::Util->new($self);
+    $self->{scheduler_db} = Bio::KBase::AppService::SchedulerDB->new();
+    $self->{schema} = $self->{scheduler_db}->schema();
 
     $self->{status_file} = $cfg->setting("status-file");
-	
+
+    $self->{token_validator} = P3TokenValidator->new();
+
+
+    #
+    # Connect to redis
+    #
+    my $redis = Redis::Fast->new(reconnect => 1,
+				 server => join(":", redis_host, redis_port),
+				 );
+    $redis->select(redis_db);
+    $self->{redis} = $redis;
+
     #END_CONSTRUCTOR
 
     if ($self->can('_init_instance'))
@@ -451,6 +437,12 @@ sub enumerate_apps
     $return = [];
 
     push(@$return, $self->{util}->enumerate_apps());
+
+#    return sub {
+#	my($cb) = @_;
+#	print STDERR "Got cb=$cb\n";
+#	$cb->($return);
+#    };
     
     #END enumerate_apps
     my @_bad_returns;
@@ -494,6 +486,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_id is a string
@@ -523,6 +516,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_id is a string
@@ -557,7 +551,9 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    $task = $self->{util}->start_app($ctx, $app_id, $params, { workspace => $workspace });
+    print STDERR "start_app\n";
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, { workspace => $workspace });
+    
     #END start_app
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
@@ -604,6 +600,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_status is a string
@@ -636,6 +633,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_status is a string
@@ -668,7 +666,12 @@ sub start_app2
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($task);
     #BEGIN start_app2
-    $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
+    print STDERR "start_app2\n";
+    # $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
+    # my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, $start_params);
+    # return $cb;
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, $start_params);
+
     #END start_app2
     my @_bad_returns;
     (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
@@ -707,6 +710,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 app_id is a string
@@ -734,6 +738,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 app_id is a string
@@ -768,19 +773,7 @@ sub query_tasks
     my($tasks);
     #BEGIN query_tasks
 
-    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-
-    $tasks = {};
-
-    for my $task_id (@$task_ids)
-    {
-	my ($res, $error) = $awe->job($task_id);
-	if ($res)
-	{
-	    my $task = $self->_awe_to_task($res);
-	    $tasks->{$task_id} = $task;
-	}
-    }
+    $tasks = $self->{scheduler_db}->query_tasks($ctx->user_id, $task_ids);
 
     #END query_tasks
     my @_bad_returns;
@@ -835,42 +828,75 @@ sub query_task_summary
     my($status);
     #BEGIN query_task_summary
 
-    #
-    # Summarize counts of tasks of each type for this user.
-    #
-    # Query mongo for the types available, then count.
-    #
+    $status = $self->_redis_get_or_compute($ctx->user_id, 'query_task_summary',
+					   sub { 
+					       return $self->{scheduler_db}->query_task_summary($ctx->user_id);
+					   });
 
-    my $mongo = MongoDB::MongoClient->new(host => $self->{awe_mongo_host},
-					  port => $self->{awe_mongo_port},
-					  db_name => $self->{awe_mongo_db},
-					  (defined($self->{awe_mongo_user}) ? (username => $self->{awe_mongo_user}) : ()),
-					  (defined($self->{awe_mongo_pass}) ? (password => $self->{awe_mongo_pass}) : ()),
-					 );
-    my $db = $mongo->get_database($self->{awe_mongo_db});
-    my $col = $db->get_collection("Jobs");
-
-    my $states = $db->run_command( [ distinct => "Jobs", key => "state", query => { 'info.user' => $ctx->user_id } ] );
-
-    $status = {};
-
-    for my $state (@{$states->{values}})
-    {
-	next if $state eq 'deleted';
-
-	my $n = $col->find({"info.user" =>  $ctx->user_id, state => $state, "info.pipeline" => "AppService"})->count();
-	$status->{$self->_awe_state_to_status($state)} = $n;
-    }
-
-    undef $col;
-    undef $db;
-    undef $mongo;
-    
     #END query_task_summary
     my @_bad_returns;
     (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to query_task_summary:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	die $msg;
+    }
+    return($status);
+}
+
+
+=head2 query_app_summary
+
+  $status = $obj->query_app_summary()
+
+=over 4
+
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$status is a reference to a hash where the key is an app_id and the value is an int
+app_id is a string
+</pre>
+
+=end html
+
+=begin text
+
+$status is a reference to a hash where the key is an app_id and the value is an int
+app_id is a string
+
+=end text
+
+
+
+=item Description
+
+
+=back
+
+=cut
+
+sub query_app_summary
+{
+    my $self = shift;
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($status);
+    #BEGIN query_app_summary
+
+    # $status = $self->{scheduler_db}->query_app_summary($ctx->user_id);
+    $status = $self->_redis_get_or_compute($ctx->user_id, 'query_app_summary',
+					  sub {
+					      return $self->{scheduler_db}->query_app_summary($ctx->user_id);
+					  });
+
+    #END query_app_summary
+    my @_bad_returns;
+    (ref($status) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"status\" (value was \"$status\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to query_app_summary:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	die $msg;
     }
     return($status);
@@ -1001,6 +1027,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_id is a string
@@ -1029,6 +1056,7 @@ Task is a reference to a hash where the following keys are defined:
 	submit_time has a value which is a string
 	start_time has a value which is a string
 	completed_time has a value which is a string
+	elapsed_time has a value which is a string
 	stdout_shock_node has a value which is a string
 	stderr_shock_node has a value which is a string
 task_id is a string
@@ -1065,29 +1093,12 @@ sub enumerate_tasks
     my($return);
     #BEGIN enumerate_tasks
 
-    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
+    $return = $self->_redis_get_or_compute($ctx->user_id, join(":", "enumerate_tasks", $offset, $count),
+					  sub {
+					      return $self->{scheduler_db}->enumerate_tasks($ctx->user_id, $offset, $count);
+					  });
 
-    $return = [];
-
-    #
-    # TODO: paging of requests
-    #
-
-    my $q = "/job?query&info.user=" . $ctx->user_id . "&info.pipeline=AppService&limit=$count&offset=$offset";
-    # print STDERR "Query tasks: $q\n";
-    my ($res, $error) = $awe->GET($q);
-    if ($res)
-    {
-	for my $t (@{$res->{data}})
-	{
-	    my $r = $self->_awe_to_task($t);
-	    push(@$return, $r);
-	}
-    }
-    else
-    {
-	die "Query '$q' failed: $error\n";
-    }
+    # $return = $self->{scheduler_db}->enumerate_tasks($ctx->user_id, $offset, $count);
 
     #END enumerate_tasks
     my @_bad_returns;
@@ -1097,6 +1108,130 @@ sub enumerate_tasks
 	die $msg;
     }
     return($return);
+}
+
+
+=head2 enumerate_tasks_filtered
+
+  $tasks, $total_tasks = $obj->enumerate_tasks_filtered($offset, $count, $simple_filter)
+
+=over 4
+
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$offset is an int
+$count is an int
+$simple_filter is a SimpleTaskFilter
+$tasks is a reference to a list where each element is a Task
+$total_tasks is an int
+SimpleTaskFilter is a reference to a hash where the following keys are defined:
+	start_time has a value which is a string
+	end_time has a value which is a string
+	app has a value which is an app_id
+	search has a value which is a string
+	status has a value which is a string
+app_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	elapsed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+task_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
+</pre>
+
+=end html
+
+=begin text
+
+$offset is an int
+$count is an int
+$simple_filter is a SimpleTaskFilter
+$tasks is a reference to a list where each element is a Task
+$total_tasks is an int
+SimpleTaskFilter is a reference to a hash where the following keys are defined:
+	start_time has a value which is a string
+	end_time has a value which is a string
+	app has a value which is an app_id
+	search has a value which is a string
+	status has a value which is a string
+app_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	elapsed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+task_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
+
+=end text
+
+
+
+=item Description
+
+
+=back
+
+=cut
+
+sub enumerate_tasks_filtered
+{
+    my $self = shift;
+    my($offset, $count, $simple_filter) = @_;
+
+    my @_bad_arguments;
+    (!ref($offset)) or push(@_bad_arguments, "Invalid type for argument \"offset\" (value was \"$offset\")");
+    (!ref($count)) or push(@_bad_arguments, "Invalid type for argument \"count\" (value was \"$count\")");
+    (ref($simple_filter) eq 'HASH') or push(@_bad_arguments, "Invalid type for argument \"simple_filter\" (value was \"$simple_filter\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to enumerate_tasks_filtered:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	die $msg;
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($tasks, $total_tasks);
+    #BEGIN enumerate_tasks_filtered
+    
+    ($tasks, $total_tasks) = $self->{scheduler_db}->enumerate_tasks_filtered($ctx->user_id, $offset, $count, $simple_filter);
+
+    #END enumerate_tasks_filtered
+    my @_bad_returns;
+    (ref($tasks) eq 'ARRAY') or push(@_bad_returns, "Invalid type for return variable \"tasks\" (value was \"$tasks\")");
+    (!ref($total_tasks)) or push(@_bad_returns, "Invalid type for return variable \"total_tasks\" (value was \"$total_tasks\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to enumerate_tasks_filtered:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	die $msg;
+    }
+    return($tasks, $total_tasks);
 }
 
 
@@ -1154,26 +1289,9 @@ sub kill_task
     my($killed, $msg);
     #BEGIN kill_task
 
-    #
-    # Given the task ID, invoke AWE to nuke it.
-    #
-    # This is an AWE instance with the user's access.
-    #
-    my $user_awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-
-    my($res, $err) = $user_awe->kill_job($id);
-
-    print STDERR "Awe killed job $id: res=$res err=$err\n";
-    if ($res)
-    {
-	$killed = 1;
-	$msg = $res;
-    }
-    else
-    {
-	$killed = 0;
-	$msg = $err;
-    }
+    my $ret = $self->{util}->kill_tasks($ctx->user_id, [$id]);
+    $killed = $ret->{$id}->{killed};
+    $msg = $ret->{$id}->{msg};
     
     #END kill_task
     my @_bad_returns;
@@ -1187,9 +1305,78 @@ sub kill_task
 }
 
 
+=head2 kill_tasks
+
+  $return = $obj->kill_tasks($ids)
+
+=over 4
+
+
+=item Parameter and return types
+
+=begin html
+
+<pre>
+$ids is a reference to a list where each element is a task_id
+$return is a reference to a hash where the key is a task_id and the value is a reference to a hash where the following keys are defined:
+	killed has a value which is an int
+	msg has a value which is a string
+task_id is a string
+</pre>
+
+=end html
+
+=begin text
+
+$ids is a reference to a list where each element is a task_id
+$return is a reference to a hash where the key is a task_id and the value is a reference to a hash where the following keys are defined:
+	killed has a value which is an int
+	msg has a value which is a string
+task_id is a string
+
+=end text
+
+
+
+=item Description
+
+
+=back
+
+=cut
+
+sub kill_tasks
+{
+    my $self = shift;
+    my($ids) = @_;
+
+    my @_bad_arguments;
+    (ref($ids) eq 'ARRAY') or push(@_bad_arguments, "Invalid type for argument \"ids\" (value was \"$ids\")");
+    if (@_bad_arguments) {
+	my $msg = "Invalid arguments passed to kill_tasks:\n" . join("", map { "\t$_\n" } @_bad_arguments);
+	die $msg;
+    }
+
+    my $ctx = $Bio::KBase::AppService::Service::CallContext;
+    my($return);
+    #BEGIN kill_tasks
+
+    $return = $self->{util}->kill_tasks($ctx->user_id, $ids);
+
+    #END kill_tasks
+    my @_bad_returns;
+    (ref($return) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"return\" (value was \"$return\")");
+    if (@_bad_returns) {
+	my $msg = "Invalid returns passed to kill_tasks:\n" . join("", map { "\t$_\n" } @_bad_returns);
+	die $msg;
+    }
+    return($return);
+}
+
+
 =head2 rerun_task
 
-  $new_task = $obj->rerun_task($id)
+  $task = $obj->rerun_task($id)
 
 =over 4
 
@@ -1200,8 +1387,27 @@ sub kill_task
 
 <pre>
 $id is a task_id
-$new_task is a task_id
+$task is a Task
 task_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	elapsed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+app_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 </pre>
 
 =end html
@@ -1209,8 +1415,27 @@ task_id is a string
 =begin text
 
 $id is a task_id
-$new_task is a task_id
+$task is a Task
 task_id is a string
+Task is a reference to a hash where the following keys are defined:
+	id has a value which is a task_id
+	parent_id has a value which is a task_id
+	app has a value which is an app_id
+	workspace has a value which is a workspace_id
+	parameters has a value which is a task_parameters
+	user_id has a value which is a string
+	status has a value which is a task_status
+	awe_status has a value which is a task_status
+	submit_time has a value which is a string
+	start_time has a value which is a string
+	completed_time has a value which is a string
+	elapsed_time has a value which is a string
+	stdout_shock_node has a value which is a string
+	stderr_shock_node has a value which is a string
+app_id is a string
+workspace_id is a string
+task_parameters is a reference to a hash where the key is a string and the value is a string
+task_status is a string
 
 =end text
 
@@ -1236,42 +1461,33 @@ sub rerun_task
     }
 
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
-    my($new_task);
+    my($task);
     #BEGIN rerun_task
 
     #
     # Rerun this task. We need to look up the app id, parameters, and workspace from
-    # the AWE database.
+    # the scheduler.
     #
 
-    my $awe = Bio::KBase::AppService::Awe->new($self->{awe_server}, $ctx->token);
-    my $task = $self->_lookup_task($awe, $id);
+    my $task_obj = $self->{schema}->resultset("Task")->find({ id => $id });
+    
+    my $app_id = $task_obj->application_id;
+    my $params = decode_json($task_obj->params);
+    my $workspace = "";
 
-    my $app = $task->{app};
-    my $params = $task->{parameters};
-    my $workspace = $task->{workspace};
+    # my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, { workspace => $workspace });
+    # return $cb;
 
-    my $new_task_info = eval { $self->start_app($app, $params, $workspace); } ;
-
-    if (ref($new_task_info))
-    {
-	$new_task = $new_task_info->{id};
-	print "Started: new_task = $new_task\n";
-	print Dumper($new_task_info);
-    }
-    else
-    {
-	die "Error starting new task: $@\n";
-    }
+    $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, { workspace => $workspace });
     
     #END rerun_task
     my @_bad_returns;
-    (!ref($new_task)) or push(@_bad_returns, "Invalid type for return variable \"new_task\" (value was \"$new_task\")");
+    (ref($task) eq 'HASH') or push(@_bad_returns, "Invalid type for return variable \"task\" (value was \"$task\")");
     if (@_bad_returns) {
 	my $msg = "Invalid returns passed to rerun_task:\n" . join("", map { "\t$_\n" } @_bad_returns);
 	die $msg;
     }
-    return($new_task);
+    return($task);
 }
 
 
@@ -1545,6 +1761,7 @@ awe_status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string
+elapsed_time has a value which is a string
 stdout_shock_node has a value which is a string
 stderr_shock_node has a value which is a string
 
@@ -1566,6 +1783,7 @@ awe_status has a value which is a task_status
 submit_time has a value which is a string
 start_time has a value which is a string
 completed_time has a value which is a string
+elapsed_time has a value which is a string
 stdout_shock_node has a value which is a string
 stderr_shock_node has a value which is a string
 
@@ -1685,6 +1903,43 @@ stderr_url has a value which is a string
 pid has a value which is an int
 hostname has a value which is a string
 exitcode has a value which is an int
+
+
+=end text
+
+=back
+
+
+
+=head2 SimpleTaskFilter
+
+=over 4
+
+
+=item Definition
+
+=begin html
+
+<pre>
+a reference to a hash where the following keys are defined:
+start_time has a value which is a string
+end_time has a value which is a string
+app has a value which is an app_id
+search has a value which is a string
+status has a value which is a string
+
+</pre>
+
+=end html
+
+=begin text
+
+a reference to a hash where the following keys are defined:
+start_time has a value which is a string
+end_time has a value which is a string
+app has a value which is an app_id
+search has a value which is a string
+status has a value which is a string
 
 
 =end text

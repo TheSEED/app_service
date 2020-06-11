@@ -43,12 +43,12 @@ use Data::Dumper;
 # programs so it is isolated into its own directory.
 #
 
-my $spades = "$ENV{KB_RUNTIME}/spades-3.11.1/bin/spades.py";
+my $spades = "$ENV{KB_RUNTIME}/spades-3.12.0/bin/spades.py";
 
 my $binner = Bio::KBase::AppService::MetagenomeBinning->new();
 $binner->spades($spades);
 
-my $script = Bio::KBase::AppService::AppScript->new(sub { $binner->process(@_); });
+my $script = Bio::KBase::AppService::AppScript->new(sub { $binner->process(@_); }, sub { $binner->preflight(@_); });
 
 my $rc = $script->run(\@ARGV);
 

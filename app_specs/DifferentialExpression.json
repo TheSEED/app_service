@@ -3,6 +3,7 @@
    "label" : "Transform expression data",
    "id" : "DifferentialExpression",
    "description" : "Parses and transforms users differential expression data",
+  "default_memory": "100G",
    "parameters" : [
       {
          "required" : 1,
