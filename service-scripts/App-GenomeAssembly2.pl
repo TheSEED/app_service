@@ -97,8 +97,14 @@ sub preflight
     #
     # We just fix the cpu and ram
     #
-    my $est_cpu = 16;
+    my $est_cpu = 8;
+
     my $est_ram = "128G";
+    if ($est_time < 24*60*60)
+    {
+	$est_cpu = 12;
+	$est_ram = "48G";
+    }
 
     return {
 	cpu => $est_cpu,
