@@ -553,6 +553,12 @@ sub preprocess_parameters
     my $params =  $json->decode(scalar read_file($params_file));
 
     #
+    # UTF8 decode the output path to try to fix up the international characters.
+    #
+    utf8::decode($params->{output_file}) if exists $params->{output_file};
+    utf8::decode($params->{output_path}) if exists $params->{output_path};
+
+    #
     # Preprocess parameters to create hash of named parameters, looking for
     # missing required values and filling in defaults.
     #
