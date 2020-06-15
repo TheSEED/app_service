@@ -211,7 +211,7 @@ sub find_user
 {
     my($self, $userid) = @_;
 
-    my($base, $domain) = split(/\@/, $userid, 2);
+    my($base, $domain) = $userid =~ /(.*)\@([^@]+)$/;
     if ($domain eq '')
     {
 	$domain = 'rast.nmpdr.org';
