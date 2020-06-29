@@ -141,6 +141,7 @@ if ($opt->n_jobs)
 my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
 	     t.submit_time, t.start_time, t.finish_time, timediff(t.finish_time, t.start_time) as elap,
 	     t.output_path, t.output_file, t.params,
+	     t.req_memory, t.req_cpu, t.req_runtime,
 	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist,
 	     ts.description as task_state
 	     FROM Task t JOIN TaskState ts on t.state_code = ts.code
@@ -162,6 +163,9 @@ push(@cols,
  { title => "Cluster" },
  { title => "Cl job" },
  { title => "Cl job status"},
+ { title => "Req CPU" },
+ { title => "Req RAM" },
+ { title => "Req Time" },
  { title => "Nodes" },
  { title => "RAM used" },
      );
@@ -233,7 +237,9 @@ while (my $task = $sth->fetchrow_hashref)
     (my $owner = $task->{owner}) =~ s/\@patricbrc.org$//;
     my @row = ($task->{task_id}, $task->{task_state}, $owner, $task->{application_id},
 	      $task->{submit_time}, $task->{elap},
-	      $task->{job_id} ? ($task->{cluster_id}, $task->{job_id}, $task->{job_status}, $task->{nodelist}, int($task->{maxrss})) : ());
+	      $task->{job_id} ? ($task->{cluster_id}, $task->{job_id}, $task->{job_status},
+				 $task->{req_cpu}, $task->{req_memory}, $task->{req_runtime},
+				 $task->{nodelist}, int($task->{maxrss})) : ());
     push(@row, $genome_id, $indexing_skipped) if $opt->genome_id;
     push(@rows, \@row);
 
