@@ -587,6 +587,9 @@ package ReadLibrary;
 use strict;
 use Data::Dumper;
 
+sub is_paired_end { return undef; }
+sub is_single_end { return undef; }
+
 sub files
 {
     my($self) = @_;
@@ -627,6 +630,9 @@ use strict;
 use base 'ReadLibrary';
 use File::Basename;
 use File::Copy 'move';
+
+sub is_paired_end { return 0; }
+sub is_single_end { return 1; }
 
 sub new
 {
@@ -690,6 +696,9 @@ use strict;
 use File::Basename;
 use File::Copy 'move';
 use Data::Dumper;
+
+sub is_paired_end { return 1; }
+sub is_single_end { return 0; }
 
 sub new
 {
@@ -773,6 +782,9 @@ package InterleavedLibrary;
 use base 'ReadLibrary';
 use strict;
 
+sub is_paired_end { return 1; }
+sub is_single_end { return 0; }
+
 sub new
 {
     my($class, $read, $platform) = @_;
@@ -832,6 +844,9 @@ package SRRLibrary;
 
 use base 'ReadLibrary';
 use strict;
+
+sub is_paired_end { return undef; }
+sub is_single_end { return undef; }
 
 sub new
 {
