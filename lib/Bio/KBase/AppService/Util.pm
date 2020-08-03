@@ -72,6 +72,7 @@ sub start_app_with_preflight
 
 	my $cmd = ["p3x-submit-job", $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
 	print STDERR "cmd: @$cmd\n";
+	print STDERR "P3_USER_ERROR_DESTINATION=$ENV{P3_USER_ERROR_DESTINATION}\n";
 
 	my $handle;
 	my $output;
