@@ -189,7 +189,15 @@ sub run_pipeline
 	    print STDERR "Copy $out_dir/$f to $output_folder\n";
 	    my $ok = IPC::Run::run(['p3-cp',
 				    "-r",
+				    '-m', 'ini=txt',
+				    '-m', 'aln=txt',
+				    '-m', 'cds=feature_protein_fasta',
+				    '-m', 'pep=feature_protein_fasta',
+				    '-m', 'gff3=gff',
+				    '-m', 'rpt=txt',
 				    '-m', 'txt=txt',
+				    '-m', 'tbl=txt',
+				    '-m', 'warnings=txt',
 				    '-m', 'html=html',
 				    "$out_dir/$f",
 				    "ws:$output_folder"]);
@@ -312,9 +320,9 @@ sub write_output
     # Map export format to the file type.
     my %formats = (genbank => ['genbank_file', "$output_base.gb" ],
 		   genbank_merged => ['genbank_file', "$output_base.merged.gb"],
-		   spreadsheet_xls => ['string', "$output_base.xls"],
-		   spreadsheet_txt => ['string', "$output_base.txt"],
-		   seed_dir => ['string',"$output_base.tar.gz"],
+		   spreadsheet_xls => ['xls', "$output_base.xls"],
+		   spreadsheet_txt => ['tsv', "$output_base.txt"],
+		   seed_dir => ['tar_gz',"$output_base.tar.gz"],
 		   feature_data => ['feature_table', "$output_base.features.txt"],
 		   protein_fasta => ['feature_protein_fasta', "$output_base.feature_protein.fasta"],
 		   contig_fasta => ['contigs', "$output_base.contigs.fasta"],
