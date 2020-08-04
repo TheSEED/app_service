@@ -144,6 +144,7 @@ sub process_variation_data {
 	    if ($rc != 0) 
 	    	{
 	    	print "p3-sra failed: $rc";
+	    	exit;
 	    	}
 	    else
 		    {
