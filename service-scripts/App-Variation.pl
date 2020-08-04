@@ -143,8 +143,7 @@ sub process_variation_data {
 	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $srr);
 	    if ($rc != 0) 
 	    	{
-	    	print "p3-sra failed: $rc";
-	    	exit;
+	    	die "p3-sra failed: $rc";
 	    	}
 	    else
 		    {
