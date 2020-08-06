@@ -376,7 +376,9 @@ sub write_output
 	    my $load_folder = "$output_folder/load_files";
 	    
 	    $ws->create({overwrite => 1, objects => [[$load_folder, 'folder']]});
-	    $queue_id = $self->submit_load_files($ws, $load_folder, $self->token->token, data_api_url, ".", $queue_nowait);
+
+	    my $data_api_url = $self->params->{indexing_url} // data_api_url;
+	    $queue_id = $self->submit_load_files($ws, $load_folder, $self->token->token, $data_api_url, ".", $queue_nowait);
 	}
     }
     return($gto_path, $queue_id);
