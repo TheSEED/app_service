@@ -39,6 +39,22 @@
       "type": "bool"
     },
     {
+      "id": "container_id",
+      "label": "(Internal) Container to use for this run",
+      "desc": "(Internal) Container to use for this run",
+      "required": 0,
+      "default": null,
+      "type": "string"
+    },
+    {
+      "id": "indexing_url",
+      "label": "(Internal) Override Data API URL for use in indexing",
+	"desc": "(Internal) Override Data API URL for use in indexing",
+      "required": 0,
+      "default": null,
+      "type": "string"
+    },
+    {
       "id": "output_path",
       "label": "Output Folder",
       "required": 0,
