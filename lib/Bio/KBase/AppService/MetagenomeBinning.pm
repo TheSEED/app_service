@@ -398,8 +398,23 @@ sub compute_bins
 
 #    local $ENV{PATH} = seedtk . "/bin:$ENV{PATH}";
 
+    #
+    # Work around the change in name of reference data
+    my $seedprot1 = "$FIG_Config::p3data/seedprot.fa";
+    my $seedprot2 = "$FIG_Config::p3data/seedProt.fa";
+    my $seedprot = $seedprot1;
+    if (! -f $seedprot)
+    {
+	$seedprot = $seedprot2;
+	if (! -f $seedprot)
+	{
+	    die "Cannot find either $seedprot1 or $seedprot2\n";
+	}
+    }
+
     my @cmd = ("bins_generate",
 	       "--statistics-file", "bins.stats.txt",
+	       "--seedProtFasta", $seedprot,
 	       $self->work_dir);
     my $rc = system(@cmd);
 

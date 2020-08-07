@@ -413,11 +413,11 @@ sub query_solr
 	{
 	    die "Error $! openings headers $hdrs";
 	}
-	$_ = <$hfh>;
-	chomp;
+	my $resp = <$hfh>;
+	chomp $resp;
 	close($hfh);
 
-	my($http, $code, $what) = split(/\s+/, 3);
+	my($http, $code, $what) = split(/\s+/, $resp, 3);
 	if ($code == 502)
 	{
 	    print STDERR "Retrying due to $code $what\n";
