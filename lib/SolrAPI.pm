@@ -417,7 +417,7 @@ sub query_solr
 	chomp;
 	close($hfh);
 
-	my($http, $code, $what) = split(/\s+/);
+	my($http, $code, $what) = split(/\s+/, 3);
 	if ($code == 502)
 	{
 	    print STDERR "Retrying due to $code $what\n";
