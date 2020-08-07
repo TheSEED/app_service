@@ -121,6 +121,7 @@ my($opt, $usage) =
 		     ["no-index", "Do not index this genome. If this option is selected the genome will not be visible on the PATRIC website."],
 		     ["dry-run", "Dry run. Upload files and validate input but do not submit annotation"],
 		     ["container-id=s", "Container id for non-default container execution", { hidden => 1 }],
+		     ["indexing-url=s", "Specify an override data api for indexing", { hidden => 1 }],
 		     [],
 		     ["help|h", "Show this help message"],
 		    );
@@ -270,6 +271,7 @@ my $params = {
     ($opt->no_index ? (skip_indexing => 1) : ()),
     ($opt->reference_virus ? (reference_virus_name => $opt->reference_virus) : ()),
     ($opt->container_id ? (container_id => $opt->container_id) : ()),
+    ($opt->indexing_url ? (indexing_url => $opt->indexing_url) : ()),
 };
 
 if ($input_mode eq 'genbank')

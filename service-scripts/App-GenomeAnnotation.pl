@@ -91,6 +91,12 @@ sub process_genome
 	$params->{taxonomy_id} = $raw_params->{tax_id};
     }
 
+    if ($params->{taxonomy_id} && $params->{taxonomy_id} !~ /^\s*(\d+)\s*$/)
+    {
+	die "Invalid taxonomy id (must be an integer)\n";
+    }
+    $params->{taxonomy_id} = $1;
+
     my $user_id = $core->user_id;
 
     #
