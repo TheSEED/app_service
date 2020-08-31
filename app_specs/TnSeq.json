@@ -46,6 +46,23 @@
             "enum": ["griffin", "tn5gaps", "rankproduct", "hmm", "binomial", "resampling"]
         },
         {
+            "id": "protocol",
+            "label": "TnSeq protocol",
+            "required": 0,
+            "default": "sassetti",
+            "desc": "Protocol used for TnSeq analysis",
+            "type": "enum",
+            "enum": ["sassetti", "tn5", "mme1"]
+        },
+        {
+            "id": "primer",
+            "required": 0,
+            "default": "",
+            "label": "Primer DNA string.",
+            "desc": "Primer DNA string for read trimming.",
+            "type": "string"
+        },
+        {
             "id": "output_path",
             "label": "Output Folder",
             "required": 1,

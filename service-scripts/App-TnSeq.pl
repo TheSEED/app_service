@@ -14,6 +14,7 @@ use JSON::XS;
 use IPC::Run qw(run);
 use Cwd;
 use Clone;
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 
 my $script = Bio::KBase::AppService::AppScript->new(\&process_tnseq, \&preflight);
 
@@ -109,6 +110,29 @@ sub process_tnseq
 	$$path_ref = $staged_file;
     }
 
+	my @my_files = ();
+	while (my($orig, $staged_file) = each %$staged)
+    {
+    	open (READS, $staged_file) || die "Couldn't open $staged_file: $!";
+    	my $la = <READS>;
+    	my $hex_string = unpack "H*", substr($la, 0, 2);
+    	if ($hex_string eq "1f8b") { # magic constant to check for gzip compression.
+    		if ($staged_file =~ /\.gz\z/) {
+    			my $staged_file_new = substr $staged_file, 0, length($staged_file)-3;
+    			my $z = gunzip $staged_file => $staged_file_new or die "gunzip failed: $GunzipError\n";
+    			unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
+    			$staged_file = $staged_file_new;
+    		} else {
+    			my $z = new IO::Uncompress::Gunzip $staged_file or die "gunzip failed: $GunzipError\n";
+    		}
+    	}
+    	if ($staged_file =~ /\.gz\z/) {
+    		my $staged_file_new = substr $staged_file, 0, length($staged_file)-3;
+    		rename($staged_file, $staged_file_new) || die ( "Error in renaming" );
+    		$staged_file = $staged_file_new;
+    	}
+		push(@my_files, $staged_file);
+    }
     #
     # Write job description.
     #
@@ -165,7 +189,8 @@ sub process_tnseq
     #
     # Clean up staged input files.
     #
-    while (my($orig, $staged_file) = each %$staged)
+    # while (my($orig, $staged_file) = each %$staged)
+    foreach my $staged_file (@my_files)
     {
 	unlink($staged_file) or warn "Unable to unlink $staged_file: $!";
     }
