@@ -181,7 +181,7 @@ deploy-service-scripts:
 	        echo install $$src $$base ; \
 	        cp $$src $(TARGET)/plbin ; \
 	        $(WRAP_PERL_SCRIPT) "$(TARGET)/plbin/$$basefile" $(TARGET)/bin/$$base ; \
-	done \
+	done; \
 	for src in $(SRC_SERVICE_SH) ; do \
 	        basefile=`basename $$src`; \
 	        base=`basename $$src .sh`; \
