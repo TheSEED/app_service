@@ -207,6 +207,46 @@ sub create_task
     return $task;
 }
 
+#
+# For the given cluster, determine if there is a default container.
+# If so return its ID and pathname
+#
+sub cluster_default_container
+{
+    my($self, $cluster_name) = @_;
+
+    my $res = $self->dbh->selectrow_arrayref(qq(
+						SELECT cl.container_repo_url, cl.default_container_id, cl.container_cache_dir, c.filename
+						FROM Cluster cl JOIN Container c ON cl.default_container_id = c.id
+						WHERE cl.id = ?), undef, $cluster_name);
+    if (!$res || @$res == 0)
+    {
+	warn "No container found for cluster $cluster_name\n";
+	return undef;
+    }
+    my($url, $container_id, $cache, $filename) = @$res;
+
+    return ($url, $container_id, $cache, $filename);
+}    
+
+#
+# Look up the given container id.
+#
+sub find_container
+{
+    my($self, $container_id) = @_;
+
+    my $res = $self->dbh->selectrow_arrayref(qq(SELECT c.filename
+						FROM Container c 
+						WHERE c.id = ?), undef, $container_id);
+    if (!$res || @$res == 0)
+    {
+	warn "No container found for id $container_id\n";
+	return undef;
+    }
+    return $res->[0];
+}    
+
 sub find_user
 {
     my($self, $userid) = @_;

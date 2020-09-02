@@ -3,6 +3,7 @@ use Bio::KBase::AppService::Scheduler;
 use Bio::KBase::AppService::SlurmCluster;
 use Bio::KBase::AppService::AppSpecs;
 use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name
+					 sched_default_cluster
 					 app_directory app_service_url);
 
 use IPC::Run 'run';
@@ -14,7 +15,7 @@ my $sched = Bio::KBase::AppService::Scheduler->new(specs => $specs);
 $sched->{task_start_disable} = 0;
 $sched->load_apps();
 
-my $cluster = Bio::KBase::AppService::SlurmCluster->new('P3Slurm',
+my $cluster = Bio::KBase::AppService::SlurmCluster->new(sched_default_cluster,
 							scheduler => $sched,
 							schema => $sched->schema);
 

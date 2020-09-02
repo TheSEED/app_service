@@ -26,7 +26,7 @@ SRC_SERVICE_PERL = $(wildcard service-scripts/*.pl)
 BIN_SERVICE_PERL = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_SERVICE_PERL))))
 DEPLOY_SERVICE_PERL = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_SERVICE_PERL))))
 
-SRC_SERVICE_SH = $(wildcard service-scripts/*sh)
+SRC_SERVICE_SH = $(wildcard service-scripts/*sh) service-scripts/p3x-download-compute-image.sh
 BIN_SERVICE_SH = $(addprefix $(BIN_DIR)/,$(basename $(notdir $(SRC_SERVICE_SH))))
 DEPLOY_SERVICE_SH = $(addprefix $(SERVICE_DIR)/bin/,$(basename $(notdir $(SRC_SERVICE_SH))))
 
@@ -55,6 +55,8 @@ SERVICE_LOGDIR = $(DEPLOYMENT_VAR_DIR)/services/$(SERVICE)
 TPAGE_SERVICE_LOGDIR = --define kb_service_log_dir=$(SERVICE_LOGDIR)
 endif
 
+SCHED_DEFAULT_CLUSTER = P3Slurm
+
 TPAGE_BUILD_ARGS =  \
 	--define kb_top=$(TARGET) \
 	--define kb_runtime=$(DEPLOY_RUNTIME)
@@ -82,6 +84,7 @@ TPAGE_ARGS = \
 	--define sched_db_user=$(SCHED_DB_USER) \
 	--define sched_db_pass=$(SCHED_DB_PASS) \
 	--define sched_db_name=$(SCHED_DB_NAME) \
+	--define sched_default_cluster=$(SCHED_DEFAULT_CLUSTER) \
 	--define slurm_path=$(SLURM_PATH) \
 	--define slurm_control_task_partition=$(SLURM_CONTROL_TASK_PARTITION) \
 	--define seedtk=$(SEEDTK) \
@@ -142,7 +145,7 @@ compile-typespec: Makefile
 	-rm -f lib/$(SERVER_MODULE)Impl.py
 	-rm -f lib/CDMI_EntityAPIImpl.py
 
-bin: $(BIN_PERL) $(BIN_SERVICE_PERL) $(BIN_SH)
+bin: $(BIN_PERL) $(BIN_SERVICE_PERL) $(BIN_SH) $(BIN_SERVICE_SH)
 
 #
 # Manually run this to update the AweEvents module.
@@ -152,7 +155,7 @@ log-events:
 
 deploy: deploy-client deploy-service
 deploy-all: deploy-client deploy-service
-deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts 
+deploy-client: compile-typespec build-libs deploy-docs deploy-libs deploy-scripts  deploy-sh-scripts
 
 deploy-service: deploy-dir deploy-monit deploy-libs deploy-service-scripts deploy-dancer-config
 	for script in start_service stop_service postinstall; do \
@@ -214,6 +217,10 @@ $(BIN_DIR)/%: service-scripts/%.sh $(TOP_DIR)/user-env.sh
 
 $(BIN_DIR)/%: service-scripts/%.py $(TOP_DIR)/user-env.sh
 	$(WRAP_PYTHON_SCRIPT) '$$KB_TOP/modules/$(CURRENT_DIR)/$<' $@
+
+service-scripts/%: service-scripts/%.tt
+	tpage --include_path lib/Bio/KBase/AppService $< > $@
+	chmod +x $@
 
 include $(TOP_DIR)/tools/Makefile.common.rules
 # DO NOT DELETE
