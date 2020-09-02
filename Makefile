@@ -14,7 +14,7 @@ SERVICE_PORT = 7124
 SLURM_PATH = /disks/patric-common/slurm
 SLURM_CONTROL_TASK_PARTITION = watcher
 
-SERVICE_URL = http://p3.theseed.org/services/$(SERVICE)
+SERVICE_URL = https://p3.theseed.org/services/$(SERVICE)
 
 SERVICE_NAME = AppService
 SERVICE_NAME_PY = $(SERVICE_NAME)
@@ -173,7 +173,7 @@ deploy-dancer-config:
 build-dancer-config:
 	$(TPAGE) $(TPAGE_BUILD_ARGS) $(TPAGE_ARGS) dancer_config.yml.tt > lib/Bio/KBase/AppService/config.yml
 
-deploy-service-scripts:
+deploy-service-scripts: $(SRC_SERVICE_SH)
 	export KB_TOP=$(TARGET); \
 	export KB_RUNTIME=$(DEPLOY_RUNTIME); \
 	export KB_PERL_PATH=$(TARGET)/lib ; \
