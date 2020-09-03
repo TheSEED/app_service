@@ -5,7 +5,7 @@ use strict;
 use Template;
 use Module::Metadata;
 use Bio::KBase::AppService::Schema;
-use Bio::KBase::AppService::AppConfig qw(slurm_control_task_partition);
+use Bio::KBase::AppService::AppConfig qw(slurm_control_task_partition app_service_url);
 use base 'Class::Accessor';
 use Data::Dumper;
 use Try::Tiny;
@@ -536,7 +536,8 @@ END
 
 	# hack
 	# $appserv_url = "http://holly.mcs.anl.gov:5001";
-	$appserv_url = "http://p3.theseed.org/services_test/app_service_test";
+	# $appserv_url = "http://p3.theseed.org/services_test/app_service_test";
+	$appserv_url = app_service_url;
 
 	my $token_obj = $task->task_tokens->search(undef, { order_by => {-desc => 'expiration '}})->single();
 	if (!$token_obj)
