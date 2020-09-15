@@ -485,21 +485,21 @@ sub prepare_ref_data_rocket {
         if ($host_ftp){
             my $tar_url = "$host_ftp" . "_genomic.ht2.tar" ;
             my $out_file = basename $tar_url;
-            my $out = curl_file($tar_url, "$dir/$out_file");
+            my $out = curl_ftp($tar_url, "$dir/$out_file");
             my $fna_url = "$host_ftp" . "_genomic.fna" ;
             $out_file = basename $fna_url;
-            $out = curl_file($fna_url, "$dir/$out_file");
+            $out = curl_ftp($fna_url, "$dir/$out_file");
             my $gff_url = "$host_ftp" . "_genomic.gff" ;
             $out_file = basename $gff_url;
-            $out = curl_file($gff_url, "$dir/$out_file");
+            $out = curl_ftp($gff_url, "$dir/$out_file");
         }
         else{
             my $tar_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.ht2.tar";
-            my $out = curl_file($tar_url,"$dir/$gid.RefSeq.ht2.tar");
+            my $out = curl_ftp($tar_url,"$dir/$gid.RefSeq.ht2.tar");
             my $fna_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.fna";
-            $out = curl_file($fna_url,"$dir/$gid.RefSeq.fna");
+            $out = curl_ftp($fna_url,"$dir/$gid.RefSeq.fna");
             my $gff_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.RefSeq.gff";
-            $out = curl_file($gff_url,"$dir/$gid.RefSeq.gff");
+            $out = curl_ftp($gff_url,"$dir/$gid.RefSeq.gff");
         }
     }
     
@@ -620,6 +620,14 @@ sub curl_text {
 sub curl_file {
     my ($url, $outfile) = @_;
     my @cmd = ("curl", curl_options(), "-o", $outfile, $url);
+    print STDERR join(" ", @cmd)."\n";
+    my ($out) = run_cmd(\@cmd);
+    return $out;
+}
+
+sub curl_ftp {
+    my ($url, $outfile) = @_;
+    my @cmd = ("curl", "-o", $outfile, $url);
     print STDERR join(" ", @cmd)."\n";
     my ($out) = run_cmd(\@cmd);
     return $out;
