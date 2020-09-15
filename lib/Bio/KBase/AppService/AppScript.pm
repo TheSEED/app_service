@@ -301,6 +301,21 @@ sub run
 	print STDERR "\n";
 	close(T);
     }
+    if (open(T, "<", "/opt/patric-common/data/DATA-VERSION"))
+    {
+	my $ver = <T>;
+	chop $ver;
+	print STDERR "Running with PATRIC data version $ver\n";
+	close(T);
+	if (open(T, "<", "/opt/patric-common/data/DATA-MANIFEST"))
+	{
+	    while (<T>)
+	    {
+		print STDERR $_;
+	    }
+	    close(T);
+	}
+    }
     
     #
     # If we are running at the terminal or are running under the shepherd, 
