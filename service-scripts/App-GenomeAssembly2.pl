@@ -103,7 +103,7 @@ sub preflight
     if ($est_time < 24*60*60)
     {
 	$est_cpu = 12;
-	$est_ram = "48G";
+	$est_ram = "48000M";
     }
 
     return {
