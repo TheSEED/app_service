@@ -102,6 +102,10 @@ sub preflight
     if ($pf_txt)
     {
 	$pf = decode_json($pf_txt);
+	if ($pf->{cpu} < 4)
+	{
+	    $pf->{cpu} = 4;
+	}
     }
     else
     {
