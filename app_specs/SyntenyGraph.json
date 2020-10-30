@@ -1,0 +1,57 @@
+{
+  "script": "App-SyntenyGraph",
+  "label": "Compute synteny graph",
+  "id": "SyntenyGraph",
+  "description": "Computes a synteny graph",
+  "default_memory": "10G",
+  "parameters": [
+    {
+      "required": 1,
+      "desc": "Path to which the output will be written. ",
+      "type": "folder",
+      "default": null,
+      "label": "Output Folder",
+      "id": "output_path"
+    },
+    {
+      "required": 1,
+      "desc": "Basename for the generated output files.",
+      "type": "wsid",
+      "default": null,
+      "label": "File Basename",
+      "id": "output_file"
+    },
+    {
+      "id": "genome_ids",
+      "label": "Input genomes",
+      "allow_multiple": true,
+      "required": 1,
+      "type": "list",
+      "default": []
+    },
+    {
+      "id": "k_len",
+      "label": "Minimum neighborhood size for alignment",
+      "allow_multiple": false,
+      "required": 1,
+      "type": "int",
+      "default": 3
+    },
+    {
+      "id": "context",
+      "required": 1,
+      "default": "genome",
+      "label": "Context for alignment",
+      "desc": "Context of alignment",
+      "type": "string"
+    },
+    {
+      "id": "alpha",
+      "required": 1,
+      "default": "patric_pgfam",
+      "label": "Alphabet to use to group genes",
+      "desc": "Alphabet to use to group genes",
+      "type": "string"
+    }
+  ]
+}
