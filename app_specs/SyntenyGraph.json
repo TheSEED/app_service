@@ -30,7 +30,7 @@
       "default": []
     },
     {
-      "id": "k_len",
+      "id": "ksize",
       "label": "Minimum neighborhood size for alignment",
       "allow_multiple": false,
       "required": 1,
@@ -43,6 +43,14 @@
       "default": "genome",
       "label": "Context for alignment",
       "desc": "Context of alignment",
+      "type": "string"
+    },
+    {
+      "id": "diversity",
+      "required": 1,
+      "default": "species",
+      "label": "Diversity quotient calculation",
+      "desc": "Diversity quotient calculation",
       "type": "string"
     },
     {

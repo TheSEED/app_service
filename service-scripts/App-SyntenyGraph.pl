@@ -15,7 +15,7 @@ use IPC::Run qw(run);
 use Cwd;
 use Clone;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_fastq);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_synteny);
 
 my $rc = $script->run(\@ARGV);
 
@@ -71,10 +71,14 @@ sub process_synteny
     open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
     print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
     close(JDESC);
+    my $gdesc = "$cwd/input_genomes.txt";
+    open(GENOMEIDS, ">", $gdesc) or die "Cannot write $gdesc: $!";
+    print GENOMEIDS join ',', @{$params_to_app->{genome_ids}};
+    close(GENOMEIDS);
     #python fam_to_graph.py --layout --output data/BrucellaInversion/test_psgraph.gexf --patric_pgfam
-    my @cmd = ("fam_to_graph.py", "--ksize", $params_to_app->{ksize}, "--diversity", $params_to_app->{diversity},\
-        "--$params_to_app->{alpha}", "--layout", "--context", $params_to_app->{context}, "--jfile", $jdesc,\
-        "--sstring", $sstring, "--output", "$work_dir/ps_graph.gexf", "--patric_genomes", "<", join ',', @{$params_to_app->{genome_ids}});
+    #/home/asw3xp/projects/git_repos/cid_work/pangenome_graphs/fam_to_graph.py
+    #my @cmd = ("fam_to_graph.py", "--ksize", $params_to_app->{ksize}, "--diversity", $params_to_app->{diversity},\
+    my @cmd = ("python","/home/asw3xp/projects/git_repos/cid_work/pangenome_graphs/fam_to_graph.py", "--ksize", $params_to_app->{ksize}, "--diversity", $params_to_app->{diversity},"--$params_to_app->{alpha}", "--layout", "--context", $params_to_app->{context}, "--output", "$work_dir/ps_graph.gexf", "--patric_genomes", $gdesc);
 
     warn Dumper(\@cmd, $params_to_app);
     
@@ -85,7 +89,7 @@ sub process_synteny
     }
 
 
-    my @output_suffixes = ([qr/\.gexf$/, "gexf"],
+    my @output_suffixes = ([qr/\.gexf$/, "txt"],
 			   [qr/\.txt$/, "txt"]);
 
     my $outfile;
