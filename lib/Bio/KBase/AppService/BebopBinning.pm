@@ -226,7 +226,28 @@ ENDBATCH
 		$final_res = $res->{$job};
 		last;
 	    }
+	    #
+	    # Work around bebop bug that leaves jobs as PENDING (or RUNNING).
+	    # Check workspace for an output file that follows after contigs
+	    #
+	    my $stat = $ws->stat("$ws_path/params.txt");
+	    if ($stat && $stat->size > 0)
+	    {
+		$stat = $ws->stat("$ws_path/contigs.fasta");
+		if ($stat && $stat->size > 0)
+		{
+		    print STDERR "Marking job success due to completed output file $ws_path/params.txt and contigs exist with size " . $stat->size . "\n";
+		    $final_state = 'C';
+		}
+		else
+		{
+		    print STDERR "Marking job unsuccessful due to completed output file $ws_path/params.txt and nonexistent contigs\n";
+		    $final_state = 'F';
+		}
+		last;
+	    }
 	}
+	
 	sleep 120;
     }
 
