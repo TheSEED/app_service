@@ -104,8 +104,18 @@ sub process_fastq
     open(JDESC, ">", $jdesc) or die "Cannot write $jdesc: $!";
     print JDESC JSON::XS->new->pretty(1)->encode($params_to_app);
     close(JDESC);
+    
+    my $parallel = $ENV{P3_ALLOCATED_CPU};
+    my $override = {
+	fastqc => { -p => $parallel},
+	trim_galore => {-p => $parallel},
+	bowtie2 => {-p => $parallel},
+	hisat2 => {-p => $parallel},
+	samtools_view => {-p => $parallel},
+	samtools_index => {-p => $parallel}
+    };
 
-    my @cmd = ("p3-fqutils", "--jfile", $jdesc, "--sstring", $sstring, "-o", $work_dir);
+    my @cmd = ("p3-fqutils", "--jfile", $jdesc, "--sstring", $sstring, "-p", encode_json($override), "-o", $work_dir);
 
     warn Dumper(\@cmd, $params_to_app);
     
