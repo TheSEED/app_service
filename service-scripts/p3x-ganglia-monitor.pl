@@ -31,34 +31,53 @@ my $res = $dbh->selectall_arrayref(qq(SELECT t.state_code, c.class_name, count(i
 				      GROUP BY c.class_name, t.state_code));
 
 #
-# Each of the totals here are directly logged.
-# We count totals for overall S & Q states.
-#
-my %map_state = (S => "in_cluster", Q => "queued");
-my %total_state;
-for my $ent (@$res)
-{
-    my($state, $class, $count) = @$ent;
-    $class //= "Other";
-    $total_state{$state} += $count;
-    my $name = "app_${class}_$map_state{$state}";
-    glog($name, $count);
-}
-while (my($state, $count) = each %total_state)
-{
-    my $name = "app_total_$map_state{$state}";
-    glog($name, $count);
-}
-
-#
-# Now process queue data
-#
-
-#
 # We grab the scheduler app classes.
 #
 my $classes = $dbh->selectall_hashref(qq(SELECT application_id, class_name
 					 FROM ganglia_app_class), 'application_id');
+
+my %app_names = map {  $_ => 1 } ((map { $_->{class_name} } values %$classes), 'Other');
+my @app_names = sort keys %app_names;
+
+#
+# Each of the totals here are directly logged.
+# We count totals for overall S & Q states.
+#
+my %map_state = (S => "in_cluster", Q => "queued");
+
+my %total_state;
+my %by_app_class;
+for my $state (values %map_state)
+{
+    $total_state{$state} = 0;
+    $by_app_class{$_}->{$state} = 0 foreach @app_names;
+}
+
+for my $ent (@$res)
+{
+    my($state, $class, $count) = @$ent;
+    $class //= "Other";
+    $state = $map_state{$state};
+    $total_state{$state} += $count;
+    $by_app_class{$class}->{$state} = $count;
+}
+#die Dumper(\%by_app_class, \%map_state, \@app_names ) if $ENV{DEBUG};
+for my $state (values %map_state)
+{
+    my $name = "app_total_$state";
+    glog($name, $total_state{$state});
+
+    for my $app (@app_names)
+    {
+	my $name = "app_${app}_$state";
+	glog($name, $by_app_class{$app}->{$state});
+    }
+}
+
+
+#
+# Now process queue data
+#
 
 
 #
@@ -71,7 +90,18 @@ my %by_user;
 my %total_by_state;
 my $total = 0;
 
+my @slurm_states = qw(pending running);
 my %user_map = (p3 => "PATRIC", rastprod => "RAST");
+
+for my $state (@slurm_states)
+{
+    $total_by_state{$state} = 0;
+    for my $app (@app_names)
+    {
+	$by_app{$app}->{$state} = 0;
+    }
+    $by_user{$_}->{$state} = 0 foreach values %user_map;
+}
 
 open(Q, "-|",
      "/disks/patric-common/slurm/bin/squeue", "-o", "%i\t%k\t%T\t%u", "--noheader");
@@ -127,6 +157,11 @@ sub glog
 	       "--value", $value,
 	       "--type", "uint32",
 	       "--units", "jobs");
+    if ($ENV{DEBUG})
+    {
+	print "@cmd\n";
+	return;
+     }
     my $rc = system(@cmd);
     if ($rc != 0)
     {
