@@ -90,7 +90,7 @@ my %by_user;
 my %total_by_state;
 my $total = 0;
 
-my @slurm_states = qw(pending running);
+my @slurm_states = qw(pending running configuring);
 my %user_map = (p3 => "PATRIC", rastprod => "RAST");
 
 for my $state (@slurm_states)

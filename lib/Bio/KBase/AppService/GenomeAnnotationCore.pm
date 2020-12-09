@@ -189,6 +189,7 @@ sub run_pipeline
 	    print STDERR "Copy $out_dir/$f to $output_folder\n";
 	    my $ok = IPC::Run::run(['p3-cp',
 				    "-r",
+				    "--overwrite",
 				    '-m', 'ini=txt',
 				    '-m', 'aln=txt',
 				    '-m', 'cds=feature_protein_fasta',
