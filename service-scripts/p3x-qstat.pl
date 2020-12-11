@@ -138,14 +138,17 @@ if ($opt->n_jobs)
     $limit = "LIMIT " . $opt->n_jobs;
 }
 
+#
+# Look up the task states to make the query that follows faster.
+#
+my $task_state_info = $dbh->selectall_hashref(qq(SELECT code, description FROM TaskState), 'code');
+
 my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
 	     t.submit_time, t.start_time, t.finish_time, timediff(t.finish_time, t.start_time) as elap,
 	     t.output_path, t.output_file, t.params,
 	     t.req_memory, t.req_cpu, t.req_runtime,
-	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist,
-	     ts.description as task_state
-	     FROM Task t JOIN TaskState ts on t.state_code = ts.code
-	     LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
+	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist
+	     FROM Task t LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
 	     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 	     WHERE $cond
 	     ORDER BY $sort
@@ -193,6 +196,7 @@ while (my $task = $sth->fetchrow_hashref)
 {
     my $genome_id;
     my $indexing_skipped = 0;
+    $task->{task_state} = $task_state_info->{$task->{state_code}}->{description};
     if ($opt->genome_id && $task->{application_id} eq 'GenomeAnnotation')
     {
 	#
