@@ -70,7 +70,7 @@ sub preflight
 
     my $pf = {
 	cpu => 1,
-	memory => "64G",
+	memory => "128G",
 	runtime => 0,
 	storage => 0,
 	is_control_task => 0,
