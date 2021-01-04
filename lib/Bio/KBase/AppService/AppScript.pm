@@ -316,6 +316,16 @@ sub run
 	    close(T);
 	}
     }
+
+    #
+    # If _skip_workspace_output is provided in parameters,
+    # turn on the flag.
+    #
+    if ($self->params->{skip_workspace_output})
+    {
+	$self->donot_create_result_folder(1);
+	$self->donot_create_job_result(1);
+    }
     
     #
     # If we are running at the terminal or are running under the shepherd, 
