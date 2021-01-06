@@ -31,6 +31,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
+				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
 				    ["slurm" => "Interpret job IDs as Slurm job IDs"],
 				    ["n-jobs|n=i" => "Limit to the given number of jobs", { default => 50 } ],
 				    ["parsable" => "Generate tab-delimited output"],
@@ -54,6 +55,16 @@ $dbh->do(qq(SET time_zone = "+00:00"));
 my @conds;
 my @params;
 push(@conds, 'true');
+
+if ($opt->compute_node)
+{
+    my $list = $opt->compute_node;
+    if (@$list)
+    {
+	my $nl = join(",", map { $dbh->quote($_) } @$list);
+	push(@conds, "cj.nodelist IN ($nl)");
+    }
+}
 
 if ($opt->start_time)
 {
