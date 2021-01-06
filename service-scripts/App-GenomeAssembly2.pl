@@ -259,14 +259,20 @@ sub assemble
 
     print "Start assembler: @cmd\n";
     print Dumper(\@cmd, \@path_additions);
+
+    open(ASM_OUT, ">", "$asm_out/p3x-assembly.stdout") or die "Cannot write $asm_out/p3x-assembly.stdout: $!";
+    open(ASM_ERR, ">", "$asm_out/p3x-assembly.stderr") or die "Cannot write $asm_out/p3x-assembly.stderr: $!";
     my $asm_ok = run(\@cmd,
 		     init => sub {
 			 chdir $asm_out or die "Cannot chdir $asm_out: $!";
 			 # we use --path-prefix now
 #			 $ENV{PATH} = join(":", @path_additions, $ENV{PATH});
 		     },
-		     ">", "$asm_out/p3x-assembly.stdout",
-		     "2>", "$asm_out/p3x-assembly.stderr");
+		     ">", sub { my($dat) = @_; print $dat; print ASM_OUT $dat; },
+		     "2>", sub { my($dat) = @_; print STDERR $dat; print ASM_ERR $dat; },
+		     # ">", "$asm_out/p3x-assembly.stdout",
+		     # "2>", "$asm_out/p3x-assembly.stderr",
+		    );
     my $asm_rc = $?;
 
     my $output_folder = $app->result_folder();
