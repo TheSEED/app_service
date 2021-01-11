@@ -240,11 +240,15 @@ sub run
 	# Legacy support. If we're invoked with three arguments and we are running under the
 	# shepherd, ignore the first argument. Allow just two arguments when under the shepherd.
 	#
+	# Belay that - we want the app service URL parameter so that we can create logfiles
+	# at the app service to relay additional information.
+	#
 	if (exists($ENV{P3_SHEPHERD_PID}))
 	{
 	    if (@ARGV == 3)
 	    {
-		shift @ARGV;
+		my $appserv_url = shift @ARGV;
+		$self->app_service_url($appserv_url // app_service_url);
 	    }
 
 	    die($usage->text) if @ARGV != 2;
