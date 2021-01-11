@@ -523,7 +523,13 @@ sub create_result_folder
     my $base_folder = $self->params->{output_path};
     my $result_folder = $base_folder . "/." . $self->params->{output_file};
     $self->result_folder($result_folder);
-    $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+    my $res = $self->workspace->create({overwrite => 1, objects => [[$result_folder, 'folder', { application_type => $self->app_definition->{id}}]]});
+
+    if (ref($res) eq 'ARRAY' && @$res > 0)
+    {
+	my $obj = $res->[0];
+	$self->write_block("job_result_folder", $obj->[4]);
+    }
 
     #
     # Remove any job failed reports that were left from a prior run.
@@ -696,7 +702,13 @@ sub write_results
     };
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
+    my $job_result_obj = $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
+    
+    if (ref($job_result_obj) eq 'ARRAY')
+    {
+	$self->write_block("job_result_id", $job_result_obj->[4]);
+    }
+    
     if ($failure_report)
     {
 	my $type = ($failure_report =~ /<\S+>/) ? 'html' : 'txt';
