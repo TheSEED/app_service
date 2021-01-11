@@ -291,15 +291,29 @@ sub run
 	return;
     }
 
+    my $ua = LWP::UserAgent->new();
+    my $rest = REST::Client->new();
+    $rest->setHost("$appserv_url/" . $self->task_id);
+    print STDERR "Logging to " . "$appserv_url/" . $self->task_id . "\n";
+    $self->{rest} = $rest;
+	
     if (open(T, "<", "/.singularity.d/labels.json"))
     {
 	print STDERR "Running in Singularity image. labels.json:\n";
+	my $dat = '';
 	while (<T>)
 	{
 	    print STDERR $_;
+	    $dat .= $_;
 	}
 	print STDERR "\n";
 	close(T);
+
+	my $ldat = eval { JSON::XS->new->decode($dat); };
+	if ($ldat)
+	{
+	    $self->write_block("container", $ldat->{container_path});
+	}
     }
     if (open(T, "<", "/opt/patric-common/data/DATA-VERSION"))
     {
