@@ -247,7 +247,7 @@ sub run
 	{
 	    if (@ARGV == 3)
 	    {
-		my $appserv_url = shift @ARGV;
+		$appserv_url = shift @ARGV;
 		$self->app_service_url($appserv_url // app_service_url);
 	    }
 
