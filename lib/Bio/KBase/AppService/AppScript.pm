@@ -298,6 +298,7 @@ sub run
     my $ua = LWP::UserAgent->new();
     my $rest = REST::Client->new();
     $rest->setHost("$appserv_url/" . $self->task_id);
+    $rest->addHeader("Authorization", "OAuth " . $self->token()->token());
     print STDERR "Logging to " . "$appserv_url/" . $self->task_id . "\n";
     $self->{rest} = $rest;
 	
@@ -371,12 +372,6 @@ sub run_with_monitoring
     my($self) = @_;
 
     my $appserv_url = $self->app_service_url();
-
-    my $ua = LWP::UserAgent->new();
-    my $rest = REST::Client->new();
-    $rest->setHost("$appserv_url/" . $self->task_id);
-    print STDERR "Logging to " . "$appserv_url/" . $self->task_id . "\n";
-    $self->{rest} = $rest;
 
     my $sel = IO::Select->new();
 
@@ -546,7 +541,7 @@ sub create_result_folder
     if (ref($res) eq 'ARRAY' && @$res > 0)
     {
 	my $obj = $res->[0];
-	$self->write_block("job_result_folder", $obj->[4]);
+	$self->write_block("job_result_folder", $obj->[4] . "\n");
     }
 
     #
@@ -721,10 +716,10 @@ sub write_results
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
     my $job_result_obj = $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
-    
+
     if (ref($job_result_obj) eq 'ARRAY')
     {
-	$self->write_block("job_result_id", $job_result_obj->[4]);
+	$self->write_block("job_result_id", $job_result_obj->[4] . "\n");
     }
     
     if ($failure_report)
