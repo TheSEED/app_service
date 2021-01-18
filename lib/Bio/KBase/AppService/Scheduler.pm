@@ -473,7 +473,7 @@ sub task_start_check
     # This is a crude measure, as we'll do this again each time through. It might help in
     # rate limiting very large submissions.
     #
-    my $max_per_owner_release = 10;
+    my $max_per_owner_release = 500;
     my %jobs_released_per_owner;
 
     my $cluster = $self->default_cluster;

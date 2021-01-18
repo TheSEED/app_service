@@ -420,6 +420,8 @@ sub compute_bins
 
     $rc == 0 or die "Error $rc computing bins: @cmd";
 	
+    $self->app->workspace->save_file_to_file("unbinned.fasta", {},
+					     $self->output_folder . "/unbinned.fasta", 'contigs', 1, 1, $self->token);
     $self->app->workspace->save_file_to_file("bins.stats.txt", {},
 					     $self->output_folder . "/bins.stats.txt", 'txt', 1, 1, $self->token);
 }

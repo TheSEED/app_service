@@ -33,6 +33,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
 				    ["slurm" => "Interpret job IDs as Slurm job IDs"],
+				    ["count" => "Print a count of matching records only"],
 				    ["n-jobs|n=i" => "Limit to the given number of jobs", { default => 50 } ],
 				    ["parsable" => "Generate tab-delimited output"],
 				    ["no-header" => "Skip printing header"],
@@ -154,14 +155,26 @@ if ($opt->n_jobs)
 #
 my $task_state_info = $dbh->selectall_hashref(qq(SELECT code, description FROM TaskState), 'code');
 
+my $full_condition = qq(FROM Task t LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
+			LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+			WHERE $cond);
+
+if ($opt->count)
+{
+    my $qry = qq(SELECT COUNT(t.id) $full_condition);
+    # print "$qry\n";
+    my $res = $dbh->selectcol_arrayref($qry, undef, @params);
+    print "$res->[0]\n";
+    exit 0;
+}
+
+
 my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
 	     t.submit_time, t.start_time, t.finish_time, timediff(t.finish_time, t.start_time) as elap,
 	     t.output_path, t.output_file, t.params,
 	     t.req_memory, t.req_cpu, t.req_runtime,
 	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist
-	     FROM Task t LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
-	     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
-	     WHERE $cond
+	     $full_condition
 	     ORDER BY $sort
 	     $limit
 	     );
