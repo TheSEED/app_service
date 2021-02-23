@@ -177,18 +177,21 @@ sub localize_libraries
 
 =item B<validate>
 
-    ($ok, $errors) = $readset->validate($ws);
+    ($ok, $errors) = $readset->validate($ws, $metadata_base);
 
 Validate this readset.
 
 Walk the read files and ensure that the files exist in the 
 workspace and are not zero sized.
 
+If $metadata_base is provided, write SRA metadata to files with that base name,
+extended with the SRA id and json/xml suffixes.
+    
 =cut
 
 sub validate
 {
-    my($self, $ws) = @_;
+    my($self, $ws, $metadata_base) = @_;
 
     my @errs;
 
@@ -203,16 +206,30 @@ sub validate
 
 	if ($lib->isa('SRRLibrary'))
 	{
-	    my $tmp = File::Temp->new();
-	    close($tmp);
-	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $lib->{id});
+	    my $md_file;
+	    my @xml_md_file;
+	    if ($metadata_base)
+	    {
+		$md_file = "$metadata_base$lib->{id}.json";
+		@xml_md_file = ("--sra-metadata-file" => "$metadata_base$lib->{id}.xml");
+	    }
+	    else
+	    {
+		$md_file = File::Temp->new();
+		close($md_file);
+	    }
+		my $rc = system("p3-sra",
+				"--metaonly",
+				"--metadata-file", "$md_file",
+				@xml_md_file,
+				"--id", $lib->{id});
 	    if ($rc != 0)
 	    {
 		push(@errs, "p3-sra failed: $rc");
 	    }
 	    else
 	    {
-		my $mtxt = read_file("$tmp");
+		my $mtxt = read_file("$md_file");
 		my $meta = eval { decode_json($mtxt); };
 		$meta or die "Error loading or evaluating json metadata: $mtxt";
 		print STDERR Dumper(MD => $meta);
