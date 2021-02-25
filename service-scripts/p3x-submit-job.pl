@@ -160,6 +160,7 @@ if ($container_path)
     chdir($prev_dir);
     if ($rc != 0)
     {
+	copy("$tmpdir/$pf_error", $error_fh);
 	die "Singularity Preflight in container $container_path @preflight failed with rc=$rc\n";
     }
 }
@@ -169,6 +170,7 @@ else
     chdir($prev_dir);
     if ($rc != 0)
     {
+	copy($pf_error, $error_fh);
 	die "Preflight @preflight failed with rc=$rc\n";
     }
 }
@@ -182,7 +184,7 @@ my $task_params = read_and_parse($task_params_file);
 my $start_params = read_and_parse($start_params_file);
 
 my $task = $db->create_task($token_obj, $app_id, $appserv_info_url,
-				$task_params, $start_params, $preflight);
+			    $task_params, $start_params, $preflight);
 print OUT_TASK $json->encode($task);
 close(OUT_TASK);
 
