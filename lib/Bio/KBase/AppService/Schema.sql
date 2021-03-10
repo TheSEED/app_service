@@ -23,6 +23,13 @@ CREATE TABLE Container
 	creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE SiteDefaultContainer
+(
+	base_url VARCHAR(255) PRIMARY KEY,
+	default_container_id VARCHAR(255),
+	FOREIGN KEY (default_container_id) REFERENCES Container(id)
+);
+
 CREATE TABLE Cluster
 (
 	id varchar(255) PRIMARY KEY,
@@ -126,6 +133,7 @@ CREATE TABLE Task
 	search_terms text,
 	hidden BOOLEAN default FALSE,
 	container_id VARCHAR(255),
+	base_url VARCHAR(255),
 	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
 	FOREIGN KEY (state_code) REFERENCES TaskState(code),
 	FOREIGN KEY (application_id) REFERENCES Application(id),
@@ -174,7 +182,7 @@ CREATE TABLE TaskExecution
 	index(task_id),
 	index(clusteR_job_id),
 	FOREIGN KEY (task_id) REFERENCES Task(id);
-	FOREIGN KEY (cluster_jbo_id) REFERENCES ClusterJob(id);
+	FOREIGN KEY (cluster_job_id) REFERENCES ClusterJob(id);
 );
 
 CREATE TABLE TaskToken

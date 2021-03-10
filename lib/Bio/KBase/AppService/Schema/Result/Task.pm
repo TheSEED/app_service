@@ -72,21 +72,21 @@ __PACKAGE__->table("Task");
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 start_time
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 finish_time
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 monitor_url
@@ -159,6 +159,12 @@ __PACKAGE__->table("Task");
   is_nullable: 1
   size: 255
 
+=head2 base_url
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -176,21 +182,21 @@ __PACKAGE__->add_columns(
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "start_time",
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "finish_time",
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "monitor_url",
@@ -219,6 +225,8 @@ __PACKAGE__->add_columns(
   { data_type => "tinyint", default_value => 0, is_nullable => 1 },
   "container_id",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
+  "base_url",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -381,8 +389,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-09 23:30:46
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cFN4iDvwZMnNxK7S5u23HA
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-10 14:48:59
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:IF9bnr/uurQeFeJEocy84g
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

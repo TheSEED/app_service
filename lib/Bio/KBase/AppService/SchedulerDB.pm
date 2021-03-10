@@ -163,9 +163,12 @@ sub create_task
     my $code = $res->[0];
 
     my $policy_data;
+
+    my $container_id = $self->determine_container_id_override($task_parameters, $start_parameters);
     
     my $task = {
 	owner => $user->{id},
+	base_url => $start_parameters->{base_url},
 	parent_task => $start_parameters->{parent_id},
 	state_code => $code,
 	application_id => $app_id,
@@ -180,7 +183,7 @@ sub create_task
 	req_runtime => $preflight->{runtime},
 	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
-	(defined($task_parameters->{container_id}) ? (container_id => $task_parameters->{container_id}) : ()),
+	(defined($container_id) ? (container_id => $container_id) : ()),
 	};
 
     my $fields = join(", ", keys %$task);
@@ -207,6 +210,24 @@ sub create_task
     return $task;
 }
 
+=head2 determine_container_id_override
+
+Determine if the given task_params and start_params includes an explicit container_id override.
+
+In order, examine
+
+    $task_params->{container_id}
+    $start_params->{container_id}
+
+=cut
+
+sub determine_container_id_override
+{
+    my($self, $task_params, $start_params) = @_;
+
+    return $task_params->{container_id} // $start_params->{container_id};
+}
+    
 #
 # For the given cluster, determine if there is a default container.
 # If so return its ID and pathname

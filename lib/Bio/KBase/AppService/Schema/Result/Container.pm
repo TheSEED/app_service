@@ -99,6 +99,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 site_default_containers
+
+Type: has_many
+
+Related object: L<Bio::KBase::AppService::Schema::Result::SiteDefaultContainer>
+
+=cut
+
+__PACKAGE__->has_many(
+  "site_default_containers",
+  "Bio::KBase::AppService::Schema::Result::SiteDefaultContainer",
+  { "foreign.default_container_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 tasks
 
 Type: has_many
@@ -115,8 +130,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-10 12:21:17
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:dtDoHwmNNvAS3iazs9HlUg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-10 14:48:58
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:zKU7umgQVJu/abgHhqGryQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

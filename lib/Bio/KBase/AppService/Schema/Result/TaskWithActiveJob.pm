@@ -70,21 +70,21 @@ __PACKAGE__->result_source_instance->view_definition("select `t`.`id` AS `id`,`t
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 start_time
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 finish_time
 
   data_type: 'timestamp'
   datetime_undef_if_invalid: 1
-  default_value: '0000-00-00 00:00:00'
+  default_value: '1970-01-01 00:00:01'
   is_nullable: 0
 
 =head2 monitor_url
@@ -213,21 +213,21 @@ __PACKAGE__->add_columns(
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "start_time",
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "finish_time",
   {
     data_type => "timestamp",
     datetime_undef_if_invalid => 1,
-    default_value => "0000-00-00 00:00:00",
+    default_value => "1970-01-01 00:00:01",
     is_nullable => 0,
   },
   "monitor_url",
@@ -273,8 +273,8 @@ __PACKAGE__->add_columns(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-09 23:30:46
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:L2hWsGDAX76IN5nBvKviZg
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-10 14:48:59
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:JpRTElhp6W+ZikcX6MLn1A
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

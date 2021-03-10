@@ -10,8 +10,8 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2020-02-01 00:00:00';
-my $end = '2020-03-01:00:00:00';
+my $start = '2021-02-01 00:00:00';
+my $end = '2021-03-01:00:00:00';
 
 #
 # Pull time info for completed runs
@@ -37,6 +37,7 @@ my $total = $dbh->selectall_hashref(qq(SELECT application_id,
 				       COUNT(id) as total
 				       FROM Task
 				       WHERE application_id NOT IN ('Date', 'Sleep') AND
+				       state_code IN ('C', 'F') AND
 				       submit_time >= ? AND
 				       submit_time < ?
 				       GROUP BY application_id), 'application_id', undef, $start, $end);

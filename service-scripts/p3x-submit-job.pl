@@ -56,6 +56,7 @@ my $output_task_file = shift;
 -f $start_params_file or die "Start parameters file $start_params_file does not exist\n";
 
 my $task_params = read_and_parse($task_params_file);
+my $start_params = read_and_parse($start_params_file);
 
 open(OUT_TASK, ">", $output_task_file) or die "Cannot write $output_task_file: $!";
 $start_params_file = abs_path($start_params_file);
@@ -67,9 +68,13 @@ $error_fh->autoflush(1);
 
 my $db = Bio::KBase::AppService::SchedulerDB->new();
 
-my $redis = Redis::hiredis->new(host => redis_host,
-				(redis_port ? (port => redis_port) : ()));
-$redis->command("select", redis_db);
+my $redis;
+if (redis_host)
+{
+    $redis = Redis::hiredis->new(host => redis_host,
+				 (redis_port ? (port => redis_port) : ()));
+    $redis->command("select", redis_db);
+}
 
 
 my $token_obj = P3AuthToken->new(token => $token);
@@ -125,7 +130,8 @@ if ($repo_url)
     #
     # Check for app override of container
     #
-    my $task_container = $task_params->{container_id};
+    my $task_container = $db->determine_container_id_override($task_params, $start_params);
+
     if ($task_container)
     {
 	print STDERR "Task specifies container; validating\n";
@@ -189,7 +195,7 @@ print OUT_TASK $json->encode($task);
 close(OUT_TASK);
 
 
-$redis->command("publish", "task_submission", $task->{id});
+$redis->command("publish", "task_submission", $task->{id}) if $redis;
 
 sub read_and_parse
 {

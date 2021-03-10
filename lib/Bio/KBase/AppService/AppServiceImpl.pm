@@ -586,6 +586,8 @@ task_parameters is a reference to a hash where the key is a string and the value
 StartParams is a reference to a hash where the following keys are defined:
 	parent_id has a value which is a task_id
 	workspace has a value which is a workspace_id
+	base_url has a value which is a string
+	container_id has a value which is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -619,6 +621,8 @@ task_parameters is a reference to a hash where the key is a string and the value
 StartParams is a reference to a hash where the following keys are defined:
 	parent_id has a value which is a task_id
 	workspace has a value which is a workspace_id
+	base_url has a value which is a string
+	container_id has a value which is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -1856,6 +1860,8 @@ output_files has a value which is a reference to a list where each element is a 
 a reference to a hash where the following keys are defined:
 parent_id has a value which is a task_id
 workspace has a value which is a workspace_id
+base_url has a value which is a string
+container_id has a value which is a string
 
 </pre>
 
@@ -1866,6 +1872,8 @@ workspace has a value which is a workspace_id
 a reference to a hash where the following keys are defined:
 parent_id has a value which is a task_id
 workspace has a value which is a workspace_id
+base_url has a value which is a string
+container_id has a value which is a string
 
 
 =end text

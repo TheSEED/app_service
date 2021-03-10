@@ -649,14 +649,14 @@ sub preprocess_parameters
 	}
 	else
 	{
-	    if ($param->{required})
-	    {
-		push(@errors, "Required parameter $param->{label} ($id) missing");
-		next;
-	    }
 	    if (defined($param->{default}))
 	    {
 		$proc_param{$id} = $param->{default};
+	    }
+	    elsif ($param->{required})
+	    {
+		push(@errors, "Required parameter $param->{label} ($id) missing");
+		next;
 	    }
 	}
     }

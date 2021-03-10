@@ -408,7 +408,23 @@ sub submit_tasks
 	#
 	# If we do batching, we will need to fix the selection of container. Assume a single task for now.
 	#
-	my $container = $tasks->[0]->container // $cinfo->default_container;
+	my $task = $tasks->[0];
+	my $container = $task->container;
+	if (!$container)
+	{
+	    #
+	    # If we have a base url set, determine if we have a container defined for it.
+	    #
+	    if (my $url = $task->base_url)
+	    {
+		my $site_default = $self->schema->resultset("SiteDefaultContainer")->find($url);
+		if ($site_default)
+		{
+		    $container = $site_default->default_container;
+		}
+	    }
+	}
+	$container //= $cinfo->default_container;
 	if ($container)
 	{
 	    $vars{container_repo_url} = $cinfo->container_repo_url;
