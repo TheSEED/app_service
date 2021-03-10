@@ -132,6 +132,21 @@ if ($repo_url)
     #
     my $task_container = $db->determine_container_id_override($task_params, $start_params);
 
+    if (!$task_container)
+    {
+	# Check for container defined for base url
+	if (my $base_url = $start_params->{base_url})
+	{
+	    my $site_default = $db->schema->resultset("SiteDefaultContainer")->find($base_url);
+	    if ($site_default)
+	    {
+		$task_container = $site_default->default_container_id;
+		print STDERR "found container $task_container for $base_url\n";
+	    }
+	}
+     }
+
+
     if ($task_container)
     {
 	print STDERR "Task specifies container; validating\n";
