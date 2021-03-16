@@ -137,7 +137,7 @@ sub _task_info
     }
     # print STDERR "Found task owner=" . $task_obj->{owner} . "\n";
 
-    if (!($task_obj->{owner} eq $token->user_id || $token->is_admin))
+    if (!(lc($task_obj->{owner}) eq lc($token->user_id) || $token->is_admin))
     {
 	return $req->new_response(403)->finalize();
     }
