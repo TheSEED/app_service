@@ -365,8 +365,11 @@ sub query_tasks
     my $id_list = join(", ", grep { /^\d+$/ } @$task_ids);
     return {} unless $id_list;
 
-    my $sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner, state_code
-					       	      submit_time, start_time, finish_time, service_status
+    my $sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner, state_code,
+				     if(submit_time = default(submit_time), "", submit_time) as submit_time,
+				     if(start_time = default(start_time), "", start_time) as start_time,
+				     if(finish_time = default(finish_time), "", finish_time) as finish_time,
+				     service_status
 				     FROM Task JOIN TaskState ON state_code = code
 					       WHERE id IN ($id_list)
 					       ORDER BY submit_time DESC));
