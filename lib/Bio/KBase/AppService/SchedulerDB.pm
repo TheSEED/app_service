@@ -745,9 +745,12 @@ sub enumerate_tasks_filtered
     my $ret_fields = "t.id, t.parent_task, t.application_id, t.params, t.owner, ";
     for my $x (qw(submit_time start_time finish_time))
     {
-	$ret_fields .= "DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ') as $x, ";
+	$ret_fields .= "IF($x = default($x), '', DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ')) as $x, ";
+	# $ret_fields .= "DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ') as $x, ";
     }
-    $ret_fields .= "t.finish_time - t.start_time as elapsed_time, ts.service_status";
+    $ret_fields .= "if(t.finish_time != default(t.finish_time) and t.start_time != default(t.start_time), t.finish_time - t.start_time, '') as elapsed_time, ";
+    # $ret_fields .= "t.finish_time - t.start_time as elapsed_time, ts.service_status";
+    $ret_fields .= " ts.service_status";
 
     my $qry = qq(SELECT $ret_fields
 		 FROM Task t JOIN TaskState ts on t.state_code = ts.code
