@@ -495,9 +495,11 @@ sub enumerate_tasks
 
     my $sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner,
 				     service_status,
-				     DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ') as submit_time,
-				     DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ') as start_time,
-				     DATE_FORMAT(finish_time, '%Y-%m-%dT%TZ') as finish_time
+				     IF(submit_time=default(submit_time), '', DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ')) as submit_time,
+				     IF(start_time=default(start_time), '', DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ')) as start_time,
+				     IF(finish_time=default(finish_time), '', DATE_FORMAT(finish_time, '%Y-%m-%dT%TZ')) as finish_time,
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), finish_time - start_time, '') as elapsed_time
+
 				     FROM Task JOIN TaskState on state_code = code
 				     WHERE owner = ?
 				     ORDER BY submit_time DESC
