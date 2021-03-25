@@ -29,6 +29,8 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["start-time=s" => "Limit results to jobs submitted at or after this time"],
 				    ["end-time=s" => "Limit results to jobs submitted before this time"],
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
+				    ["show-output-file" => "Show the output filename"],
+				    ["show-output-path" => "Show the output path"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -203,6 +205,16 @@ if ($opt->genome_id)
     push(@cols, { title => "Indexing skipped" });
 }
 
+if ($opt->show_output_file)
+{
+    push(@cols, { title => "Ouput file" });
+}
+
+if ($opt->show_output_path)
+{
+    push(@cols, { title => "Ouput path" });
+}
+
 if ($opt->parsable && !$opt->no_header)
 {
     say join("\t", map { $_->{title} } @cols);
@@ -269,6 +281,8 @@ while (my $task = $sth->fetchrow_hashref)
 				 $task->{req_cpu}, $task->{req_memory}, $task->{req_runtime},
 				 $task->{nodelist}, int($task->{maxrss})) : ());
     push(@row, $genome_id, $indexing_skipped) if $opt->genome_id;
+    push(@row, $task->{output_file}) if $opt->show_output_file;
+    push(@row, $task->{output_path}) if $opt->show_output_path;
     push(@rows, \@row);
 
     if ($opt->parsable)
