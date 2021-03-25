@@ -33,14 +33,15 @@ while (<IN>)
 {
     chomp;
     my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap) = split(/\t/);
+
+    next unless -f $inp_fn;
     if (!defined($task_exit))
     {
 	my $det = $cli->query_task_details($task_id);
 	if (defined($det->{exitcode}))
 	{
 	    my $task = $cli->query_tasks([$task_id]);
-	    print STDERR Dumper($task->{$task_id});
-	    my $elap = $task->{$task_id}->{elapsed_time};
+	    $elap = $task->{$task_id}->{elapsed_time};
 	    $task_exit = $det->{exitcode};
 
 	    my $params = decode_json(scalar read_file($inp_fn));
