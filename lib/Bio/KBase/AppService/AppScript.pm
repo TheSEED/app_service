@@ -203,10 +203,23 @@ sub host
 sub run_preflight
 {
     my($self) = @_;
-    
-    return unless $self->preflight_callback();
-    
-    return $self->preflight_callback()->($self, $self->app_definition, $self->raw_params, $self->params);
+
+    if ($self->preflight_callback())
+    {
+	return $self->preflight_callback()->($self, $self->app_definition, $self->raw_params, $self->params);
+    }
+    else
+    {
+	my $app = $self->app_definition;
+	my $ram = $app->{default_memory} // $app->{default_ram} // "8G";
+	my $cpu = $app->{default_cpu} // 2;
+	my $runtime = $app->{default_runtime} // 3600;
+	return {
+	    cpu => $cpu,
+	    memory => $ram,
+	    runtime => $runtime,
+	};
+    }
 }
 
 =item B<run>
