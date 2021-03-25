@@ -25,6 +25,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
+				    ["meta-out=s" => "Write metadata from this submission to this file."],
 				    ["help|h" => "Show this help message"],
 				   );
 $usage->die() if @ARGV > 1;
@@ -68,7 +69,7 @@ if (!$base)
 my $app = $opt->app;
 if (!defined($app))
 {
-    if ($here =~ m,/App-(\S+)$,)
+    if ($here =~ m,/App-(\S+?)($|/),)
     {
 	$app = $1;
     }
@@ -146,24 +147,25 @@ for my $input (@input)
 #
 for my $dat (@to_run)
 {
-    my($params, $out_dir) = @$dat;
     if ($opt->submit)
     {
-	submit_job($app, $params, $out_dir, $opt->container);
+	submit_job($app, $dat, $opt->container);
     }
     elsif ($opt->container)
     {
-	run_in_container($app, $app_spec, $params, $out_dir, $opt->container);
+	run_in_container($app, $app_spec, $dat, $opt->container);
     }
     else
     {
-	run_locally($app, $app_spec, $params, $out_dir);
+	run_locally($app, $app_spec, $dat);
     }
 }
 
 sub run_in_container
 {
-    my($app, $spec, $params, $out_dir, $container_id) = @_;
+    my($app, $spec, $dat, $container_id) = @_;
+
+    my($params, $out_dir, $output_path, $output_file) = @$dat;
 
     #
     # Find our container.
@@ -191,13 +193,25 @@ sub run_in_container
     write_file("$out_dir/exitcode", "$exitcode\n");
     write_file("$out_dir/hostname", "$hostname\n");
     write_file("$out_dir/user_metadata", $opt->user_metadata) if $opt->user_metadata;
+
+    if ($opt->meta_out)
+    {
+	write_file($opt->meta_out, $json->encode({ exitcode => $exitcode,
+						       app => $app,
+						       hostname => $hostname,
+						       fs_dir => $out_dir,
+						       output_path => $output_path,
+						       output_file => $output_file,
+						   }));
+    }
     $ok or die "Error running @cmd\n";
 	       
 }
 
 sub run_locally
 {
-    my($app, $spec, $params, $out_dir) = @_;
+    my($app, $spec, $dat) = @_;
+    my($params, $out_dir, $output_path, $output_file) = @$dat;
 
     #
     # We need to submit the run with an environment configured
@@ -215,13 +229,25 @@ sub run_locally
     write_file("$out_dir/exitcode", "$exitcode\n");
     write_file("$out_dir/hostname", "$hostname\n");
     write_file("$out_dir/user_metadata", $opt->user_metadata) if $opt->user_metadata;
+    if ($opt->meta_out)
+    {
+	write_file($opt->meta_out, $json->encode({ exitcode => $exitcode,
+						       app => $app,
+						       hostname => $hostname,
+						       fs_dir => $out_dir,
+						       output_path => $output_path,
+						       output_file => $output_file,
+						   }));
+    }
     $ok or die "Error running @cmd\n";
 	       
 }
 
 sub submit_job
 {
-    my($app, $params, $out_dir, $container) = @_;
+    my($app, $dat, $container) = @_;
+    my($params, $out_dir, $output_path, $output_file) = @$dat;
+
     my @cmd = ('appserv-start-app');
     push(@cmd, '-c', $container) if $container;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
@@ -230,9 +256,20 @@ sub submit_job
     my $out;
     my $ok = run(\@cmd, ">", \$out);
     print $out;
+    my $task_id;
     if ($out =~ /Started\s+task\s+(\d+)/)
     {
-	write_file("$out_dir/task_id", "$1\n");
+	$task_id = $1;
+	write_file("$out_dir/task_id", "$task_id\n");
+    }
+    if ($opt->meta_out)
+    {
+	write_file($opt->meta_out, $json->encode({ task_id => $task_id,
+						       app => $app,
+						       fs_dir => $out_dir,
+						       output_path => $output_path,
+						       output_file => $output_file,
+						   }));
     }
     $ok or die "Error running @cmd\n";
 }
@@ -272,5 +309,5 @@ sub rewrite_input
     make_path($out_dir);
     my $params_file = "$out_dir/" . basename($input);
     write_file($params_file, $json->encode($params));
-    return [$params_file, $out_dir];
+    return [$params_file, $out_dir, $this_base, $output_file];
 }
