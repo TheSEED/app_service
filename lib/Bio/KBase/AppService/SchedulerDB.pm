@@ -370,6 +370,7 @@ sub query_tasks
 				     if(submit_time = default(submit_time), "", submit_time) as submit_time,
 				     if(start_time = default(start_time), "", start_time) as start_time,
 				     if(finish_time = default(finish_time), "", finish_time) as finish_time,
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), finish_time - start_time, '') as elapsed_time,
 				     service_status
 				     FROM Task JOIN TaskState ON state_code = code
 					       WHERE id IN ($id_list)
