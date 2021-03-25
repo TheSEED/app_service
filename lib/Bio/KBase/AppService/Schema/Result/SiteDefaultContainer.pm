@@ -48,6 +48,13 @@ __PACKAGE__->table("SiteDefaultContainer");
   is_nullable: 1
   size: 255
 
+=head2 last_modified
+
+  data_type: 'timestamp'
+  datetime_undef_if_invalid: 1
+  default_value: current_timestamp
+  is_nullable: 0
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -55,6 +62,13 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 0, size => 255 },
   "default_container_id",
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
+  "last_modified",
+  {
+    data_type => "timestamp",
+    datetime_undef_if_invalid => 1,
+    default_value => \"current_timestamp",
+    is_nullable => 0,
+  },
 );
 
 =head1 PRIMARY KEY
@@ -92,8 +106,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-10 14:48:58
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:V6EqtIbT76SwZFjX+kEb4A
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-25 13:44:04
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:QMwEFGWcM+UY+LiYNXFGmw
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

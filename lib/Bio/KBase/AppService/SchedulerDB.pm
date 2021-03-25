@@ -183,6 +183,7 @@ sub create_task
 	req_runtime => $preflight->{runtime},
 	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
+	user_metadata => $start_parameters->{user_metadata},    
 	(defined($container_id) ? (container_id => $container_id) : ()),
 	};
 

@@ -2,3 +2,4 @@
 *.pm.bak-201*
 *.py.bak-201*
 lib/Bio/KBase/AppService/AppConfig.pm
+lib/javascript/AppService/Client.js

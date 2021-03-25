@@ -10,6 +10,8 @@ my($opt, $usage) = describe_options("%c %o app-id params-data [workspace]",
 				    ["output-file|f=s", "Change the output file"],
 				    ["container-id|c=s", "Use the specified container"],
 				    ["base-url|b=s", "Submit with the chosen base URL"],
+				    ["user-metadata=s", "Tag the job with the given metadata"],
+				    ["user-metadata-file=s", "Tag the job with the given metadata from this file"],
 				    ["verbose|v", "Show verbose output"],
 				    ["url|u=s", "Service URL"],
 				    ["help|h", "Show this help message"]);
@@ -25,10 +27,18 @@ my $workspace = shift;
 
 my $params = decode_json(scalar read_file($params_data));
 
+my $user_metadata = $opt->user_metadata;
+if ($opt->user_metadata_file)
+{
+    $user_metadata = read_file($opt->user_metadata);
+}
+
+
 my $start_params = {
     defined($workspace) ? (workspace => $workspace) : (),
     $opt->container_id ? (container_id => $opt->container_id) : (),
     $opt->base_url ? (base_url => $opt->base_url) : (),
+    defined($user_metadata) ? (user_metadata => $user_metadata) : (),
 };
     
 if ($params->{output_path} && $opt->output_path)

@@ -134,6 +134,7 @@ CREATE TABLE Task
 	hidden BOOLEAN default FALSE,
 	container_id VARCHAR(255),
 	base_url VARCHAR(255),
+	user_metadata TEXT,
 	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
 	FOREIGN KEY (state_code) REFERENCES TaskState(code),
 	FOREIGN KEY (application_id) REFERENCES Application(id),

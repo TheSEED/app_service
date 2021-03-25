@@ -21,6 +21,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["submit|s" => "Submit the job to the scheduler"],
 				    ["base|b=s" => "Use this directory as the deployment base for the run (not for use with --submit)"],
 				    ["app|a=s" => "Application name"],
+				    ["user-metadata=s" => "User metadata for this run"],
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
@@ -189,6 +190,7 @@ sub run_in_container
     my $exitcode = $?;
     write_file("$out_dir/exitcode", "$exitcode\n");
     write_file("$out_dir/hostname", "$hostname\n");
+    write_file("$out_dir/user_metadata", $opt->user_metadata) if $opt->user_metadata;
     $ok or die "Error running @cmd\n";
 	       
 }
@@ -212,6 +214,7 @@ sub run_locally
     my $exitcode = $?;
     write_file("$out_dir/exitcode", "$exitcode\n");
     write_file("$out_dir/hostname", "$hostname\n");
+    write_file("$out_dir/user_metadata", $opt->user_metadata) if $opt->user_metadata;
     $ok or die "Error running @cmd\n";
 	       
 }
@@ -221,6 +224,7 @@ sub submit_job
     my($app, $params, $out_dir, $container) = @_;
     my @cmd = ('appserv-start-app');
     push(@cmd, '-c', $container) if $container;
+    push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
     push(@cmd, $app, $params);
 
     my $out;
