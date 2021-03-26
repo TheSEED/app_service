@@ -31,6 +31,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
 				    ["show-output-file" => "Show the output filename"],
 				    ["show-output-path" => "Show the output path"],
+				    ["show-user-metadata" => "Show the user metadata"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -174,7 +175,7 @@ if ($opt->count)
 my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
 	     t.submit_time, t.start_time, t.finish_time, timediff(t.finish_time, t.start_time) as elap,
 	     t.output_path, t.output_file, t.params,
-	     t.req_memory, t.req_cpu, t.req_runtime,
+	     t.req_memory, t.req_cpu, t.req_runtime, t.user_metadata,
 	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist
 	     $full_condition
 	     ORDER BY $sort
@@ -212,7 +213,12 @@ if ($opt->show_output_file)
 
 if ($opt->show_output_path)
 {
-    push(@cols, { title => "Ouput path" });
+    push(@cols, { title => "Output path" });
+}
+
+if ($opt->show_user_metadata)
+{
+    push(@cols, { title => "User metadata" });
 }
 
 if ($opt->parsable && !$opt->no_header)
@@ -283,6 +289,7 @@ while (my $task = $sth->fetchrow_hashref)
     push(@row, $genome_id, $indexing_skipped) if $opt->genome_id;
     push(@row, $task->{output_file}) if $opt->show_output_file;
     push(@row, $task->{output_path}) if $opt->show_output_path;
+    push(@row, $task->{user_metadata}) if $opt->show_user_metadata;
     push(@rows, \@row);
 
     if ($opt->parsable)
