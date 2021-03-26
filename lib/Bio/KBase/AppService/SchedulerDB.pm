@@ -370,7 +370,7 @@ sub query_tasks
 				     if(submit_time = default(submit_time), "", submit_time) as submit_time,
 				     if(start_time = default(start_time), "", start_time) as start_time,
 				     if(finish_time = default(finish_time), "", finish_time) as finish_time,
-				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), finish_time - start_time, '') as elapsed_time,
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elapsed_time,
 				     service_status
 				     FROM Task JOIN TaskState ON state_code = code
 					       WHERE id IN ($id_list)
@@ -500,7 +500,7 @@ sub enumerate_tasks
 				     IF(submit_time=default(submit_time), '', DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ')) as submit_time,
 				     IF(start_time=default(start_time), '', DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ')) as start_time,
 				     IF(finish_time=default(finish_time), '', DATE_FORMAT(finish_time, '%Y-%m-%dT%TZ')) as finish_time,
-				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), finish_time - start_time, '') as elapsed_time
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elapsed_time
 
 				     FROM Task JOIN TaskState on state_code = code
 				     WHERE owner = ?
@@ -622,7 +622,7 @@ sub enumerate_tasks_filtered_async
     {
 	$ret_fields .= "DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ') as $x, ";
     }
-    $ret_fields .= "t.finish_time - t.start_time as elapsed_time, ts.service_status";
+    $ret_fields .= "timediff(t.finish_time, t.start_time) as elapsed_time, ts.service_status";
 
     my $qry = qq(SELECT $ret_fields
 		 FROM Task t JOIN TaskState ts on t.state_code = ts.code
@@ -752,8 +752,7 @@ sub enumerate_tasks_filtered
 	$ret_fields .= "IF($x = default($x), '', DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ')) as $x, ";
 	# $ret_fields .= "DATE_FORMAT( CONVERT_TZ(`$x`, \@\@session.time_zone, '+00:00') ,'%Y-%m-%dT%TZ') as $x, ";
     }
-    $ret_fields .= "if(t.finish_time != default(t.finish_time) and t.start_time != default(t.start_time), t.finish_time - t.start_time, '') as elapsed_time, ";
-    # $ret_fields .= "t.finish_time - t.start_time as elapsed_time, ts.service_status";
+    $ret_fields .= "if(t.finish_time != default(t.finish_time) and t.start_time != default(t.start_time), timediff(t.finish_time, t.start_time), '') as elapsed_time, ";
     $ret_fields .= " ts.service_status";
 
     my $qry = qq(SELECT $ret_fields
