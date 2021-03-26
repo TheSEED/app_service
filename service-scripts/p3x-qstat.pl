@@ -32,6 +32,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["show-output-file" => "Show the output filename"],
 				    ["show-output-path" => "Show the output path"],
 				    ["show-user-metadata" => "Show the user metadata"],
+				    ["show-times" => "Show start and finish times"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -173,7 +174,10 @@ if ($opt->count)
 
 
 my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,  
-	     t.submit_time, t.start_time, t.finish_time, timediff(t.finish_time, t.start_time) as elap,
+	     if(submit_time = default(submit_time), "", submit_time) as submit_time,
+	     if(start_time = default(start_time), "", start_time) as start_time,
+	     if(finish_time = default(finish_time), "", finish_time) as finish_time,
+	     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elap,
 	     t.output_path, t.output_file, t.params,
 	     t.req_memory, t.req_cpu, t.req_runtime, t.user_metadata,
 	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist
@@ -206,9 +210,15 @@ if ($opt->genome_id)
     push(@cols, { title => "Indexing skipped" });
 }
 
+if ($opt->show_times)
+{
+    push(@cols, { title => "Start time" });
+    push(@cols, { title => "Finish time" });
+}
+
 if ($opt->show_output_file)
 {
-    push(@cols, { title => "Ouput file" });
+    push(@cols, { title => "Output file" });
 }
 
 if ($opt->show_output_path)
@@ -287,6 +297,8 @@ while (my $task = $sth->fetchrow_hashref)
 				 $task->{req_cpu}, $task->{req_memory}, $task->{req_runtime},
 				 $task->{nodelist}, int($task->{maxrss})) : ());
     push(@row, $genome_id, $indexing_skipped) if $opt->genome_id;
+    push(@row, $task->{start_time}) if $opt->show_times;
+    push(@row, $task->{finish_time}) if $opt->show_times;
     push(@row, $task->{output_file}) if $opt->show_output_file;
     push(@row, $task->{output_path}) if $opt->show_output_path;
     push(@row, $task->{user_metadata}) if $opt->show_user_metadata;
