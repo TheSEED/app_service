@@ -8,12 +8,17 @@ use Getopt::Long::Descriptive;
 use Bio::KBase::AppService::Client;
 use File::Slurp;
 use JSON::XS;
+use File::Basename;
 use Data::Dumper;
+use Bio::KBase::AppService::LongestCommonSubstring qw(BuildString BuildTree LongestCommonSubstring);
+use HTML::QuickTable;
+use HTML::Table;
 
 my $cli = Bio::KBase::AppService::Client->new;
 
 my($opt, $usage) = describe_options("%c %o input-file",
 				    ["output-file|o=s" => "Write output here"],
+				    ["html-file|H=s" => "Write HTML output here"],
 				    ["help|h" => "Show this help message"]);
 $usage->die() if @ARGV != 1;
 print($usage->text), exit 0 if $opt->help;
@@ -29,26 +34,118 @@ if ($opt->output_file)
     open($out_fh, ">", $opt->output_file) or die "Cannot write output " . $opt->output_file . ": $!";
 }
 
+my @out;
+
 while (<IN>)
 {
     chomp;
-    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap) = split(/\t/);
+    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host) = split(/\t/);
 
     next unless -f $inp_fn;
-    if (!defined($task_exit))
+    if ($task_exit eq '')
     {
 	my $det = $cli->query_task_details($task_id);
+	$host = $det->{hostname};
+	my $task = $cli->query_tasks([$task_id])->{$task_id};
+
+	if ($task->{status} eq 'completed' || $task->{status} eq 'failed')
+	{
+	    $elap = $task->{elapsed_time};
+	}
+
 	if (defined($det->{exitcode}))
 	{
-	    my $task = $cli->query_tasks([$task_id]);
-	    $elap = $task->{$task_id}->{elapsed_time};
 	    $task_exit = $det->{exitcode};
 
 	    my $params = decode_json(scalar read_file($inp_fn));
 
 	    $qa_success = (($task_exit == 0) xor $params->{failure_expected}) ? "OK" : "FAIL";
 	}
+	else
+	{
+	    $qa_success = $task->{status};
+	    if ($qa_success eq 'completed')
+	    {
+		warn Dumper($det);
+	    }
+	}
     }
-    print $out_fh join("\t", $tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap), "\n";
+    push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host]);
+#    print $out_fh join("\t", $tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap), "\n";
 }
 
+if (0)
+{
+#
+# Basenames only.
+#
+    for my $x (@out)
+    {
+	for my $col (4, 5, 7)
+	{
+	    $x->[$col] = basename($x->[$col]);
+	}
+	$x->[2] =~ s/([A-Z][a-z])/ \1/g;
+	$x->[2] =~ s/([A-Z][a-z])/ \1/g;
+    }
+}
+
+my @hdrs = ("Tag", "Container",  "App", "Task ID", "Input",  "FS Dir",  "Out File", "Out Folder",
+	    "Task Exit", "QA Status", "Elapsed", "Hostname");
+
+print $out_fh join("\t", @hdrs), "\n";
+print $out_fh join("\t", @$_), "\n" foreach @out;
+
+
+if (0 && $opt->html_file)
+{
+    open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
+    my $qt = HTML::QuickTable->new(header => 0, labels => 1, table => { border => 1 });
+
+    my @dat = map { [ @$_[2,3,4,8,9,10]  ]} (\@hdrs, @out);
+
+    print H $qt->render(\@dat);
+    close(H);
+    
+}
+
+if ($opt->html_file)
+{
+    open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
+    my $table = HTML::Table->new(-border => 1, -evenrowclass => 'even', -oddrowclass => 'odd', -padding => 2);
+
+    my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11]  ]} (\@hdrs, @out);
+
+    for my $d (@dat)
+    {
+	my $elap = $d->[5];
+
+	if ($elap =~ /^\d+$/)
+	{
+	    my $min = int($elap / 60);
+	    my $sec = $elap % 60;
+	    $d->[5] = sprintf("%4d:%02d", $min, $sec);
+	}
+	
+	my $r = $table->addRow(@$d);
+
+	my $stat = $d->[4];
+	if ($stat eq 'OK')
+	{
+	    $table->setCellBGColor($r, 5, 'lightgreen');
+	}
+	elsif ($stat eq 'FAIL')
+	{
+	    $table->setCellBGColor($r, 5, 'pink');
+	}
+    }
+    $table->setColAlign(4, 'center');
+    $table->setColAlign(5, 'center');
+    $table->setColAlign(6, 'right');
+
+    $table->setRowHead(1);
+
+    print H $table->getTable;
+    close(H);
+    
+}

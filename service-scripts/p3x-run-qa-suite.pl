@@ -79,8 +79,12 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 	
 	print "@cmd\n";
 	my $ok = run(\@cmd,
-		    init => sub { chdir($tfolder); });
-	$ok or die "Error running @cmd: $?\n";
+		     init => sub { chdir($tfolder); });
+	my @rest;
+	if (!$ok)
+	{
+	    warn "Error running @cmd: $?\n";
+	}
 	my $meta = decode_json(scalar read_file("$temp"));
 	print STAT join("\t",
 			$tag,
@@ -91,6 +95,10 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 			$meta->{fs_dir},
 			$meta->{output_file},
 			$meta->{output_path},
+			$meta->{exitcode},
+			'',
+			'',
+			$meta->{hostname}
 		       ), "\n";
     }
 }

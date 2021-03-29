@@ -255,12 +255,18 @@ sub submit_job
 
     my $out;
     my $ok = run(\@cmd, ">", \$out);
+    my $exitcode = $?;
     print $out;
     my $task_id;
     if ($out =~ /Started\s+task\s+(\d+)/)
     {
 	$task_id = $1;
 	write_file("$out_dir/task_id", "$task_id\n");
+    }
+    my @bad;
+    if (!$ok)
+    {
+	@bad = (exitcode => $exitcode, hostname => 'none');
     }
     if ($opt->meta_out)
     {
@@ -269,6 +275,7 @@ sub submit_job
 						       fs_dir => $out_dir,
 						       output_path => $output_path,
 						       output_file => $output_file,
+						       @bad
 						   }));
     }
     $ok or die "Error running @cmd\n";
