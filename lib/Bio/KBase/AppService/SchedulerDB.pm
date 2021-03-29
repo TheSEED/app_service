@@ -863,6 +863,11 @@ sub reset_job
 		push(@params, $reset_params->{memory});
 		$reset .= ", t.req_memory = ?";
 	    }
+	    if ($reset_params->{cpu})
+	    {
+		push(@params, $reset_params->{cpu});
+		$reset .= ", t.req_cpu = ?";
+	    }
 	}
 	
 	my $res = $self->dbh->do(qq(UPDATE Task t,  TaskExecution te
