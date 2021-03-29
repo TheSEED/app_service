@@ -72,6 +72,22 @@ sub create_from_asssembly_params
 	    die "Invalid SRR identifer $srr\n";
 	}
     }
+    #
+    # For FqUtils format
+    #
+    for my $lib (@{$params->{srr_libs}})
+    {
+	my $srr = $lib->{srr_accession};
+	
+	if ($srr =~ /^\s*([A-Z]+\d+)\s*$/)
+	{
+	    push(@libs, SRRLibrary->new($1));
+	}
+	else
+	{
+	    die "Invalid SRR identifer $srr\n";
+	}
+    }
 
     my $self = {
 	libraries => \@libs,
