@@ -29,6 +29,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["start-time=s" => "Limit results to jobs submitted at or after this time"],
 				    ["end-time=s" => "Limit results to jobs submitted before this time"],
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
+				    ["user-metadata=s" => "Limit to jobs with the given user metadata"],
 				    ["show-output-file" => "Show the output filename"],
 				    ["show-output-path" => "Show the output path"],
 				    ["show-user-metadata" => "Show the user metadata"],
@@ -69,6 +70,12 @@ if ($opt->compute_node)
 	my $nl = join(",", map { $dbh->quote($_) } @$list);
 	push(@conds, "cj.nodelist IN ($nl)");
     }
+}
+
+if ($opt->user_metadata)
+{
+    push(@conds, 't.user_metadata = ?');
+    push(@params, $opt->user_metadata);
 }
 
 if ($opt->start_time)
