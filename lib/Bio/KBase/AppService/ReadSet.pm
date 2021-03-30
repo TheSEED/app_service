@@ -308,7 +308,15 @@ sub expand_one_sra_metadata
     my $md = $lib->{metadata};
     my $nlib;
 
-    if ($md->{n_reads} ==2 || $md->{library_layout} eq 'PAIRED')
+    my %rmap = (1 => 'SE',
+		2 => 'PE',
+		PAIRED => 'PE',
+		SINGLE => 'SE',
+		);
+
+    my $type = $rmap{$md->{n_reads}} // $rmap{$md->{library_layout}};
+    
+    if ($type eq 'PE')
     {
 	my $fn1 = "$md->{accession}_1.fastq";
 	my $fn2 = "$md->{accession}_2.fastq";
@@ -317,7 +325,7 @@ sub expand_one_sra_metadata
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
     }
-    elsif ($md->{n_reads} == 1 || $md->{library_layout} eq 'SINGLE')
+    elsif ($type eq 'SE')
     {
 	my $fn1 = "$md->{accession}.fastq";
 	$nlib = SingleEndLibrary->new($fn1);
