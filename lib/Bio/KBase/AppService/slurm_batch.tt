@@ -11,6 +11,9 @@
 #SBATCH --output [% sbatch_output %]
 #SBATCH --err [% sbatch_error %]
 #SBATCH --time [% sbatch_time %]
+[% IF sbatch_reservation -%]
+#SBATCH --reservation [% sbatch_reservation %]
+[% END -%]
 
 [% FOR r IN resources -%]
 [% r %]

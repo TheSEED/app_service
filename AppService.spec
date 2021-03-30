@@ -74,6 +74,7 @@ module AppService
 	string base_url;
 	string container_id;
 	string user_metaata;
+	string reservation;
     } StartParams;
     funcdef start_app2(app_id, task_parameters params, StartParams start_params)
 	returns (Task task);

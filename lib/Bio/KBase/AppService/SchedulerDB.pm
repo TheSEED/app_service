@@ -162,8 +162,16 @@ sub create_task
     }
     my $code = $res->[0];
 
-    my $policy_data;
+    my $policy_data = {};
 
+    #
+    # Policy data. We merge keys from policy-related start parameters
+    # and anything in the preflight policy data.
+    #
+
+    $policy_data->{$_} = $start_parameters->{$_} foreach grep { exists $start_parameters->{$_} } qw(reservation);
+    $policy_data->{$_} = $preflight->{policy_data}->{$_} foreach keys %{$preflight->{policy_data}};
+    
     my $container_id = $self->determine_container_id_override($task_parameters, $start_parameters);
     
     my $task = {
@@ -181,7 +189,7 @@ sub create_task
 	req_memory => $preflight->{memory},
 	req_cpu => $preflight->{cpu},
 	req_runtime => $preflight->{runtime},
-	req_policy_data => $self->json->encode($preflight->{policy_data} // {}),
+	req_policy_data => $self->json->encode($policy_data),
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
 	user_metadata => $start_parameters->{user_metadata},    
 	(defined($container_id) ? (container_id => $container_id) : ()),
