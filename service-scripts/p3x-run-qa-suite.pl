@@ -34,6 +34,7 @@ use POSIX;
 
 my($opt, $usage) = describe_options("%c %o status-file",
 				    ["container|c=s" => "Container id to run with"],
+				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
 				    ["app=s" => "Run tests only for this app name"],
 				    ["out|o=s" => "Use this workspace path as the output base",
@@ -72,6 +73,7 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 	close($temp);
 	my @cmd = ("p3x-run-qa",
 		   "--submit",
+		   ($opt->reservation ? ('--reservation', $opt->reservation) : ()),
 		   "--user-metadata", $tag,
 		   @container,
 		   "--meta-out", "$temp",

@@ -22,6 +22,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["base|b=s" => "Use this directory as the deployment base for the run (not for use with --submit)"],
 				    ["app|a=s" => "Application name"],
 				    ["user-metadata=s" => "User metadata for this run"],
+				    ["reservation=s" => "Use this reservation for job submission"],
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
@@ -250,6 +251,7 @@ sub submit_job
 
     my @cmd = ('appserv-start-app');
     push(@cmd, '-c', $container) if $container;
+    push(@cmd, '--reservation', $opt->reservation) if $opt->reservation;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
     push(@cmd, $app, $params);
 
