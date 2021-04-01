@@ -23,6 +23,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["app|a=s" => "Application name"],
 				    ["user-metadata=s" => "User metadata for this run"],
 				    ["reservation=s" => "Use this reservation for job submission"],
+				    ["output-redirection!" => "Redirect tool output", { default => 1 }],
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
@@ -185,10 +186,16 @@ sub run_in_container
     my $bindings = join(",", @bindings);
     
     my @cmd = ("singularity", "exec", "--env", "KB_INTERACTIVE=1", "-B", $bindings, $container, "App-$app", "xx", $spec, $params);
-    print "Run @cmd\n";
+    my @redirect;
+    if ($opt->output_redirection)
+    {
+	@redirect = ('>', "$out_dir/stdout.log",
+		     '2>', "$out_dir/stderr.log",
+		     );
+    }
+    print "Run @cmd @redirect\n";
     my $ok = run(\@cmd,
-		 '>', "$out_dir/stdout.log",
-		 '2>', "$out_dir/stderr.log",
+		 @redirect,
 		);
     my $exitcode = $?;
     write_file("$out_dir/exitcode", "$exitcode\n");
@@ -220,11 +227,17 @@ sub run_locally
     #
 
     my @cmd = ("App-$app", "xx", $spec, $params);
-    print "Run @cmd\n";
+    my @redirect;
+    if ($opt->output_redirection)
+    {
+	@redirect = ('>', "$out_dir/stdout.log",
+		     '2>', "$out_dir/stderr.log",
+		     );
+    }
+    print "Run @cmd @redirect\n";
     my $ok = run(\@cmd,
 		 init => sub { $ENV{KB_INTERACTIVE} = 1 },
-		 '>', "$out_dir/stdout.log",
-		 '2>', "$out_dir/stderr.log",
+		 @redirect,
 		);
     my $exitcode = $?;
     write_file("$out_dir/exitcode", "$exitcode\n");
