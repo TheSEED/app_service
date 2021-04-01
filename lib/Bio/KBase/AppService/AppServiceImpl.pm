@@ -589,6 +589,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	base_url has a value which is a string
 	container_id has a value which is a string
 	user_metaata has a value which is a string
+	reservation has a value which is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -625,6 +626,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	base_url has a value which is a string
 	container_id has a value which is a string
 	user_metaata has a value which is a string
+	reservation has a value which is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -1865,6 +1867,7 @@ workspace has a value which is a workspace_id
 base_url has a value which is a string
 container_id has a value which is a string
 user_metaata has a value which is a string
+reservation has a value which is a string
 
 </pre>
 
@@ -1878,6 +1881,7 @@ workspace has a value which is a workspace_id
 base_url has a value which is a string
 container_id has a value which is a string
 user_metaata has a value which is a string
+reservation has a value which is a string
 
 
 =end text
