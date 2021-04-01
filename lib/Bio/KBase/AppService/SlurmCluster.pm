@@ -489,7 +489,7 @@ EAL
 	    $vars{sbatch_clusters} = "#SBATCH --clusters " . $cinfo->submit_cluster;
 	}
 
-	if (my $dat = $task->policy_data)
+	if (my $dat = $task->req_policy_data)
 	{
 	    my $policy = eval { decode_json($dat); };
 	    if (ref($policy) eq 'HASH')
