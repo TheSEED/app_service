@@ -36,7 +36,7 @@ my($opt, $usage) = describe_options("%c %o status-file",
 				    ["container|c=s" => "Container id to run with"],
 				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
-				    ["app=s" => "Run tests only for this app name"],
+				    ['app=s@' => "Run tests only for this app name"],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
 				    ["help|h" => "Show this help message"],
@@ -53,12 +53,10 @@ my $tag = strftime("QA-%Y-%m-%d-%H-%M", localtime);
 # Enumerate the folders with test subdirectories.
 #
 
-
 for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 {
-    print "Have $tfolder\n";
     my($app) = $tfolder =~ m,/App-([^/]+)/tests,;
-    if ($app && $opt->app && $app ne $opt->app)
+    if ($app && $opt->app && ! grep { $app eq $_ } @{$opt->app})
     {
 	print "Skipping $tfolder\n";
 	next;

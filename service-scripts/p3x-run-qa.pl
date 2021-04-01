@@ -114,7 +114,7 @@ if (@ARGV > 0)
 }
 else
 {
-    for my $inp (glob("tests/*.json"))
+    for my $inp (sort { $a cmp $b } glob("tests/*.json"))
     {
 	push(@input, abs_path($inp));
     }
