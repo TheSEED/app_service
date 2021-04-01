@@ -10,8 +10,8 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2021-02-01 00:00:00';
-my $end = '2021-03-01:00:00:00';
+my $start = '2021-03-01 00:00:00';
+my $end = '2021-04-01:00:00:00';
 
 #
 # Pull time info for completed runs
