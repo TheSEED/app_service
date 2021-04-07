@@ -10,13 +10,28 @@ use base 'Class::Accessor';
 use JSON::XS;
 use File::Slurp;
 
-__PACKAGE__->mk_accessors(qw(dir));
+__PACKAGE__->mk_accessors(qw(spec_dirs));
 
 sub new
 {
     my($class, $dir) = @_;
+
+    my $top = $ENV{KB_TOP};
+    my $specs_deploy = "$top/services/app_service/app_specs";
+
+    my @spec_dirs;
+    
+    if (-d $specs_deploy)
+    {
+	@spec_dirs = ($specs_deploy);
+    }
+    else
+    {
+	@spec_dirs = glob("$top/modules/*/app_specs");
+    }
+
     my $self = {
-	dir => $dir,
+	spec_dirs => \@spec_dirs,
     };
     return bless $self, $class;
 }
@@ -26,7 +41,6 @@ sub enumerate
     my($self) = @_;
 
     my $dh;
-    my $dir = $self->dir;
 
     #
     # We allow relaxed parsing of app definition files so that
@@ -36,26 +50,30 @@ sub enumerate
     my $json = JSON::XS->new->relaxed(1);
 
     my @list;
+    my @dirs = @{$self->spec_dirs};
     
-    if (!$dir) {
-	warn "No app directory specified\n";
-    } elsif (opendir($dh, $dir)) {
-	my @files = sort { $a cmp $b } grep { /\.json$/ && -f "$dir/$_" } readdir($dh);
-	closedir($dh);
-	for my $f (@files)
+    if (@dirs == 0)
+    {
+	warn "No app directories specified\n";
+    }
+    else
+    {
+	for my $dir (@dirs)
 	{
-	    my $obj = $json->decode(scalar read_file("$dir/$f"));
-	    if (!$obj)
+	    my @files = sort { $a cmp $b } glob("$dir/*.json");
+	    for my $f (@files)
 	    {
-		warn "Could not read $dir/$f\n";
-	    }
-	    else
-	    {
-		push(@list, $obj);
+		my $obj = eval { $json->decode(scalar read_file($f)) };
+		if (!$obj)
+		{
+		    warn "Could not read $f: $@\n";
+		}
+		else
+		{
+		    push(@list, $obj);
+		}
 	    }
 	}
-    } else {
-	warn "Could not open app-dir $dir: $!";
     }
     return @list;
 }
@@ -64,11 +82,6 @@ sub find
 {
     my($self, $app_id) = @_;
 
-    my $dh;
-    my $dir = $self->dir;
-
-    my @list;
-    
     #
     # We allow relaxed parsing of app definition files so that
     # we may put comments into them.
@@ -76,28 +89,42 @@ sub find
 
     my $json = JSON::XS->new->relaxed(1);
 
-    if (!$dir) {
-	warn "No app directory specified\n";
-    } elsif (opendir($dh, $dir)) {
-	my @files = grep { /\.json$/ && -f "$dir/$_" } readdir($dh);
-	closedir($dh);
-	for my $f (@files)
+    my @list;
+    my @dirs = @{$self->spec_dirs};
+    
+    if (@dirs == 0)
+    {
+	warn "No app directories specified\n";
+    }
+    else
+    {
+	for my $dir (@dirs)
 	{
-	    my $obj = $json->decode(scalar read_file("$dir/$f"));
-	    if (!$obj)
+	    my @files = sort { $a cmp $b } glob("$dir/*.json");
+	    for my $f (@files)
 	    {
-		warn "Could not read $dir/$f\n";
-	    }
-	    else
-	    {
-		if ($obj->{id} eq $app_id)
+		my $obj = eval { $json->decode(scalar read_file($f)) };
+		if (!$obj)
 		{
-		    return $obj;
+		    warn "Could not read $f: $@\n";
+		}
+		else
+		{
+		    if ($obj->{id} eq $app_id)
+		    {
+			if (wantarray)
+			{
+			    return ($obj, $f);
+			}
+			else
+			{
+			    return $obj;
+			}
+		    }
 		}
 	    }
+	    
 	}
-    } else {
-	warn "Could not open app-dir $dir: $!";
     }
     return undef;
 }
