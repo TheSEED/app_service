@@ -143,6 +143,94 @@ CREATE TABLE Task
 	FULLTEXT KEY search_idx(search_terms)
 );
 
+CREATE TABLE ArchivedTask
+(
+	id INTEGER ,
+	owner VARCHAR(255),
+	parent_task INTEGER,
+	state_code VARCHAR(10),
+	application_id VARCHAR(255),
+	submit_time TIMESTAMP DEFAULT '1970-01-01 00:00:00',
+	start_time TIMESTAMP DEFAULT '1970-01-01 00:00:00',
+	finish_time TIMESTAMP DEFAULT '1970-01-01 00:00:00',
+	monitor_url VARCHAR(255),
+	output_path  TEXT,
+	output_file TEXT,
+	params JSON,
+	app_spec JSON,
+	req_memory VARCHAR(255),
+	req_cpu INTEGER,
+	req_runtime INTEGER,
+	req_policy_data TEXT,
+	req_is_control_task BOOLEAN,
+	search_terms text,
+	hidden BOOLEAN default FALSE,
+	container_id VARCHAR(255),
+	base_url VARCHAR(255),
+	user_metadata TEXT,
+
+	-- Following are the denormalized fields from TaskExecution
+	cluster_job_id INTEGER,
+	
+	-- Following are the denormalized fields from ClusterJob
+
+	cluster_id VARCHAR(255),
+	job_id VARCHAR(255),
+	job_status VARCHAR(255),
+	maxrss float,
+	nodelist TEXT,
+	exitcode VARCHAR(255),
+	cancel_requested bool default false,
+
+	INDEX (job_id),
+	PRIMARY KEY (id, submit_time)
+)
+PARTITION BY RANGE ( UNIX_TIMESTAMP(submit_time) ) (
+PARTITION p_2014_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2014-01-01 00:00:00') ),
+PARTITION p_2015_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2015-01-01 00:00:00') ),
+PARTITION p_2016_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2016-01-01 00:00:00') ),
+PARTITION p_2017_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2017-01-01 00:00:00') ),
+PARTITION p_2018_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2018-01-01 00:00:00') ),
+PARTITION p_2019_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2019-01-01 00:00:00') ),
+PARTITION p_2019_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2019-04-01 00:00:00') ),
+PARTITION p_2019_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2019-07-01 00:00:00') ),
+PARTITION p_2019_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2019-10-01 00:00:00') ),
+PARTITION p_2020_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2020-01-01 00:00:00') ),
+PARTITION p_2020_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2020-04-01 00:00:00') ),
+PARTITION p_2020_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2020-07-01 00:00:00') ),
+PARTITION p_2020_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2020-10-01 00:00:00') ),
+PARTITION p_2021_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2021-01-01 00:00:00') ),
+PARTITION p_2021_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2021-04-01 00:00:00') ),
+PARTITION p_2021_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2021-07-01 00:00:00') ),
+PARTITION p_2021_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2021-10-01 00:00:00') ),
+PARTITION p_2022_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2022-01-01 00:00:00') ),
+PARTITION p_2022_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2022-04-01 00:00:00') ),
+PARTITION p_2022_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2022-07-01 00:00:00') ),
+PARTITION p_2022_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2022-10-01 00:00:00') ),
+PARTITION p_2023_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2023-01-01 00:00:00') ),
+PARTITION p_2023_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2023-04-01 00:00:00') ),
+PARTITION p_2023_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2023-07-01 00:00:00') ),
+PARTITION p_2023_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2023-10-01 00:00:00') ),
+PARTITION p_2024_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2024-01-01 00:00:00') ),
+PARTITION p_2024_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2024-04-01 00:00:00') ),
+PARTITION p_2024_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2024-07-01 00:00:00') ),
+PARTITION p_2024_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2024-10-01 00:00:00') ),
+PARTITION p_2025_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2025-01-01 00:00:00') ),
+PARTITION p_2025_04 VALUES LESS THAN ( UNIX_TIMESTAMP('2025-04-01 00:00:00') ),
+PARTITION p_2025_07 VALUES LESS THAN ( UNIX_TIMESTAMP('2025-07-01 00:00:00') ),
+PARTITION p_2025_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2025-10-01 00:00:00') ),
+     PARTITION p_last VALUES LESS THAN (MAXVALUE)
+);
+
+CREATE TABLE TaskParams
+(
+	task_id INTEGER PRIMARY KEY,
+	FOREIGN KEY (task_id) REFERENCES Task(id),
+	app_spec JSON,
+	params JSON,
+	preflight JSON
+);
+
 CREATE TABLE loader
 (
 cluster_job_id varchar(36),
@@ -202,6 +290,41 @@ FROM Task t
      JOIN TaskExecution te ON t.id = te.task_id
      JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 WHERE te.active = 1;
+
+-- View that matches ArchivedTask
+DROP VIEW TasksForArchiving;
+CREATE VIEW TasksForArchiving AS
+SELECT 
+t.id,
+t.owner,
+t.parent_task,
+t.state_code,
+t.application_id,
+t.submit_time,
+t.start_time,
+t.finish_time,
+t.monitor_url,
+t.output_path,
+t.output_file,
+IF(JSON_VALID(t.params), t.params, "{}") as params,
+IF(JSON_VALID(t.app_spec), t.app_spec, "{}") as app_spec,
+t.req_memory,
+t.req_cpu,
+t.req_runtime,
+t.req_policy_data,
+t.req_is_control_task,
+t.search_terms,
+t.hidden,
+t.container_id,
+t.base_url,
+t.user_metadata,
+cj.id as cluster_job_id,
+       cj.cluster_id, cj.job_id, cj.job_status,
+       cj.maxrss, cj.nodelist, cj.exitcode, cj.cancel_requested
+FROM Task t 
+     LEFT OUTER JOIN TaskExecution te ON t.id = te.task_id
+     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+WHERE te.active is null or te.active = 1;
 
 CREATE VIEW MergedTaskStatus AS
 SELECT t.id, t.owner, t.state_code, cj.job_status
