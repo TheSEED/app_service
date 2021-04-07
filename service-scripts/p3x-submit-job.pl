@@ -79,10 +79,6 @@ if (redis_host)
 
 my $token_obj = P3AuthToken->new(token => $token);
 
-my $specs = Bio::KBase::AppService::AppSpecs->new(app_directory);
-
-my $app = $db->find_app($app_id, $specs);
-
 my $appserv_info_url = app_service_url . "/task_info";
 
 
@@ -96,15 +92,13 @@ my $tmpdir = File::Temp->newdir();
 # Copy params file into temp space
 my $task_params_tmp = basename($task_params_file);
 copy($task_params_file, "$tmpdir/$task_params_tmp");
+
+my $start_params_tmp = basename($start_params_file);
+copy($start_params_file, "$tmpdir/$start_params_tmp");
+
+
 my $prev_dir = getcwd;
 chdir($tmpdir);
-
-#my $app_tmp = File::Temp->new();
-#print $app_tmp $app->{spec};
-#close($app_tmp);
-
-my $app_tmp = "app_spec.json";
-write_file($app_tmp, $app->{spec});
 
 #
 # Run preflight.
@@ -168,31 +162,55 @@ if ($repo_url)
     $container_path = "$cache_dir/$container_file";
 }
 
+my $app_tmp = "app_spec.json";
+
 my $pf_error = "preflight.err";
-my @preflight = ($app->{script},
-		 "--user-error-file", $pf_error,
-		 "--preflight", $preflight_tmp,
-		 $appserv_info_url, $app_tmp, $task_params_tmp);
+
+my $preflight_script = "p3x-run-preflight";
+my @preflight_opts = ("--user-error-file", $pf_error,
+		      "--preflight", $preflight_tmp,
+		      $app_id, $appserv_info_url, $task_params_tmp, $start_params_tmp);
+
+#
+# If not running from a container, we use the app specs that we get from our
+# current environment.
+#
+# If running from a container, we ask the preflight app to get them
+# from that environment, and save them to a file that we can read
+# and then pass to the database at task creation time.
+#
 
 if ($container_path)
 {
     print STDERR "Execute preflight in $container_path\n";
-    my $rc = system("singularity", "exec", $container_path, @preflight);
+    my @cmd = ($preflight_script,
+	       "--app-data-from-deployment", $app_tmp,
+	       @preflight_opts);
+    
+    my $rc = system("singularity", "exec", $container_path, @cmd);
     chdir($prev_dir);
     if ($rc != 0)
     {
 	copy("$tmpdir/$pf_error", $error_fh);
-	die "Singularity Preflight in container $container_path @preflight failed with rc=$rc\n";
+	die "Singularity Preflight in container $container_path @cmd failed with rc=$rc\n";
     }
 }
 else
 {
-    my $rc = system(@preflight);
+    my $specs = Bio::KBase::AppService::AppSpecs->new(app_directory);
+    my $app = $db->find_app($app_id, $specs);
+    write_file($app_tmp, $app->{spec});
+
+    my @cmd = ($preflight_script,
+	       "--app-data-file", $app_tmp,
+	       @preflight_opts);
+
+    my $rc = system(@cmd);
     chdir($prev_dir);
     if ($rc != 0)
     {
 	copy($pf_error, $error_fh);
-	die "Preflight @preflight failed with rc=$rc\n";
+	die "Preflight @cmd failed with rc=$rc\n";
     }
 }
 
@@ -204,8 +222,13 @@ my $preflight = read_and_parse("$tmpdir/$preflight_tmp", {});
 my $task_params = read_and_parse($task_params_file);
 my $start_params = read_and_parse($start_params_file);
 
+#
+# We also reparse the app spec and pass that to the task creation code to save.
+#
+my $app_spec = read_and_parse($app_tmp);
+
 my $task = $db->create_task($token_obj, $app_id, $appserv_info_url,
-			    $task_params, $start_params, $preflight);
+			    $task_params, $start_params, $preflight, $app_spec);
 print OUT_TASK $json->encode($task);
 close(OUT_TASK);
 

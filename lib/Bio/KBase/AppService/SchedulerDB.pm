@@ -137,7 +137,7 @@ sub rollback
 
 sub create_task
 {
-    my($self, $token, $app_id, $monitor_url, $task_parameters, $start_parameters, $preflight) = @_;
+    my($self, $token, $app_id, $monitor_url, $task_parameters, $start_parameters, $preflight, $app_spec) = @_;
 
     my $override_user = $start_parameters->{user_override};
 
@@ -147,8 +147,16 @@ sub create_task
     });
 
     $self->begin_work();
+
+    #
+    # If we were not provided an app spec, try to find one.
+    #
+    if (!$app_spec)
+    {
+	my $app = $self->find_app($app_id);
+	$app_spec = $app->{spec};
+    }
     
-    my $app = $self->find_app($app_id);
     my $user = $self->find_user($override_user // $token->user_id, $token);
 
     #
@@ -173,6 +181,13 @@ sub create_task
     $policy_data->{$_} = $preflight->{policy_data}->{$_} foreach keys %{$preflight->{policy_data}};
     
     my $container_id = $self->determine_container_id_override($task_parameters, $start_parameters);
+
+    #
+    # Annotate task parameters with preflight data; this allows the preflight to pass
+    # configuration data to the scheduled invocation of the job (e.g. a choice to use bebop
+    # for assembly, since this choice affects the number of CPUs allocated for the job).
+    #
+    $task_parameters->{_preflight} = $preflight;
     
     my $task = {
 	owner => $user->{id},
@@ -184,7 +199,7 @@ sub create_task
 	(ref($task_parameters) eq 'HASH' ?
 	 (output_path => $task_parameters->{output_path},
 	  output_file => $task_parameters->{output_file}) : ()),
-	app_spec => $app->{spec},
+	app_spec => $app_spec,
 	monitor_url => $monitor_url,
 	req_memory => $preflight->{memory},
 	req_cpu => $preflight->{cpu},
