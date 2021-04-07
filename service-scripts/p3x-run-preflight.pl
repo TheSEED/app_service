@@ -18,7 +18,6 @@ use Data::Dumper;
 use JSON::XS;
 use Try::Tiny;
 use DBI;
-use Redis::hiredis;
 use Bio::KBase::AppService::AppSpecs;
 
 use P3AuthToken;
