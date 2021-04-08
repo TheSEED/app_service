@@ -177,7 +177,7 @@ sub start_app_with_preflight_sync
     my $cmd = ["p3x-submit-job",
 	       "--user-error-file", "$user_tmp",
 	       $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
-    print STDERR "cmd: @$cmd\n";
+    # print STDERR "cmd: @$cmd\n";
     
     my $output;
     my $error;
@@ -208,7 +208,8 @@ sub start_app_with_preflight_sync
 	}
 	else
 	{
-	    $self->submit_log([$ctx->user_id, $app_id, "Successful preflight"]);
+	    my @task_info= eval { @{$ret_task}{qw(id req_cpu req_memory req_runtime)} };
+	    $self->submit_log([$ctx->user_id, $app_id, @task_info, "Submitted"]);
 	    return $ret_task;
 	}
     }

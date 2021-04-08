@@ -243,7 +243,7 @@ sub _task_info
 	my $res = $req->new_response(200);
 	if ($file eq 'exitcode')
 	{
-	    print STDERR "have exitcode, trying queue check\n";
+	    # print STDERR "have exitcode, trying queue check\n";
 	    
 	    # prod the scheduler. Fire & forget.
 	    # $self->{redis}->command("publish", "task_completion", $task, sub { print STDERR "Publish complete\n";});
@@ -551,7 +551,7 @@ sub start_app
     my($task);
     #BEGIN start_app
 
-    print STDERR "start_app\n";
+    # print STDERR "start_app\n";
     $task = $self->{util}->start_app_with_preflight_sync($ctx, $app_id, $params, { workspace => $workspace });
     
     #END start_app
@@ -674,7 +674,7 @@ sub start_app2
     my $ctx = $Bio::KBase::AppService::Service::CallContext;
     my($task);
     #BEGIN start_app2
-    print STDERR "start_app2\n";
+    # print STDERR "start_app2\n";
     # $task = $self->{util}->start_app($ctx, $app_id, $params, $start_params);
     # my $cb = $self->{util}->start_app_with_preflight($ctx, $app_id, $params, $start_params);
     # return $cb;
