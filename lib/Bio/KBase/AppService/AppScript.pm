@@ -281,7 +281,14 @@ sub run
     $self->{error_fh} = $error_fh;
     $error_fh->autoflush(1);
 
-    $self->preprocess_parameters($app_def_file, $params_file);
+    eval {
+	$self->preprocess_parameters($app_def_file, $params_file);
+    };
+    if ($@)
+    {
+	print $error_fh $@;
+	die $@;
+    }
 
     $self->{workspace} = Bio::P3::Workspace::WorkspaceClientExt->new($self->workspace_url);
     
