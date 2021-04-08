@@ -1,5 +1,6 @@
 package Bio::KBase::AppService::Util;
 use strict;
+use File::Copy;
 use File::Slurp;
 use JSON::XS;
 use File::Basename;
@@ -7,6 +8,7 @@ use Data::Dumper;
 use AnyEvent;
 use AnyEvent::Run;
 use IPC::Run;
+use POSIX;
 
 use base 'Class::Accessor';
 
@@ -189,6 +191,7 @@ sub start_app_with_preflight_sync
     if (!$ok)
     {
 	my $out = read_file("$user_tmp");
+	$self->submit_log([$ctx->user_id, $app_id, "Preflight error $out"], ["$task_params_tmp", "$start_params_tmp"]);
 	die "Error submitting job: $out\n";
     }
 
@@ -199,16 +202,42 @@ sub start_app_with_preflight_sync
 	my $ret_task = eval { $self->json->decode($data) };
 	if ($@)
 	{
+	    $self->submit_log([$ctx->user_id, $app_id, "Error parsing generated task data"],  ["$task_params_tmp", "$start_params_tmp"]);
+	    print STDERR $data;
 	    die "Error parsing generated task data:\n$data\n";
 	}
 	else
 	{
+	    $self->submit_log([$ctx->user_id, $app_id, "Successful preflight"]);
 	    return $ret_task;
 	}
     }
     else
     {
+	$self->submit_log([$ctx->user_id, $app_id, "No task tmp file $task_tmp generated"],  ["$task_params_tmp", "$start_params_tmp"]);
 	die "No task tmp file $task_tmp generated\n";
+    }
+}
+
+#
+# Log some items in a line in the submit log, followed by the contents of the files.
+#
+sub submit_log
+{
+    my($self, $items, $files) = @_;
+
+    $items //= [];
+    $files //= [];
+    my $now = strftime("%Y-%m-%d %H:%M:%S", localtime);
+    print STDERR join("\t", $now, @$items), "\n";
+
+    for my $file (@$files)
+    {
+	eval {
+	    print STDERR "$file (", -s $file, "):\n";
+	    copy($file, \*STDERR);
+	    print STDERR "$file end\n";
+	};
     }
 }
 
