@@ -168,8 +168,7 @@ my $pf_error = "preflight.err";
 
 my $preflight_script = "p3x-run-preflight";
 my @preflight_opts = ("--user-error-file", $pf_error,
-		      "--preflight", $preflight_tmp,
-		      $app_id, $appserv_info_url, $task_params_tmp, $start_params_tmp);
+		      $app_id, $appserv_info_url, $task_params_tmp, $preflight_tmp);
 
 #
 # If not running from a container, we use the app specs that we get from our
@@ -182,12 +181,13 @@ my @preflight_opts = ("--user-error-file", $pf_error,
 
 if ($container_path)
 {
-    print STDERR "Execute preflight in $container_path\n";
     my @cmd = ($preflight_script,
 	       "--app-data-from-deployment", $app_tmp,
 	       @preflight_opts);
     
+    print STDERR "Execute preflight in $container_path: @cmd\n";
     my $rc = system("singularity", "exec", $container_path, @cmd);
+    $app_tmp = abs_path($app_tmp);
     chdir($prev_dir);
     if ($rc != 0)
     {
@@ -206,6 +206,7 @@ else
 	       @preflight_opts);
 
     my $rc = system(@cmd);
+    $app_tmp = abs_path($app_tmp);
     chdir($prev_dir);
     if ($rc != 0)
     {
