@@ -199,7 +199,7 @@ sub create_task
 	(ref($task_parameters) eq 'HASH' ?
 	 (output_path => $task_parameters->{output_path},
 	  output_file => $task_parameters->{output_file}) : ()),
-	app_spec => $app_spec,
+	app_spec => $self->json->encode($app_spec),
 	monitor_url => $monitor_url,
 	req_memory => $preflight->{memory},
 	req_cpu => $preflight->{cpu},
