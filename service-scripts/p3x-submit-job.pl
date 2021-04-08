@@ -29,6 +29,7 @@ use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_us
 					 app_directory app_service_url redis_host redis_port redis_db
 					 sched_default_cluster);
 use P3AuthToken;
+use IPC::Run;
 use IO::File;
 use File::Basename;
 use File::Slurp;
@@ -186,14 +187,47 @@ if ($container_path)
 	       @preflight_opts);
     
     print STDERR "Execute preflight in $container_path: @cmd\n";
-    my $rc = system("singularity", "exec", $container_path, @cmd);
+    my $err;
+    my $ok = IPC::Run::run(["singularity", "exec", $container_path, @cmd],
+			   "2>", \$err);
+    if (!$ok)
+    {
+	my $ec = $?;
+	if ($err =~ /p3x-run-preflight.*executable\s+file\s+not\s+found/)
+	{
+	    #
+	    # We're submitting to a container without p3x-run-preflight. We'll
+	    # need to look up the script in this deployment and run that in the container.
+	    #
+
+	    my $specs = Bio::KBase::AppService::AppSpecs->new(app_directory);
+	    my $app = $db->find_app($app_id, $specs);
+	    write_file($app_tmp, $app->{spec});
+
+	    my @preflight = ($app->{script},
+			     "--user-error-file", $pf_error,
+			     "--preflight", $preflight_tmp,
+			     $appserv_info_url, $app_tmp, $task_params_tmp);
+	    print STDERR "Falling back to old-style container preflight @preflight\n";
+	    my $rc = system(@preflight);
+	    if ($rc != 0)
+	    {
+		copy("$tmpdir/$pf_error", $error_fh);
+		chdir($prev_dir);
+		die "Singularity Preflight in container $container_path @preflight failed with rc=$rc\n";
+	    }
+	}
+	else
+	{
+	    system("ls -al $tmpdir");
+	    copy("$tmpdir/$pf_error", $error_fh);
+	    chdir($prev_dir);
+	    die "Singularity Preflight in container $container_path @cmd failed with $ec\n";
+	}
+    }
+			   
     $app_tmp = abs_path($app_tmp);
     chdir($prev_dir);
-    if ($rc != 0)
-    {
-	copy("$tmpdir/$pf_error", $error_fh);
-	die "Singularity Preflight in container $container_path @cmd failed with rc=$rc\n";
-    }
 }
 else
 {
