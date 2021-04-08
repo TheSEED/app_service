@@ -303,7 +303,7 @@ sub run
 	};
 	if ($@)
 	{
-	    print $error_fh "Error running preflight checks: $@";
+	    print $error_fh "Error running preflight checks: $@\n";
 	    die $@;
 	}
 	    

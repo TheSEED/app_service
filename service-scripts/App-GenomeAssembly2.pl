@@ -75,7 +75,7 @@ sub preflight
 
     if (!$ok)
     {
-	die "Reads as defined in parameters failed to validate. Errors:\n\t" . join("\n\t", @$errs);
+	die "Reads as defined in parameters failed to validate. Errors:\n\t" . join("\n\t", @$errs) . "\n";
     }
     print STDERR "comp=$comp_size uncomp=$uncomp_size\n";
 
