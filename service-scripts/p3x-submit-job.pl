@@ -45,7 +45,7 @@ my($opt, $usage) = describe_options("%c %o token app-id task-params start-params
 print($usage->text), exit 0 if $opt->help;
 die($usage->text) if @ARGV != 5;
 
-my $json = JSON::XS->new->pretty(1);
+my $json = JSON::XS->new->pretty(1)->relaxed;
 
 my $token = shift;
 my $app_id = shift;
