@@ -191,7 +191,7 @@ sub start_app_with_preflight_sync
     if (!$ok)
     {
 	my $out = read_file("$user_tmp");
-	$self->submit_log([$ctx->user_id, $app_id, "Preflight error $out"], ["$task_params_tmp", "$start_params_tmp"]);
+	$self->submit_log([$ctx->user_id, $app_id, "Preflight error $out", $output, $error], ["$task_params_tmp", "$start_params_tmp"]);
 	die "Error submitting job: $out\n";
     }
 
