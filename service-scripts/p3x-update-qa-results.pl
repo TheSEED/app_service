@@ -70,7 +70,8 @@ while (<IN>)
 	    }
 	}
     }
-    push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host]);
+    my $link = qq(<a href="https://patricbrc.org/workspace$out_ws_folder/.$out_ws_file">$out_ws_file</a>);
+    push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $link]);
 #    print $out_fh join("\t", $tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap), "\n";
 }
 
@@ -91,7 +92,7 @@ if (0)
 }
 
 my @hdrs = ("Tag", "Container",  "App", "Task ID", "Input",  "FS Dir",  "Out File", "Out Folder",
-	    "Task Exit", "QA Status", "Elapsed", "Hostname");
+	    "Task Exit", "QA Status", "Elapsed", "Hostname", "Output");
 
 print $out_fh join("\t", @hdrs), "\n";
 print $out_fh join("\t", @$_), "\n" foreach @out;
@@ -102,7 +103,7 @@ if (0 && $opt->html_file)
     open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
     my $qt = HTML::QuickTable->new(header => 0, labels => 1, table => { border => 1 });
 
-    my @dat = map { [ @$_[2,3,4,8,9,10]  ]} (\@hdrs, @out);
+    my @dat = map { [ @$_[2,3,4,8,9,10, 11,12]  ]} (\@hdrs, @out);
 
     print H $qt->render(\@dat);
     close(H);
@@ -114,7 +115,7 @@ if ($opt->html_file)
     open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
     my $table = HTML::Table->new(-border => 1, -evenrowclass => 'even', -oddrowclass => 'odd', -padding => 2);
 
-    my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11]  ]} (\@hdrs, @out);
+    my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11,12]  ]} (\@hdrs, @out);
 
     for my $d (@dat)
     {
