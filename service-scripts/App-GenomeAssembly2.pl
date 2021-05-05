@@ -123,7 +123,7 @@ sub assemble
     #
     # We need to arrange our path. Hardcode for now. Think about parameterizing.
     #
-    my @path_additions = ("$ENV{KB_RUNTIME}/spades-3.12.0/bin",
+    my @path_additions = ("$ENV{KB_RUNTIME}/spades-3.15.2/bin",
 			  "$ENV{KB_RUNTIME}/samtools-1.9/bin",
 			  "$ENV{KB_RUNTIME}/bowtie2-v2.2.9/bin");
     my $pilon = "$ENV{KB_RUNTIME}/lib/pilon.jar";
