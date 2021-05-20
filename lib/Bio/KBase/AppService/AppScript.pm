@@ -623,6 +623,12 @@ sub preprocess_parameters
     utf8::decode($params->{output_path}) if exists $params->{output_path};
 
     #
+    # Replace any slashes in the output path with underscores (these show
+    # up in viral genome strain names).
+    #
+    $params->{output_file} =~ s,/,_,g;
+
+    #
     # Preprocess parameters to create hash of named parameters, looking for
     # missing required values and filling in defaults.
     #
