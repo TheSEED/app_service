@@ -850,17 +850,22 @@ sub reset_job
     my($self, $job, $reset_params) = @_;
 
     my $res = $self->dbh->selectall_arrayref(qq(SELECT  t.state_code, t.owner, te.active
-						FROM Task t,  TaskExecution te
-						WHERE t.id = te.task_id AND
-							id = ?), undef, $job);
-    
+						FROM Task t LEFT OUTER JOIN  TaskExecution te ON t.id = te.task_id
+						WHERE id = ?), undef, $job);
+
+    my $has_task_execution;
     if (@$res)
     {
 	my $skip;
 	print STDERR "Job records for $job:\n";
 	for my $ent (@$res)
 	{
+	    
 	    my($state, $owner, $active) = @$ent;
+
+	    $has_task_execution++ if defined($active);
+	    
+	    $active //= "<NULL>";
 	    print STDERR "\t$state\t$owner\t$active\n";
 	    if ($state eq 'Q')
 	    {
@@ -892,11 +897,24 @@ sub reset_job
 		$reset .= ", t.req_cpu = ?";
 	    }
 	}
-	
-	my $res = $self->dbh->do(qq(UPDATE Task t,  TaskExecution te
-				    SET t.state_code='Q', te.active = 0 $reset
-				    WHERE t.id = te.task_id AND
-				    	id = ?), undef,  @params, $job);
+
+	my $res;
+	if ($has_task_execution)
+	{
+	    $res = $self->dbh->do(qq(UPDATE Task t,  TaskExecution te
+				     SET t.state_code='Q', te.active = 0 $reset
+				     WHERE t.id = te.task_id AND
+				     id = ?), undef,  @params, $job);
+	}
+	else
+	{
+	    my $qry = qq(UPDATE Task t
+				     SET t.state_code='Q' $reset
+				     WHERE 
+				     id = ?);
+	    
+	    $res = $self->dbh->do($qry, undef,  @params, $job);
+	}
 	print STDERR "Update returns $res\n";
     }
 							    
