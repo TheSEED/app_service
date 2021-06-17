@@ -118,7 +118,7 @@ if (my $u = $opt->user)
     push(@params, $u);
 }
 
-my @sort = ('submit_time DESC');
+my @sort = ('t.submit_time DESC');
 my $sort = join(", ", @sort);
 
 if (@ARGV)

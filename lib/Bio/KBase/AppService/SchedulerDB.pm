@@ -527,7 +527,7 @@ sub enumerate_tasks
 
 				     FROM Task JOIN TaskState on state_code = code
 				     WHERE owner = ?
-				     ORDER BY submit_time DESC
+				     ORDER BY Task.submit_time DESC
 				     LIMIT ?
 				     OFFSET ?));
     $sth->execute($user_id, $count, $offset);

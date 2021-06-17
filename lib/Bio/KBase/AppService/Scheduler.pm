@@ -484,9 +484,16 @@ sub task_start_check
     }
     my $cluster_id = $cluster->id;
 
+    #
+    # Order by ID instead of submission time. With a large number of
+    # queued jobs and no index on both state_code and submit time,
+    # mysql chooses the index it has (state_code) and sorts by time.
+    # ID is a good proxy for submit time.
+    #
+
     my $rs = $self->schema->resultset("Task")->search(
 						    { state_code => 'Q' },
-						    { order_by => { -asc => 'submit_time' } });
+						    { order_by => { -asc => 'id' } });
 
     #
     # Also query for the number of submitted jobs per user, and apply a limit there.
