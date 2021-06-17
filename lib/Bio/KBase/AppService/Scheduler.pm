@@ -535,11 +535,21 @@ sub task_start_check
 	}
 	elsif ($user_restricted{$owner})
 	{
-	    if (!$warned{$owner}++)
+	    my $override = 0;
+	    #
+	    # Override hack to allow some jobs through. Proper fix is to
+	    # enable the child jobs of already scheduled jobs to be scheduled.
+	    #
+	    if (0 && $owner eq 'FigCore@patricbrc.org' && $cand->application_id eq 'GenomeAnnotation')
+	    {
+		# hack
+		$override = 1;
+	    }
+	    elsif (!$warned{$owner}++)
 	    {
 		warn "Skipping additional submissions for $owner - restricted by jobs submitted\n";
 	    }
-	    next;
+	    next unless $override;
 	}	    
 	$jobs_released_per_owner{$owner}++;
 
