@@ -699,7 +699,7 @@ sub update_for_submitted_tasks
 
     my @taskids = map { $_->id } @$tasks;
     my $owner = $tasks->[0]->owner->id;
-    print STDERR "Batch submitted with id $id for owner $owner and tasks @$tasks\n";
+    print STDERR "Batch submitted with id $id for owner $owner and tasks @taskids\n";
     for my $task (@$tasks)
     {
 	$task->update({state_code => 'S'});
