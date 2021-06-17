@@ -519,7 +519,7 @@ EAL
     my $top = $cinfo->p3_deployment_path;
     my $rt = $cinfo->p3_runtime_path;
 
-    print STDERR "CLUSTER: top=$top rt=$rt\n";
+    # print STDERR "CLUSTER: top=$top rt=$rt\n";
     my $temp = $vars{cluster_temp} = $cinfo->temp_path;
 
     $vars{configure_deployment} = <<END;
@@ -593,7 +593,7 @@ END
     #
     my $mod_path = dirname(Module::Metadata->find_module_by_name(__PACKAGE__));
     my $templ = Template->new(INCLUDE_PATH => $mod_path);
-    print "INCLUDE $mod_path\n";
+    # print "INCLUDE $mod_path\n";
     my $templ_file = "slurm_batch.tt";
     my $template_path = "$mod_path/$templ_file";
     -f $template_path or die "Cannot find slurm batch template at $template_path";
@@ -607,6 +607,7 @@ END
     }
     
     # print $batch;
+    print "Submit tasks for $account\n";
 
     if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
     {
@@ -696,7 +697,9 @@ sub update_for_submitted_tasks
 {
     my($self, $tasks, $id) = @_;
 
-    print STDERR "Batch submitted with id $id\n";
+    my @taskids = map { $_->id } @$tasks;
+    my $owner = $tasks->[0]->owner->id;
+    print STDERR "Batch submitted with id $id for owner $owner and tasks @$tasks\n";
     for my $task (@$tasks)
     {
 	$task->update({state_code => 'S'});
