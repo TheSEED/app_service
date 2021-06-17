@@ -606,7 +606,7 @@ END
 	die "Error processing template $templ_file: " . $templ->error() . "\n" . Dumper(\%vars);
     }
     
-    print $batch;
+    # print $batch;
 
     if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
     {
