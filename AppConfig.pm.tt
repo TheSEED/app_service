@@ -52,6 +52,7 @@ our @EXPORT_OK = qw(data_api_url github_issue_repo_owner github_issue_repo_name 
 		    app_directory app_service_url
 		    redis_host redis_port redis_db
 		    kma_db metagenome_dbs
+		    binning_data_api_url
 		    );
 our %EXPORT_TAGS = (all => [@EXPORT_OK]);
 1;
