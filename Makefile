@@ -37,6 +37,14 @@ DATA_API_URL = https://p3.theseed.org/services/data_api
 GITHUB_ISSUE_REPO_OWNER = olsonanl
 GITHUB_ISSUE_REPO_NAME = app_service
 
+#
+# Allow a separate binning data api URL. This is used in the
+# transition to BV-BRC where the full bacterial data set is not
+# available in the BV-BRC data api.
+#
+
+BINNING_DATA_API_URL = https://p3.theseed.org/services/data_api
+
 SEEDTK = /disks/patric-common/seedtk-2019-0405
 P3_DATA = $(SEEDTK)/data
 
@@ -72,6 +80,7 @@ TPAGE_ARGS = \
 	--define kb_async_psgi=$(SERVICE_ASYNC_PSGI_FILE) \
 	--define kb_starman_workers=$(STARMAN_WORKERS) \
 	--define data_api_url=$(DATA_API_URL) \
+	--define binning_data_api_url=$(BINNING_DATA_API_URL) \
 	--define redis_host=$(REDIS_HOST) \
 	--define redis_port=$(REDIS_PORT) \
 	--define redis_db=$(REDIS_DB) \

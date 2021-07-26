@@ -1,6 +1,7 @@
 package Bio::KBase::AppService::AppConfig;
 
 use constant        data_api_url   => '[% data_api_url %]';
+use constant        binning_data_api_url   => '[% binning_data_api_url %]';
 use constant        db_host   => '[% db_host %]';
 use constant        db_user   => '[% db_user %]';
 use constant        db_pass   => '[% db_pass %]';
