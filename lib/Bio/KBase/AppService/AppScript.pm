@@ -4,6 +4,7 @@ package Bio::KBase::AppService::AppScript;
 
 use FileHandle;
 use strict;
+use List::Util qw(any none);
 use JSON::XS;
 use File::Slurp;
 use File::Basename;
@@ -656,7 +657,6 @@ sub preprocess_parameters
 		    $value = 1;
 		}
 	    }
-		    
 	    
 	    #
 	    # Maybe validate.
@@ -671,6 +671,26 @@ sub preprocess_parameters
 		#
 		$value = $param->{default} if defined($param->{default});
 	    }
+
+	    #
+	    # After applying default, validate against enum
+	    #
+	    if ($param->{type} eq 'enum' && exists $param->{enum})
+	    {
+		my $vals = $param->{enum};
+		if (ref($vals) ne 'ARRAY')
+		{
+		    warn "Invalid enum definition in $param->{id}\n";
+		}
+		else
+		{
+		    if (none { $_ eq $value } @$vals)
+		    {
+			die "Invalid enum value '$value' passed for $param->{id}: valid values are @$vals\n";
+		    }
+		}
+	    }
+
 	    $proc_param{$id} = $value;
 	}
 	else
@@ -757,5 +777,37 @@ sub write_results
 	
 }
 
+=item B<validate_param_array>
+
+=over 4
+
+=item Arguments: L<key>
+
+Look up the given key in the parameters. Validate it is an array, and return.
+
+=back
+
+=cut
+
+
+sub validate_param_array
+{
+    my($self, $key) = @_;
+    my $params = $self->params;
+    return undef unless exists $params->{$key};
+    my $val = $params->{$key};
+    if (my $r = ref($val))
+    {
+	if ($r eq 'ARRAY')
+	{
+	    return $val;
+	}
+	else
+	{
+	    die "Parameter $key should be an array but is a $r\n";
+	}
+    }
+    return [$val];
+}
 
 1;
