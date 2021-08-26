@@ -177,7 +177,7 @@ sub create_task
     # and anything in the preflight policy data.
     #
 
-    $policy_data->{$_} = $start_parameters->{$_} foreach grep { exists $start_parameters->{$_} } qw(reservation);
+    $policy_data->{$_} = $start_parameters->{$_} foreach grep { exists $start_parameters->{$_} } qw(reservation constraint);
     $policy_data->{$_} = $preflight->{policy_data}->{$_} foreach keys %{$preflight->{policy_data}};
     
     my $container_id = $self->determine_container_id_override($task_parameters, $start_parameters);
