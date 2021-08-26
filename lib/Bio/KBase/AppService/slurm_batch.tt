@@ -87,9 +87,17 @@ cd /
 export TMPDIR=/tmp
 export TEMPDIR=/tmp
 
+#
+# Check for blast databases and bind in. This is temporary, hopefully.
+#
+blast_bind=""
+if [[ -d /vol/blastdb/bvbrc-service ]] ; then
+    blast_bind=",/vol/blastdb/bvbrc-service"
+fi
+
 singularity run \
 	    -H $WORKDIR \
-	    -B $WORKDIR:/tmp,[% data_directory %]:/opt/patric-common/data \
+	    -B $WORKDIR:/tmp,[% data_directory %]:/opt/patric-common/data${blast_bind} \
 	    --pwd /tmp \
 	    [% container_image %] \
 	    p3x-app-shepherd --app-service [% task.appserv_url %] --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
