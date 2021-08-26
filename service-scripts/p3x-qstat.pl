@@ -25,7 +25,7 @@ use Getopt::Long::Descriptive;
 
 my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["application|A=s" => "Limit results to the given application"],
-				    ["status|s=s" => "Limit results to jobs with the given status code"],
+				    ["status|s=s\@" => "Limit results to jobs with the given status code", { default => [] }],
 				    ["start-time=s" => "Limit results to jobs submitted at or after this time"],
 				    ["end-time=s" => "Limit results to jobs submitted before this time"],
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
@@ -102,10 +102,10 @@ if ($opt->cluster)
     push(@params, $opt->cluster);
 }
  
-if ($opt->status)
+if (my @slist = @{$opt->status})
 {
-    push(@conds, "t.state_code = ?");
-    push(@params, $opt->status);
+    push(@conds, "t.state_code IN (" . join(",", map { "?" } @slist) . ")");
+    push(@params, @slist);
 }
 
 if (my $u = $opt->user)

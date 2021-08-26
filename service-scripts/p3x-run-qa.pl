@@ -22,6 +22,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["base|b=s" => "Use this directory as the deployment base for the run (not for use with --submit)"],
 				    ["app|a=s" => "Application name"],
 				    ["user-metadata=s" => "User metadata for this run"],
+				    ["strace" => "Strace the app"],
 				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["output-redirection!" => "Redirect tool output", { default => 1 }],
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
@@ -170,6 +171,16 @@ sub run_in_container
     my($params, $out_dir, $output_path, $output_file) = @$dat;
 
     #
+    # Read the spec to find app script
+    #
+    open(S, "<", $spec) or die "Cannot read $spec: $!";
+    my $spec_doc = eval { decode_json(scalar read_file(\*S)); } ;
+    close(S);
+    $spec_doc or die "Error reading and parsing spec $spec: $@";
+
+    my $app_script = $spec_doc->{script};
+
+    #
     # Find our container.
     #
     my $container;
@@ -184,8 +195,14 @@ sub run_in_container
     $container or die "Cannot find container $container_id in @container_paths\n";
 
     my $bindings = join(",", @bindings);
-    
-    my @cmd = ("singularity", "exec", "--env", "KB_INTERACTIVE=1", "-B", $bindings, $container, "App-$app", "xx", $spec, $params);
+
+    my @strace;
+    if ($opt->strace)
+    {
+	@strace = ("strace", "-f", "-tt", "-s", 400, "-o", "$out_dir/trace.txt");
+    }
+	
+    my @cmd = ("singularity", "exec", "--env", "KB_INTERACTIVE=1", "-B", $bindings, $container, @strace, $app_script, "xx", $spec, $params);
     my @redirect;
     if ($opt->output_redirection)
     {

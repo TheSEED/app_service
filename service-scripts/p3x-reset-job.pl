@@ -34,14 +34,14 @@ if ($opt->time =~ /^(\d+)-(\S+)$/)
 {
     my $days = $1;
     my $ts = $2;
-    $time = parse_duration($ts);
-    die "Cannot parse '$ts'" unless $time;
+    $time = eval { parse_duration($ts); };
+    die "Cannot parse '$ts': $@" unless defined($time);
     $time += $days * 86400;
 }
 elsif ($opt->time)
 {
-    $time = parse_duration($opt->time);
-    die "Cannot parse '" . $opt->time . "'" unless $time;
+    $time = eval { parse_duration($opt->time); };
+    die "Cannot parse '" . $opt->time . "'" unless defined($time);
 }
 
 my $db = Bio::KBase::AppService::SchedulerDB->new();

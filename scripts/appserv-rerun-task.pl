@@ -7,6 +7,8 @@ my($opt, $usage) = describe_options("%c %o task-id",
 				    ["output-path|p=s", "Change output path"],
 				    ["output-file|o=s", "Change output file"],
 				    ["url|u=s", "Service URL"],
+				    ["container-id|c=s", "Use the specified container"],
+				    ["reservation=s", "Slurm reservation", { hidden => 1 }],
 				    ["verbose|v", "Show verbose new-task output"],
 				    ["help|h", "Show this help message"]);
 
@@ -38,7 +40,14 @@ if ($opt->output_path || $opt->output_file)
 	$params->{output_file} = $opt->output_file;
     }
     print STDERR "Resubmitting with output_path=$params->{output_path} and output_file=$params->{output_file}\n";
-    my $new_task = $client->start_app($tobj->{app}, $params, $tobj->{workspace});
+
+    my $start_params = {
+	defined($tobj->{workspace}) ? (workspace => $tobj->{workspace}) : (),
+	$opt->container_id ? (container_id => $opt->container_id) : (),
+	$opt->reservation ? (reservation => $opt->reservation) : (),
+    };
+	
+    my $new_task = $client->start_app2($tobj->{app}, $params, $start_params);
     if ($opt->verbose)
     {
 	print "New task: " . Dumper($new_task);

@@ -368,3 +368,13 @@ WHERE t.application_id NOT IN ('Date', 'Sleep') AND
       t.state_code = 'C' 
 GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
 order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
+
+DROP VIEW StatsGatherUser;
+CREATE VIEW StatsGatherUser AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(distinct t.owner) AS user_count
+FROM Task t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id NOT IN ('Date', 'Sleep') AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
+

@@ -28,6 +28,7 @@ use Data::Dumper;
 use Getopt::Long::Descriptive;
 use IPC::Run qw(run);
 use File::Temp;
+use File::Basename;
 use File::Slurp;
 use JSON::XS;
 use POSIX;
@@ -37,6 +38,7 @@ my($opt, $usage) = describe_options("%c %o status-file",
 				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
 				    ['app=s@' => "Run tests only for this app name"],
+				    ['test=s@' => "Run this test"],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
 				    ["help|h" => "Show this help message"],
@@ -53,6 +55,20 @@ my $tag = strftime("QA-%Y-%m-%d-%H-%M", localtime);
 # Enumerate the folders with test subdirectories.
 #
 
+my %tests_wanted;
+if ($opt->test)
+{
+    for my $t (@{$opt->test})
+    {
+	if ($t =~ m,([^/]+)$,)
+	{
+	    my $tst = $1;
+	    $tst =~ s/\.json$//;
+	    $tests_wanted{"$tst.json"}++;
+	}
+    }
+}
+
 for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 {
     my($app) = $tfolder =~ m,/App-([^/]+)/tests,;
@@ -67,6 +83,11 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 
     for my $test (@tests)
     {
+	if ($opt->test)
+	{
+	    next unless $tests_wanted{basename($test)};
+	}
+
 	my $temp = File::Temp->new;
 	close($temp);
 	my @cmd = ("p3x-run-qa",

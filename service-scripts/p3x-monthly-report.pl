@@ -10,8 +10,8 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2021-04-01 00:00:00';
-my $end = '2021-05-01:00:00:00';
+my $start = '2021-06-01 00:00:00';
+my $end = '2021-07-01:00:00:00';
 
 #
 # Pull time info for completed runs
@@ -22,6 +22,12 @@ my $data = $dbh->selectall_hashref(qq(SELECT application_id,
 				     MAX(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS max,
 				     MIN(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS min,
 				     ROUND(STD(TIMESTAMPDIFF(SECOND, start_time ,finish_time))) AS std,
+
+				     ROUND(AVG(TIMESTAMPDIFF(SECOND, submit_time, start_time)))  AS wait_avg,
+				     MAX(TIMESTAMPDIFF(SECOND, submit_time, start_time)) AS wait_max,
+				     MIN(TIMESTAMPDIFF(SECOND, submit_time, start_time)) AS wait_min,
+				     ROUND(STD(TIMESTAMPDIFF(SECOND, start_time ,finish_time))) AS wait_std,
+
 				     COUNT(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS completed
 				     FROM Task
 				     WHERE state_code = 'C' AND application_id NOT IN ('Date', 'Sleep') AND
@@ -60,7 +66,7 @@ while (my($app, $vals) = each %$failed)
     $data->{$app}->{failed} = $vals->{failed};
 }
 
-my @cols = qw(total completed failed min avg max std);
+my @cols = qw(total completed failed min avg max std wait_min wait_avg wait_max wait_std);
 print join("\t", 'application', @cols), "\n";
 	   
 for my $app (sort keys %$data)
