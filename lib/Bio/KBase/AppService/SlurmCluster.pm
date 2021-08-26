@@ -498,7 +498,7 @@ EAL
 		my $c = $policy->{constraint};
 		if ($c =~ /^\w+$/)
 		{
-		    $vars{sbatch_constraint} = "--constraint $c";
+		    $vars{sbatch_constraint} = "#SBATCH --constraint $c";
 		}
 	    }
 	}
