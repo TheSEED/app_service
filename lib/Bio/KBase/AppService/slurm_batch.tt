@@ -5,6 +5,7 @@
 #SBATCH --nodes 1-1 --ntasks [% n_cpus %]
 #SBATCH --export NONE
 #SBATCH --comment "[% tasks.0.app.id %]"
+[% sbatch_constraint %]
 [% sbatch_partition %]
 [% sbatch_clusters %]
 

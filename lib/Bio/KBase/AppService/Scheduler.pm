@@ -505,15 +505,19 @@ sub task_start_check
 						       JOIN TaskExecution te ON t.id = te.task_id
 						       JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 						    WHERE t.state_code = 'S' AND cj.cluster_id = ?
-						    GROUP BY t.owner
-						    HAVING COUNT(t.id) > ?), undef, $cluster_id, $per_user_limit);
+						    GROUP BY t.owner), undef, $cluster_id);
 
+    my %user_jobs_in_queue;
     my %user_restricted;
     for my $ent (@$res)
     {
 	my($user, $count) = @$ent;
-	print STDERR "User $user restricted due to $count jobs submitted\n";
-	$user_restricted{$user} = 1;
+	$user_jobs_in_queue{$user} = $count;
+	if ($count > $per_user_limit)
+	{
+	    print STDERR "User $user restricted due to $count jobs submitted\n";
+	    $user_restricted{$user} = 1;
+	}
     }
 
     my %warned;
@@ -525,7 +529,8 @@ sub task_start_check
 	#
 	my $owner = $cand->get_column("owner");
 	
-	if ($jobs_released_per_owner{$owner} > $max_per_owner_release)
+	if ($jobs_released_per_owner{$owner} > $max_per_owner_release ||
+	    $user_jobs_in_queue{$owner} > $per_user_limit)
 	{
 	    if (!$warned{$owner}++)
 	    {
@@ -552,6 +557,7 @@ sub task_start_check
 	    next unless $override;
 	}	    
 	$jobs_released_per_owner{$owner}++;
+	$user_jobs_in_queue{$owner}++;
 
 	$cluster->submit_tasks([$cand]);
     }

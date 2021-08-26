@@ -495,6 +495,12 @@ EAL
 	    if (ref($policy) eq 'HASH')
 	    {
 		$vars{sbatch_reservation} = $policy->{reservation};
+
+		if (my $c = $policy->{constraint} &&
+		    $c =~ /^\w+$/)
+		{
+		    $vars{sbatch_constraint} = "--constraint $c";
+		}
 	    }
 	}
     }
