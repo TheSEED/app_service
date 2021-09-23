@@ -97,8 +97,25 @@ sub new
 	%opts,
     };
 
-    # disable subscribe for now
-    $redis->command("subscribe", "task_submissionx",
+
+    #
+    # Accelerator for task submission.
+    #
+    # The p3x-submit-job program will publish on the task_submission channel
+    # for each submission. In our subscribe action here, we check to see
+    # if we've already queued an idle callback for task checking.
+    #
+    # This is because we ran into badness with a high submission load;
+    # we can end up queuing  multiple idle callbacks for the queue check and
+    # have runaway load on the checking.
+    #
+    # With the check for existing idle callbacks under heavy load we may
+    # end up continually running queue checks, but that's arguably the
+    # proper behavior. Since these are submitted as idle callbacks, the
+    # progress check callbacks will still fire as normal since they are
+    # timer-based.
+    #
+    $redis->command("subscribe", "task_submission",
 		    sub {
 			my($result, $error) = @_;
 			if ($error)
@@ -110,9 +127,15 @@ sub new
 			    if (ref($result))
 			    {
 				my($what, $channel, $data) = @$result;
+				return if $what eq 'subscribe';
 				print "Tasksub: what=$what data=$data\n";
-				my $idle;
-				$idle = AnyEvent->idle(cb => sub { undef $idle; $self->task_start_check(); });
+				if (!$self->{idle_handler})
+				{
+				    $self->{idle_handler} = AnyEvent->idle(cb => sub {
+					undef $self->{idle_handler};
+					$self->task_start_check();
+				    });
+				}
 			    }
 			    else
 			    {
