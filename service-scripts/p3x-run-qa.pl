@@ -24,6 +24,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["user-metadata=s" => "User metadata for this run"],
 				    ["strace" => "Strace the app"],
 				    ["reservation=s" => "Use this reservation for job submission"],
+				    ["constraint=s" => "Use this consraint for job submission"],
 				    ["output-redirection!" => "Redirect tool output", { default => 1 }],
 				    ['override=s@' => "Override other parameter settings in app parameter file", { default => [] }],
 				    ["out|o=s" => "Use this workspace path as the output base",
@@ -51,21 +52,22 @@ my @specs_dirs;
 if (!$base)
 {
     $base = $ENV{KB_TOP};
+}
+
+#
+# Need specs dir.
+#
+my $specs = "$base/services/app_service/app_specs";
+if (-d $specs)
+{
+    @specs_dirs = ($specs);
+}
+else
+{
     #
-    # Need specs dir.
+    # In a dev container. Enumerate them.
     #
-    my $specs = "$base/services/app_service/app_specs";
-    if (-d $specs)
-    {
-	@specs_dirs = ($specs);
-    }
-    else
-    {
-	#
-	# In a dev container. Enumerate them.
-	#
-	@specs_dirs = glob("$base/modules/*/app_specs");
-    }
+    @specs_dirs = glob("$base/modules/*/app_specs");
 }
 
 
@@ -97,12 +99,13 @@ if (!$opt->submit)
 	    last;
 	}
     }
-    $app_spec or die "Could not find app spec for $app\n";
+    $app_spec or die "Could not find app spec for $app in @specs_dirs\n";
 }
 
 my @bindings = ("/disks/tmp:/tmp",
 		$here,
 		"/opt/patric-data-2020-0914a:/opt/patric-common/data",
+		"/vol/blastdb/bvbrc-service",
 		);
 
 my @input;
@@ -174,7 +177,7 @@ sub run_in_container
     # Read the spec to find app script
     #
     open(S, "<", $spec) or die "Cannot read $spec: $!";
-    my $spec_doc = eval { decode_json(scalar read_file(\*S)); } ;
+    my $spec_doc = eval { JSON::XS->new->relaxed->decode(scalar read_file(\*S)); } ;
     close(S);
     $spec_doc or die "Error reading and parsing spec $spec: $@";
 
@@ -282,6 +285,7 @@ sub submit_job
     my @cmd = ('appserv-start-app');
     push(@cmd, '-c', $container) if $container;
     push(@cmd, '--reservation', $opt->reservation) if $opt->reservation;
+    push(@cmd, '--constraint', $opt->constraint) if $opt->constraint;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
     push(@cmd, $app, $params);
 

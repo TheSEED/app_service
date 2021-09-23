@@ -16,6 +16,7 @@ use 5.010;
 use strict;
 use DBI;
 use Data::Dumper;
+use DateTime;
 use JSON::XS;
 use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name);
 use Bio::P3::Workspace::WorkspaceClientExt;
@@ -29,6 +30,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["start-time=s" => "Limit results to jobs submitted at or after this time"],
 				    ["end-time=s" => "Limit results to jobs submitted before this time"],
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
+				    ["ids-from=s" => "Use the given file to read IDs from"],
 				    ["user-metadata=s" => "Limit to jobs with the given user metadata"],
 				    ["show-output-file" => "Show the output filename"],
 				    ["show-output-path" => "Show the output path"],
@@ -121,19 +123,50 @@ if (my $u = $opt->user)
 my @sort = ('t.submit_time DESC');
 my $sort = join(", ", @sort);
 
-if (@ARGV)
+my @ids;
+if ($opt->ids_from)
+{
+    my $fh;
+    if ($opt->ids_from eq '-')
+    {
+	$fh = \*STDIN;
+    }
+    else
+    {
+	open($fh, "<", $opt->ids_from) or die "Cannot open " . $opt->ids_from . ": $!\n";
+    }
+    while (<$fh>)
+    {
+	if (/^\s*(\d+)/)
+	{
+	    push(@ids, $1);
+	}
+    }
+    close $fh unless $opt->ids_from eq '-';
+}
+else
+{
+    @ids = @ARGV;
+}
+
+if (@ids)
 {
     #
     # Only query the given job ids.
     #
-    for my $id (@ARGV)
+    my @vals;
+    for my $id (@ids)
     {
-	if ($id !~ /^\d+$/)
+	if ($id =~ /^(\d+),?$/)
+	{
+	    push(@vals, $1);
+	}
+	else
 	{
 	    die "Invalid job id $id\n";
 	}
     }
-    my $vals = join(", ", @ARGV);
+    my $vals = join(", ", @vals);
 
     #
     # Choose the right kind of job ID to search for.
@@ -204,11 +237,11 @@ push(@cols,
  { title => "Cluster" },
  { title => "Cl job" },
  { title => "Cl job status"},
- { title => "Req CPU" },
+ { title => "Req CPU", align => 'r' },
  { title => "Req RAM" },
- { title => "Req Time" },
+ { title => "Req Time", convert => \&parse_duration, align => 'r' },
  { title => "Nodes" },
- { title => "RAM used" },
+ { title => "RAM used", align => 'r' },
      );
 
 if ($opt->genome_id)
@@ -309,6 +342,17 @@ while (my $task = $sth->fetchrow_hashref)
     push(@row, $task->{output_file}) if $opt->show_output_file;
     push(@row, $task->{output_path}) if $opt->show_output_path;
     push(@row, $task->{user_metadata}) if $opt->show_user_metadata;
+
+    for my $i (0..$#cols)
+    {
+	my $col = $cols[$i];
+	if ($col->{convert})
+	{
+	    $row[$i] = $col->{convert}($row[$i]);
+	}
+    }
+			  
+
     push(@rows, \@row);
 
     if ($opt->parsable)
@@ -321,5 +365,17 @@ while (my $task = $sth->fetchrow_hashref)
 
 if (!$opt->parsable)
 {
-    say generate_table(rows => \@rows, header_row => 1);
+    my @aligns = map { $_->{align} // 'l' } @cols;
+    say generate_table(rows => \@rows, header_row => 1, align => \@aligns);
+}
+
+sub parse_duration {
+    use integer;
+    my($t) = @_;
+    my $d = $t / 86400;
+    $t = $t % 86400;
+    my $res;
+    $res = "${d}d-" if $d;
+    $res .= sprintf("%02d:%02d:%02d", $t/3600, $t/60%60, $t%60);
+    return $res;
 }

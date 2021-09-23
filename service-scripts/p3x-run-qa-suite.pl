@@ -36,6 +36,7 @@ use POSIX;
 my($opt, $usage) = describe_options("%c %o status-file",
 				    ["container|c=s" => "Container id to run with"],
 				    ["reservation=s" => "Use this reservation for job submission"],
+				    ["constraint=s" => "Use this constraint for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
 				    ['app=s@' => "Run tests only for this app name"],
 				    ['test=s@' => "Run this test"],
@@ -47,6 +48,8 @@ $usage->die() if @ARGV != 1;
 print($usage->text), exit 0 if $opt->help;
 
 my $status_file = shift;
+
+-f $status_file and die "Not overwriting status file $status_file\n";
 open(STAT, ">", $status_file) or die "Cannot write $status_file: $!";
 
 my $tag = strftime("QA-%Y-%m-%d-%H-%M", localtime);
@@ -93,6 +96,7 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 	my @cmd = ("p3x-run-qa",
 		   "--submit",
 		   ($opt->reservation ? ('--reservation', $opt->reservation) : ()),
+		   ($opt->constraint ? ('--constraint', $opt->constraint) : ()),
 		   "--user-metadata", $tag,
 		   @container,
 		   "--meta-out", "$temp",

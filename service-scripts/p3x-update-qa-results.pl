@@ -39,7 +39,7 @@ my @out;
 while (<IN>)
 {
     chomp;
-    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host) = split(/\t/);
+    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $rss) = split(/\t/);
 
     next unless -f $inp_fn;
     if ($task_exit eq '')
@@ -48,9 +48,23 @@ while (<IN>)
 	$host = $det->{hostname};
 	my $task = $cli->query_tasks([$task_id])->{$task_id};
 
+	my $need_rss = !defined($rss);
 	if ($task->{status} eq 'completed' || $task->{status} eq 'failed')
 	{
 	    $elap = $task->{elapsed_time};
+
+	    $need_rss = 1;
+	}
+	if ($need_rss)
+	{
+	    if (open(R, "-|", "p3x-qstat", "--no-header", "--parsable", $task_id))
+	    {
+		my $l = <R>;
+		chomp $l;
+		my(@a) = split(/\t/, $l);
+		$rss = $a[13];
+		close(R);
+	    }
 	}
 
 	if (defined($det->{exitcode}))
@@ -71,7 +85,7 @@ while (<IN>)
 	}
     }
     my $link = qq(<a href="https://patricbrc.org/workspace$out_ws_folder/.$out_ws_file">$out_ws_file</a>);
-    push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $link]);
+    push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $link, $rss]);
 #    print $out_fh join("\t", $tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap), "\n";
 }
 
@@ -92,7 +106,7 @@ if (0)
 }
 
 my @hdrs = ("Tag", "Container",  "App", "Task ID", "Input",  "FS Dir",  "Out File", "Out Folder",
-	    "Task Exit", "QA Status", "Elapsed", "Hostname", "Output");
+	    "Task Exit", "QA Status", "Elapsed", "Hostname", "Output", "Max RSS");
 
 print $out_fh join("\t", @hdrs), "\n";
 print $out_fh join("\t", @$_), "\n" foreach @out;
@@ -115,7 +129,7 @@ if ($opt->html_file)
     open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
     my $table = HTML::Table->new(-border => 1, -evenrowclass => 'even', -oddrowclass => 'odd', -padding => 2);
 
-    my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11,12]  ]} (\@hdrs, @out);
+    my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11,12,13]  ]} (\@hdrs, @out);
 
     for my $d (@dat)
     {

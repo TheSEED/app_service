@@ -50,8 +50,14 @@ my @task_ids;
 
 foreach (@ARGV)
 {
-    /^\d+$/ or die "Invalid task id $_\n";
-    push(@task_ids, $_);
+    if (/^(\d+),?$/)
+    {
+	push(@task_ids, $1);
+    }
+    else
+    {
+	die "Invalid task id $_\n";
+    }
 }
 
 for my $task (@task_ids)
