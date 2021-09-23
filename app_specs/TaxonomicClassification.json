@@ -162,9 +162,13 @@
       "id": "database",
       "type": "enum",
       "label": "Database",
-      "default": "Default NT",
+      "default": "Kraken2",
       "enum": [
-        "Default NT"
+	  "Default NT",
+	  "Kraken2",
+	  "Greengenes",
+	  "RDP",
+	  "SILVA"
       ],
       "desc": "Target database",
       "required": 1
