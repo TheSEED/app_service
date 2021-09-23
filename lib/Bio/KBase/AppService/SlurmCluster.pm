@@ -664,7 +664,7 @@ END
 	    #
 	    if ($stderr =~ /Invalid account/ && !$retrying)
 	    {
-
+		print STDERR "Invalid account, configuring user\n";
 		$self->configure_user($account);
 		#
 		# And retry.
@@ -679,6 +679,7 @@ END
 	    {
 		for my $task (@$tasks)
 		{
+		    print STDERR "Marking task " . $task->id . " as failed due to $stderr\n";
 		    $task->update({state_code => 'F'});
 		}
 		last;
