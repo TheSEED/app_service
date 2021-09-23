@@ -8,6 +8,7 @@ use File::Slurp;
 my($opt, $usage) = describe_options("%c %o app-id params-data [workspace]",
 				    ["output-path|d=s", "Change the output path"],
 				    ["output-file|f=s", "Change the output file"],
+				    ["id-file=s", "Save the generated task id to this file"],
 				    ["container-id|c=s", "Use the specified container"],
 				    ["base-url|b=s", "Submit with the chosen base URL"],
 				    ["user-metadata=s", "Tag the job with the given metadata"],
@@ -64,3 +65,9 @@ if ($opt->verbose)
     print Dumper($task);
 }
 print "Started task $task->{id}\n";
+if ($opt->id_file)
+{
+    open(F, ">", $opt->id_file) or die "Cannot write id file " . $opt->id_file . ": $!\n";
+    print F "$task->{id}\n";
+    close(F);
+}
