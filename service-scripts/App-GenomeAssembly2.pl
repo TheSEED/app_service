@@ -53,6 +53,7 @@ my $rc = $script->run(\@ARGV);
 
 exit $rc;
 
+
 sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
@@ -84,6 +85,13 @@ sub preflight
     #
     # Estimated conservative rate is 10sec/MB for compressed data under 1.5G, 4sec/GM for data over that.
     my $est_time = int($est_comp < 1500 ? (10 * $est_comp) : (4 * $est_comp));
+
+    my %plats = map { $_->{platform} => 1 } $readset->libraries;
+
+    if ($plats{nanopore} || $plats{pacbio})
+    {
+	$est_time *= 5;
+    }
 
     #
     # Unicycler etc is a brave new world.
