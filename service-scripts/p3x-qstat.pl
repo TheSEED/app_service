@@ -236,8 +236,8 @@ push(@cols,
  { title => "Elapsed" },
  { title => "Cluster" },
  { title => "Cl job" },
- { title => "Cl job status"},
- { title => "Req CPU", align => 'r' },
+ { title => "Cl stat"},
+ { title => "CPU", align => 'r' },
  { title => "Req RAM" },
  { title => "Req Time", convert => \&parse_duration, align => 'r' },
  { title => "Nodes" },
@@ -331,6 +331,9 @@ while (my $task = $sth->fetchrow_hashref)
     }
 
     (my $owner = $task->{owner}) =~ s/\@patricbrc.org$//;
+
+    $task->{task_state} =~ s/Submitted.*/Sub/;
+    $task->{task_state} =~ s/Complete.*/Comp/;
     my @row = ($task->{task_id}, $task->{task_state}, $owner, $task->{application_id},
 	      $task->{submit_time}, $task->{elap},
 	      $task->{job_id} ? ($task->{cluster_id}, $task->{job_id}, $task->{job_status},
