@@ -265,6 +265,20 @@ sub configure_user
     {
 	warn "Error $? adding account " . $user->id . " to user $ENV{USER} via @cmd\n$stderr\n";
     }
+
+    #
+    # Check the status of the created account. Perhaps this will help
+    # with what seems to be a race condition on the first job run for
+    # a newly created account.
+    #
+    @cmd = ($self->slurm_path . "/sacctmgr", 
+	    "show", "account", $user->id);
+    $ok = run(\@cmd, "1>&2");
+    
+    @cmd = ($self->slurm_path . "/sacctmgr", 
+	    "show", "association",
+	    "Account=" . $user->id);
+    $ok = run(\@cmd, "1>&2");
 }
 
 =item B<submit_tasks>
