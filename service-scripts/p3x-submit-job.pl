@@ -185,10 +185,19 @@ if ($container_path)
     my @cmd = ($preflight_script,
 	       "--app-data-from-deployment", $app_tmp,
 	       @preflight_opts);
+
+    my @singularity_opts;
+
+    if (-d "/vol/blastdb/bvbrc-service")
+    {
+	push(@singularity_opts, "-B", "/vol/blastdb/bvbrc-service");
+    }
     
     print STDERR "Execute preflight in $container_path: @cmd\n";
     my $err;
-    my $ok = IPC::Run::run(["singularity", "exec", $container_path, @cmd],
+    my $ok = IPC::Run::run(["singularity", "exec",
+			    @singularity_opts,
+			    $container_path, @cmd],
 			   "2>", \$err);
     if (!$ok)
     {
