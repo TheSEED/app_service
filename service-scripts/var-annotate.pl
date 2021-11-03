@@ -27,7 +27,14 @@ my $ref_fasta = shift @ARGV;
 my $ref_gff  = shift @ARGV;
 my @vcf_files = grep { -s $_ } @ARGV;
 
--s $ref_fasta && -s $ref_gff && @vcf_files or die $usage;
+-f $ref_fasta or die "Reference fasta $ref_fasta missing\n";
+-s $ref_fasta or die "Reference fasta $ref_fasta empty\n";
+-f $ref_gff or die "Reference GFF $ref_gff missing\n";
+-s $ref_gff or die "Reference GFF $ref_gff empty\n";
+
+@vcf_files or die "No VCF files specified\n";
+
+#-s $ref_fasta && -s $ref_gff && @vcf_files or die $usage;
 
 $min_alt_depth   ||= 1;
 $min_alt_fract   ||= 0;

@@ -395,4 +395,9 @@ sub write_output {
     close(F);
 }
 
-sub run { system($_[0]) == 0 or confess("FAILED: $_[0]"); }
+sub run {
+    print STDERR "Running: $_[0]\n";
+    my $rc = system($_[0]);
+    print STDERR "RC: $rc\n";
+    $rc	== 0 or confess("FAILED: $_[0]");
+}

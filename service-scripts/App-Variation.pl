@@ -184,7 +184,7 @@ sub process_variation_data {
     for (@libs) {
     	print STDERR "GBK existence: $has_gbk \n";
         run_snpeff($tmpdir, $ref_id, $_) if $has_gbk;
-        run_var_annotate($tmpdir, $ref_id, $_);
+        run_var_annotate($tmpdir, $ref_id, $_) if $has_gbk;
         link_snpeff_annotate($tmpdir, $ref_id, $_) if $has_gbk;
         system("ln -s $tmpdir/$_/aln.bam $tmpdir/$_.aln.bam") if -s "$tmpdir/$_/aln.bam";
         system("ln -s $tmpdir/$_/aln.bam.bai $tmpdir/$_.aln.bam.bai") if -s "$tmpdir/$_/aln.bam.bai";
@@ -257,9 +257,9 @@ sub run_snpeff {
     close(F);
     my $here = getcwd();
     chdir($dir);
-    my @cmd = split(' ', "snpEff.sh build -c $config -genbank -v $ref_id");
+    my @cmd = ("snpEff.sh", "build", "-c", $config, "-genbank", "-v", $ref_id);
     run_cmd(\@cmd, 1);
-    @cmd = split(' ', "snpEff.sh eff -no-downstream -no-upstream -no-utr -o vcf -c $config $ref_id var.vcf");
+    @cmd = ("snpEff.sh", "eff", "-no-downstream", "-no-upstream", "-no-utr", "-o", "vcf", "-c", $config,  $ref_id, "var.vcf");
     my ($out) = run_cmd(\@cmd, 0);
     write_output($out, "var.snpEff.raw.vcf");
     chdir($here);
@@ -399,36 +399,43 @@ sub prepare_ref_data {
     my ($gid, $basedir) = @_;
     $gid or die "Missing reference genome id\n";
 
+    my $api = P3DataAPI->new();
+    my @res = $api->query("genome", ["eq", "genome_id",$gid], ["select", "patric_cds"]);
+
+    if (!@res)
+    {
+	die "Could not query data api for genome $gid\n";
+    }
+    my $cds_count = $res[0]->{patric_cds};
+    if ($cds_count > 0)
+    {
+	print STDERR "Genome $gid has $cds_count patric CDSs\n";
+    }
+
     my $dir = "$basedir/$gid";
     sysrun("mkdir -p $dir");
 
-    # my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/cufflinks+gff&limit(25000)";
-    my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/gff&limit(25000)";
-    my $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.PATRIC.gff";
+    my $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
+    my $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.fna";
 
     my $url = $api_url;
-    # my $url = $ftp_url;
-    my $out = curl_text($url);
-    $out =~ s/^accn\|//gm;
-    write_output($out, "$dir/$gid.gff");
-
-    $api_url = "$data_url/genome_sequence/?eq(genome_id,$gid)&http_accept=application/sralign+dna+fasta&limit(25000)";
-    $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.fna";
-
-    $url = $api_url;
     # $url = $ftp_url;
     my $out = curl_text($url);
+
+    if (!$out)
+    {
+	die "Error retrieving fasta reference data for $gid\n";
+    }
+
     # $out = break_fasta_lines($out."\n");
     $out =~ s/\n+/\n/g;
     write_output($out, "$dir/$gid.fna");
 
-    # snpEff data
-    # $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.PATRIC.gbf";
-    # $url = $ftp_url;
-    # my $out = curl_text($url);     
-    # my $out = `curl $url`;
-    # write_output($out, "$dir/genes.gbk") if $out;
-    # my $has_gbk = $out ? 1 : 0;
+    if ($cds_count == 0)
+    {
+	print STDERR "Reference genome $gid has no PATRIC CDSs; skipping annotation requiring that data\n";
+	return 0;
+    }
 
     #Generate genbank file
     {
@@ -440,9 +447,20 @@ sub prepare_ref_data {
     }
     sysrun("rast_export_genome", "-i", "$dir/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
 
-    # sysrun("p3-gto", "$gid", "-o", "$dir/$gid.gto");
-    # sysrun("rast_export_genome", "-i", "$dir/$gid.gto/$gid.gto", "-o", "$dir/genes.gbk", "genbank");
+    my $api_url = "$data_url/genome_feature/?and(eq(genome_id,$gid),eq(annotation,PATRIC),or(eq(feature_type,CDS),eq(feature_type,tRNA),eq(feature_type,rRNA)))&sort(+accession,+start,+end)&http_accept=application/gff&limit(25000)";
+    my $ftp_url = "ftp://ftp.patricbrc.org/genomes/$gid/$gid.PATRIC.gff";
 
+    my $url = $api_url;
+    # my $url = $ftp_url;
+    my $out = curl_text($url);
+
+    if (!$out)
+    {
+	die "Error retrieving GFF reference data for $gid\n";
+    }
+    $out =~ s/^accn\|//gm;
+
+    write_output($out, "$dir/$gid.gff");
 
     my $has_gbk = 0;    
     $has_gbk = 1 if -s "$dir/genes.gbk";
@@ -454,7 +472,9 @@ sub curl_text {
     my ($url) = @_;
     my @cmd = ("curl", curl_options(), $url);
     print STDERR join(" ", @cmd)."\n";
-    my ($out) = run_cmd(\@cmd);
+    my $out;
+    my $ok = run(\@cmd, '>',  \$out);
+    $ok or die "Error running curl @cmd: $?\n";
     return $out;
 }
 
@@ -477,7 +497,10 @@ sub run_cmd {
     my ($cmd, $verbose) = @_;
     my ($out, $err);
     print STDERR "cmd = ", join(" ", @$cmd) . "\n\n" if $verbose;
-    run($cmd, '>', \$out, '2>', \$err)
+
+    run($cmd, '>', \$out,
+	# '2>', \$err,
+	)
         or die "Error running cmd=@$cmd, stdout:\n$out\nstderr:\n$err\n";
     print STDERR "STDOUT:\n$out\n" if $verbose;
     print STDERR "STDERR:\n$err\n" if $verbose;
