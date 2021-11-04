@@ -368,7 +368,7 @@ sub submit_tasks
 
     return if @$tasks == 0;
     
-    my($account, $batch) = build_submission_for_tasks($tasks);
+    my($account, $batch) = $self->build_submission_for_tasks($tasks);
     
     # print $batch;
     print "Submit tasks for $account\n";
