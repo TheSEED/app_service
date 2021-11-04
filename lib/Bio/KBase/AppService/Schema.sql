@@ -23,11 +23,24 @@ CREATE TABLE Container
 	creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE DataContainer
+(
+	id VARCHAR(255) PRIMARY KEY,
+	name VARCHAR(255)
+)
+
 CREATE TABLE SiteDefaultContainer
 (
 	base_url VARCHAR(255) PRIMARY KEY,
 	default_container_id VARCHAR(255),
 	FOREIGN KEY (default_container_id) REFERENCES Container(id)
+);
+
+CREATE TABLE SiteDefaultDataContainer
+(
+	base_url VARCHAR(255) PRIMARY KEY,
+	default_data_container_id VARCHAR(255),
+	FOREIGN KEY (default_data_container_id) REFERENCES DataContainer(id)
 );
 
 CREATE TABLE Cluster
@@ -133,6 +146,7 @@ CREATE TABLE Task
 	search_terms text,
 	hidden BOOLEAN default FALSE,
 	container_id VARCHAR(255),
+	data_container_id VARCHAR(255),
 	base_url VARCHAR(255),
 	user_metadata TEXT,
 	FOREIGN KEY (owner) REFERENCES ServiceUser(id),
@@ -140,6 +154,7 @@ CREATE TABLE Task
 	FOREIGN KEY (application_id) REFERENCES Application(id),
 	FOREIGN KEY (parent_task) REFERENCES Task(id),
 	FOREIGN KEY (container_id) REFERENCES Container(id),
+	FOREIGN KEY (data_container_id) REFERENCES DataContainer(id),
 	FULLTEXT KEY search_idx(search_terms)
 );
 

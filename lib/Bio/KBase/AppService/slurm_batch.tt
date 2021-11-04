@@ -95,9 +95,41 @@ if [[ -d /vol/blastdb/bvbrc-service ]] ; then
     blast_bind=",/vol/blastdb/bvbrc-service"
 fi
 
+#
+# Determine the data directory we need to bind
+#
+data_bind_destination="/opt/patric-common/data"
+
+[% IF data_container && data_container_search_path %]
+${IFS+"false"} && unset oldifs || oldifs="$IFS"    # correctly store IFS.
+IFS=:
+dcpath=('[% data_container_search_path %]')
+data_container=
+data_container_id="[% data_container %]"
+for p in $dcpath ; do
+    for suffix in '' .squashfs ; do
+	dc="$p/${data_container_id}${suffix}"
+	if [[ -e $dc ]] ; then
+	    data_container=$dc
+	    break 2
+	fi
+    done
+done
+${oldifs+"false"} && unset IFS || IFS="$oldifs"    # restore IFS.
+if [[ -n $data_container ]] ; then
+    if [[ -d $data_container ]] ; then
+	data_bind=",${data_container}:${data_bind_destination}"
+    else
+	data_bind=",${data_container}:${data_bind_destination}:image-src=/"
+    fi
+fi
+[% ELSIF data_directory %]
+data_bind=",[% data_directory %]:/opt/patric-common/data"
+[% END %]
+
 singularity run \
 	    -H $WORKDIR \
-	    -B $WORKDIR:/tmp,[% data_directory %]:/opt/patric-common/data${blast_bind} \
+	    -B $WORKDIR:/tmp${data_bind}${blast_bind} \
 	    --pwd /tmp \
 	    [% container_image %] \
 	    p3x-app-shepherd --app-service [% task.appserv_url %] --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &

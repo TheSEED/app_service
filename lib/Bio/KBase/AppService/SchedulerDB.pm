@@ -181,6 +181,7 @@ sub create_task
     $policy_data->{$_} = $preflight->{policy_data}->{$_} foreach keys %{$preflight->{policy_data}};
     
     my $container_id = $self->determine_container_id_override($task_parameters, $start_parameters);
+    my $data_container_id = $self->determine_data_container_id_override($task_parameters, $start_parameters);
 
     #
     # Annotate task parameters with preflight data; this allows the preflight to pass
@@ -208,6 +209,7 @@ sub create_task
 	req_is_control_task => ($preflight->{is_control_task} ? 1 : 0),
 	user_metadata => $start_parameters->{user_metadata},    
 	(defined($container_id) ? (container_id => $container_id) : ()),
+	(defined($data_container_id) ? (data_container_id => $data_container_id) : ()),
 	};
 
     my $fields = join(", ", keys %$task);
@@ -250,6 +252,24 @@ sub determine_container_id_override
     my($self, $task_params, $start_params) = @_;
 
     return $task_params->{container_id} // $start_params->{container_id};
+}
+    
+=head2 determine_data_container_id_override
+
+Determine if the given task_params and start_params includes an explicit data_container_id override.
+
+In order, examine
+
+    $task_params->{data_container_id}
+    $start_params->{data_container_id}
+
+=cut
+
+sub determine_container_id_override
+{
+    my($self, $task_params, $start_params) = @_;
+
+    return $task_params->{data_container_id} // $start_params->{data_container_id};
 }
     
 #

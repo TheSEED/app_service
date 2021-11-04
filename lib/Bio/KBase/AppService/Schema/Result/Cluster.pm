@@ -140,6 +140,12 @@ __PACKAGE__->table("Cluster");
   is_nullable: 1
   size: 255
 
+=head2 data_container_search_path
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 1024
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -179,6 +185,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
   "default_data_directory",
   { data_type => "varchar", is_nullable => 1, size => 255 },
+  "data_container_search_path",
+  { data_type => "varchar", is_nullable => 1, size => 1024 },
 );
 
 =head1 PRIMARY KEY
@@ -251,8 +259,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2020-04-10 12:21:17
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:NRy0wQ46/VI27c9BoBw4ZA
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-03 16:22:32
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:u54m4sbdS+D2tznb95RBLQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

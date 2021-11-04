@@ -170,6 +170,12 @@ __PACKAGE__->table("Task");
   data_type: 'text'
   is_nullable: 1
 
+=head2 data_container_id
+
+  data_type: 'varchar'
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -234,6 +240,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "user_metadata",
   { data_type => "text", is_nullable => 1 },
+  "data_container_id",
+  { data_type => "varchar", is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -365,6 +373,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 task_param
+
+Type: might_have
+
+Related object: L<Bio::KBase::AppService::Schema::Result::TaskParam>
+
+=cut
+
+__PACKAGE__->might_have(
+  "task_param",
+  "Bio::KBase::AppService::Schema::Result::TaskParam",
+  { "foreign.task_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 task_tokens
 
 Type: has_many
@@ -396,8 +419,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-03-25 13:44:04
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:3855e9g3LybZorgM6ul/nA
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-03 15:42:34
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YOXKM8cDhhhIyzRvYRTlVw
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 

@@ -368,6 +368,95 @@ sub submit_tasks
 
     return if @$tasks == 0;
     
+    my($account, $batch) = build_submission_for_tasks($tasks);
+    
+    # print $batch;
+    print "Submit tasks for $account\n";
+
+    if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
+    {
+	print FTMP $batch;
+	close(FTMP);
+    }
+
+    #
+    # Run the submit.
+    # We need to handle the following possible errors:
+    #
+    #    Account is not valid:
+    #	   sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
+    #    Here, we will use $self->configure_user to create the account and rerun the submission. If
+    #    it fails again, register a hard failure on the job.
+    #
+    #    ssh failures:
+    #	 If we are submitting via ssh and the target system is not available, we will just
+    #    skip this job and let it retry later.
+    #
+    # Otherwise we mark the job as failed.
+    #
+    my($stdout, $stderr);
+    my $cmd = $self->setup_cluster_command([$self->slurm_path . "/sbatch", "--parsable"]);
+
+    my $submit = sub { run($cmd, "<", \$batch, ">", \$stdout, "2>", \$stderr,
+			   init => sub { $ENV{TZ} = 'UCT'; });
+		   };
+
+
+    my $retrying = 0;
+    my $ok;
+    while (1)
+    {
+	$ok = &$submit();
+	
+	if ($ok && $stdout =~ /^(\d+)/)
+	{
+	    my $id = $1;
+	    $self->update_for_submitted_tasks($tasks, $id);
+	    last;
+	}
+	else
+	{
+	    my $err = $?;
+
+	    #
+	    # We only try once to remedy an invalid account error.
+	    #
+	    if ($stderr =~ /Invalid account/ && !$retrying)
+	    {
+		print STDERR "Invalid account, configuring user\n";
+		$self->configure_user($account);
+		#
+		# And retry after a short sleep.
+		# We are seeing occasional failures here that feel like a
+		# data race between the creation of a new account and immediate
+		# submission of a job.
+		#
+		sleep(5);
+	    }
+	    elsif ($cmd->[0] eq 'ssh' && ($err / 256) == 255)
+	    {
+		warn "Ssh failure; will leave task retryable\n";
+		last;
+	    }
+	    else
+	    {
+		for my $task (@$tasks)
+		{
+		    print STDERR "Marking task " . $task->id . " as failed due to $stderr\n";
+		    $task->update({state_code => 'F'});
+		}
+		last;
+	    }
+	}
+	$retrying = 1;
+    }
+    return $ok;
+}
+
+sub build_submission_for_tasks
+{
+    my($self, $tasks) = @_;
+
     my $cinfo = $self->schema->resultset("Cluster")->find($self->id);
 
     my $name = "t-" . join(",", map { $_->id } @$tasks);
@@ -387,7 +476,7 @@ sub submit_tasks
 		die "submit_tasks: Tasks in a set must all have the same owner on this cluster";
 	    }
 	}
-
+	
     }
 
     #
@@ -398,7 +487,7 @@ sub submit_tasks
 		tasks => [],
 		sbatch_account => $account,
 		sbatch_job_name => $name,
-		);
+	       );
 
     #
     # Determine the container for this task.
@@ -423,15 +512,16 @@ sub submit_tasks
 	# If we do batching, we will need to fix the selection of container. Assume a single task for now.
 	#
 	my $task = $tasks->[0];
+	my $base_url = $task->base_url;
 	my $container = $task->container;
 	if (!$container)
 	{
 	    #
 	    # If we have a base url set, determine if we have a container defined for it.
 	    #
-	    if (my $url = $task->base_url)
+	    if ($base_url)
 	    {
-		my $site_default = $self->schema->resultset("SiteDefaultContainer")->find($url);
+		my $site_default = $self->schema->resultset("SiteDefaultContainer")->find($base_url);
 		if ($site_default)
 		{
 		    $container = $site_default->default_container;
@@ -445,6 +535,35 @@ sub submit_tasks
 	    $vars{container_cache_dir} = $cinfo->container_cache_dir;
 	    $vars{container_filename} = $container->filename;
 	    $vars{container_image} = $cinfo->container_cache_dir . "/" . $container->filename;
+	}
+	
+	#
+	# Determine data container.
+	#
+
+	my $data_container = $task->get_column("data_container_id");
+	if (!$data_container)
+	{
+	    #
+	    # If we have a base url set, determine if we have a data container defined for it.
+	    #
+	    if ($base_url)
+	    {
+		my $site_default = $self->schema->resultset("SiteDefaultDataContainer")->find($base_url);
+		if ($site_default)
+		{
+		    $data_container = $site_default->get_column("default_data_container_id");
+		}
+	    }
+	}
+
+	if ($data_container)
+	{
+	    $vars{data_container} = $data_container;
+	    $vars{data_container_search_path} = $cinfo->data_container_search_path;
+	}
+	else
+	{
 	    $vars{data_directory} = $cinfo->default_data_directory;
 	}
     }
@@ -624,85 +743,12 @@ END
     {
 	die "Error processing template $templ_file: " . $templ->error() . "\n" . Dumper(\%vars);
     }
-    
-    # print $batch;
-    print "Submit tasks for $account\n";
 
-    if (open(FTMP, ">", "batch_tmp/task-" . $tasks->[0]->id))
-    {
-	print FTMP $batch;
-	close(FTMP);
-    }
-
-    #
-    # Run the submit.
-    # We need to handle the following possible errors:
-    #
-    #    Account is not valid:
-    #	   sbatch: error: Batch job submission failed: Invalid account or account/partition combination specified
-    #    Here, we will use $self->configure_user to create the account and rerun the submission. If
-    #    it fails again, register a hard failure on the job.
-    #
-    #    ssh failures:
-    #	 If we are submitting via ssh and the target system is not available, we will just
-    #    skip this job and let it retry later.
-    #
-    # Otherwise we mark the job as failed.
-    #
-    my($stdout, $stderr);
-    my $cmd = $self->setup_cluster_command([$self->slurm_path . "/sbatch", "--parsable"]);
-
-    my $submit = sub { run($cmd, "<", \$batch, ">", \$stdout, "2>", \$stderr,
-			   init => sub { $ENV{TZ} = 'UCT'; });
-		   };
-
-
-    my $retrying = 0;
-    my $ok;
-    while (1)
-    {
-	$ok = &$submit();
-	
-	if ($ok && $stdout =~ /^(\d+)/)
-	{
-	    my $id = $1;
-	    $self->update_for_submitted_tasks($tasks, $id);
-	    last;
-	}
-	else
-	{
-	    my $err = $?;
-
-	    #
-	    # We only try once to remedy an invalid account error.
-	    #
-	    if ($stderr =~ /Invalid account/ && !$retrying)
-	    {
-		print STDERR "Invalid account, configuring user\n";
-		$self->configure_user($account);
-		#
-		# And retry.
-		#
-	    }
-	    elsif ($cmd->[0] eq 'ssh' && ($err / 256) == 255)
-	    {
-		warn "Ssh failure; will leave task retryable\n";
-		last;
-	    }
-	    else
-	    {
-		for my $task (@$tasks)
-		{
-		    print STDERR "Marking task " . $task->id . " as failed due to $stderr\n";
-		    $task->update({state_code => 'F'});
-		}
-		last;
-	    }
-	}
-	$retrying = 1;
-    }
-    return $ok;
+    return($account, $batch);
 }
+
+
+
 
 =item B<update_for_submitted_tasks>
     
