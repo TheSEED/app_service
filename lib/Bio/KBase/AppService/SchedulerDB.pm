@@ -265,7 +265,7 @@ In order, examine
 
 =cut
 
-sub determine_container_id_override
+sub determine_data_container_id_override
 {
     my($self, $task_params, $start_params) = @_;
 
