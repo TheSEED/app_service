@@ -916,6 +916,11 @@ sub reset_job
 		push(@params, $reset_params->{cpu});
 		$reset .= ", t.req_cpu = ?";
 	    }
+	    if ($reset_params->{data_container_id})
+	    {
+		push(@params, $reset_params->{data_container_id});
+		$reset .= ", t.data_container_id = ?";
+	    }
 	}
 
 	my $res;

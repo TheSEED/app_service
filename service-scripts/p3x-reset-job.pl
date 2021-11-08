@@ -24,6 +24,7 @@ my($opt, $usage) = describe_options("%c %o",
 				    ["time|t=s" => "Reset the requested duration"],
 				    ["memory|m=s" => "Reset the requested memory"],
 				    ["cpu|c=s" => "Reset the requested number of cpus"],
+				    ["data-container|D=s" => "Reset the requested data container"],
 				    ["help|h" => "Show this help message."],
 				    );
 print($usage->text), exit 0 if $opt->help;
@@ -66,5 +67,6 @@ for my $task (@task_ids)
        ($time ? (time => $time) : ()),
        ($opt->memory ? (memory => $opt->memory) : ()),
        ($opt->cpu ? (cpu => $opt->cpu) : ()),
+       ($opt->data_container ? (data_container_id => $opt->data_container) : ()),
    });
 }
