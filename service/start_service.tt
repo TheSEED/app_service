@@ -29,6 +29,8 @@ export R_LIBS="$KB_TOP/lib"
 #
 export DANCER_CONFDIR="$KB_TOP/services/[% kb_service_name %]"
 
+export PERL_LWP_SSL_VERIFY_HOSTNAME=0
+
 [% IF kb_tempdir -%]
 export TMPDIR=[% kb_tempdir %]
 export TEMPDIR=[% kb_tempdir %]
