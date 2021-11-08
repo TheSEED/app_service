@@ -18,6 +18,7 @@ my $json = JSON::XS->new->pretty(1)->canonical(1);
 
 my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["container|c=s" => "Container id to run with"],
+				    ["data-container|D=s" => "Data container id to run with"],
 				    ["submit|s" => "Submit the job to the scheduler"],
 				    ["base|b=s" => "Use this directory as the deployment base for the run (not for use with --submit)"],
 				    ["app|a=s" => "Application name"],
@@ -155,7 +156,7 @@ for my $dat (@to_run)
 {
     if ($opt->submit)
     {
-	submit_job($app, $dat, $opt->container);
+	submit_job($app, $dat, $opt->container, $opt->data_container);
     }
     elsif ($opt->container)
     {
@@ -279,11 +280,12 @@ sub run_locally
 
 sub submit_job
 {
-    my($app, $dat, $container) = @_;
+    my($app, $dat, $container, $data_container) = @_;
     my($params, $out_dir, $output_path, $output_file) = @$dat;
 
     my @cmd = ('appserv-start-app');
     push(@cmd, '-c', $container) if $container;
+    push(@cmd, "-D", $data_container) if $data_container;
     push(@cmd, '--reservation', $opt->reservation) if $opt->reservation;
     push(@cmd, '--constraint', $opt->constraint) if $opt->constraint;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;

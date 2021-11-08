@@ -35,6 +35,7 @@ use POSIX;
 
 my($opt, $usage) = describe_options("%c %o status-file",
 				    ["container|c=s" => "Container id to run with"],
+				    ["data-container|D=s" => "Data container id to run with"],
 				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["constraint=s" => "Use this constraint for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
@@ -83,6 +84,7 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
     my @tests = sort { $a cmp $b } glob("$tfolder/*.json");
 
     my @container = ("--container", $opt->container) if $opt->container;
+    my @data_container = ("--data-container", $opt->data_container) if $opt->data_container;
 
     for my $test (@tests)
     {
@@ -99,6 +101,7 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 		   ($opt->constraint ? ('--constraint', $opt->constraint) : ()),
 		   "--user-metadata", $tag,
 		   @container,
+		   @data_container,
 		   "--meta-out", "$temp",
 		   $test);
 	
@@ -123,7 +126,8 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 			$meta->{exitcode},
 			'',
 			'',
-			$meta->{hostname}
+			$meta->{hostname},
+			$opt->data_container,
 		       ), "\n";
     }
 }

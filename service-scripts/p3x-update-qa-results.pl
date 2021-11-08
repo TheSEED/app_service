@@ -39,7 +39,7 @@ my @out;
 while (<IN>)
 {
     chomp;
-    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $rss) = split(/\t/);
+    my($tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $dc, $rss) = split(/\t/);
 
     next unless -f $inp_fn;
     if ($task_exit eq '')
