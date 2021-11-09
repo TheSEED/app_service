@@ -557,6 +557,14 @@ sub build_submission_for_tasks
 	    }
 	}
 
+	if (!$data_container)
+	{
+	    #
+	    # See if we have a default data container defined for this cluster
+	    #
+	    $data_container = $cinfo->get_column("default_data_container_id");
+	}
+
 	if ($data_container)
 	{
 	    $vars{data_container} = $data_container;
