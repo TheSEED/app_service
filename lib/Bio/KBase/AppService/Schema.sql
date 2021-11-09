@@ -62,9 +62,12 @@ CREATE TABLE Cluster
 	container_repo_url varchar(255),
 	container_cache_dir varchar(255),
 	default_container_id varchar(255),
+	default_data_container_id varchar(255),
 	default_data_directory varchar(255),
+	data_container_search_path varchar(1024),
 	FOREIGN KEY (type) REFERENCES ClusterType(type),
-	FOREIGN KEY (default_container_id) REFERENCES Container(id)
+	FOREIGN KEY (default_container_id) REFERENCES Container(id),
+	FOREIGN KEY (default_data_container_id) REFERENCES DataContainer(id)
 ) ;
 INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path, 
        remote_host, account, remote_user, remote_keyfile) VALUES 

@@ -146,6 +146,13 @@ __PACKAGE__->table("Cluster");
   is_nullable: 1
   size: 1024
 
+=head2 default_data_container_id
+
+  data_type: 'varchar'
+  is_foreign_key: 1
+  is_nullable: 1
+  size: 255
+
 =cut
 
 __PACKAGE__->add_columns(
@@ -187,6 +194,8 @@ __PACKAGE__->add_columns(
   { data_type => "varchar", is_nullable => 1, size => 255 },
   "data_container_search_path",
   { data_type => "varchar", is_nullable => 1, size => 1024 },
+  "default_data_container_id",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -238,6 +247,26 @@ __PACKAGE__->belongs_to(
   },
 );
 
+=head2 default_data_container
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::DataContainer>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "default_data_container",
+  "Bio::KBase::AppService::Schema::Result::DataContainer",
+  { id => "default_data_container_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
 =head2 type
 
 Type: belongs_to
@@ -259,8 +288,8 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-03 16:22:32
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:u54m4sbdS+D2tznb95RBLQ
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-09 11:43:15
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:8JdZGidaidl1GybCCZr9SQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
