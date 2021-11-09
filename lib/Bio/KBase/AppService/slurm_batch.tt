@@ -124,16 +124,20 @@ if [[ -n $data_container ]] ; then
 	data_bind=",${data_container}:${data_bind_destination}:image-src=/"
 	echo "Binding data container image $data_container to $data_bind_destination"
     fi
+    export P3_DATA_CONTAINER="$data_container"
 fi
 [% ELSIF data_directory %]
 data_bind=",[% data_directory %]:$data_bind_destination"
-echo "Binding (original) data container directory $data_directory to $data_bind_destination"
+echo "Binding (original) data container directory [% data_directory %] to $data_bind_destination"
+export P3_DATA_CONTAINER="[% data_directory %]"
 [% ELSE %]
 echo "No data container was defined or bound"
 [% END %]
+export P3_DATA_BIND_DESTINATION="$data_bind_destination"
 
 singularity run \
 	    -H $WORKDIR \
+	    --env P3_WORKDIR="$WORKDIR",P3_DATA_CONTAINER="$P3_DATA_CONTAINER",P3_DATA_BIND_DESTINATION="$P3_DATA_BIND_DESTINATION" \
 	    -B $WORKDIR:/tmp${data_bind}${blast_bind} \
 	    --pwd /tmp \
 	    [% container_image %] \

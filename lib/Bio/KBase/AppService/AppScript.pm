@@ -341,20 +341,31 @@ sub run
 	    $self->write_block("container", $ldat->{container_path});
 	}
     }
+    for my $x (qw(P3_DATA_CONTAINER P3_DATA_BIND_DESTINATION P3_WORKDIR))
+    {
+	print STDERR "$x=$ENV{$x}\n";
+    }
+    
     if (open(T, "<", "/opt/patric-common/data/DATA-VERSION"))
     {
 	my $ver = <T>;
 	chop $ver;
 	print STDERR "Running with PATRIC data version $ver\n";
 	close(T);
-	if (open(T, "<", "/opt/patric-common/data/DATA-MANIFEST"))
+    }
+    else
+    {
+	print STDERR "DATA-VERSION missing\n";
+    }
+    
+    if (open(T, "<", "/opt/patric-common/data/DATA-MANIFEST"))
+    {
+	print STDERR "Data manifest:\n";
+	while (<T>)
 	{
-	    while (<T>)
-	    {
-		print STDERR $_;
-	    }
-	    close(T);
+	    print STDERR $_;
 	}
+	close(T);
     }
 
     #
