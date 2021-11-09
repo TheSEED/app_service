@@ -173,6 +173,7 @@ __PACKAGE__->table("Task");
 =head2 data_container_id
 
   data_type: 'varchar'
+  is_foreign_key: 1
   is_nullable: 1
   size: 255
 
@@ -241,7 +242,7 @@ __PACKAGE__->add_columns(
   "user_metadata",
   { data_type => "text", is_nullable => 1 },
   "data_container_id",
-  { data_type => "varchar", is_nullable => 1, size => 255 },
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 255 },
 );
 
 =head1 PRIMARY KEY
@@ -290,6 +291,26 @@ __PACKAGE__->belongs_to(
   "container",
   "Bio::KBase::AppService::Schema::Result::Container",
   { id => "container_id" },
+  {
+    is_deferrable => 1,
+    join_type     => "LEFT",
+    on_delete     => "RESTRICT",
+    on_update     => "RESTRICT",
+  },
+);
+
+=head2 data_container
+
+Type: belongs_to
+
+Related object: L<Bio::KBase::AppService::Schema::Result::DataContainer>
+
+=cut
+
+__PACKAGE__->belongs_to(
+  "data_container",
+  "Bio::KBase::AppService::Schema::Result::DataContainer",
+  { id => "data_container_id" },
   {
     is_deferrable => 1,
     join_type     => "LEFT",
@@ -419,8 +440,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-03 15:42:34
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:YOXKM8cDhhhIyzRvYRTlVw
+# Created by DBIx::Class::Schema::Loader v0.07049 @ 2021-11-09 11:34:35
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:ct2ImzFp6H5nTf9rrARrWg
 
 __PACKAGE__->many_to_many(cluster_jobs => 'task_executions', 'cluster_job');
 
