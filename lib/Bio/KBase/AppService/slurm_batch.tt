@@ -119,12 +119,17 @@ ${oldifs+"false"} && unset IFS || IFS="$oldifs"    # restore IFS.
 if [[ -n $data_container ]] ; then
     if [[ -d $data_container ]] ; then
 	data_bind=",${data_container}:${data_bind_destination}"
+	echo "Binding data container directory $data_container to $data_bind_destination"
     else
 	data_bind=",${data_container}:${data_bind_destination}:image-src=/"
+	echo "Binding data container image $data_container to $data_bind_destination"
     fi
 fi
 [% ELSIF data_directory %]
-data_bind=",[% data_directory %]:/opt/patric-common/data"
+data_bind=",[% data_directory %]:$data_bind_destination"
+echo "Binding (original) data container directory $data_directory to $data_bind_destination"
+[% ELSE %]
+echo "No data container was defined or bound"
 [% END %]
 
 singularity run \
