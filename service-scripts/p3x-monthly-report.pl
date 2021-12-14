@@ -10,9 +10,23 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2021-10-01 00:00:00';
-my $end = '2021-11-01:00:00:00';
+my $start = '2021-11-01:00:00:00';
+my $end = '2021-12-01:00:00:00';
 my $include_staff = 1;
+
+print "Service report for the period $start - $end\n";
+print "\n";
+#
+# Determine number of unique users submitting jobs.
+#
+my $res = $dbh->selectcol_arrayref(qq(SELECT COUNT(DISTINCT owner)
+				      FROM Task
+				      WHERE submit_time >= ? and submit_time < ?),
+				   undef, $start, $end);
+my $distinct_users = $res->[0];
+print "Distinct users submitting jobs:\t$distinct_users\n";
+print "\n";
+
 
 #
 # Pull time info for completed runs
