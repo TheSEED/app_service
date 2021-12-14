@@ -117,6 +117,8 @@ my($opt, $usage) =
 		     [],
 		     ["workflow-file=s", "Use the given workflow document to process annotate this genome."],
 		     ["import-only", "Import this genome as is - do not reannotate gene calls or gene function. Only valid for genbank file input."],
+		     ["raw-import-only", "Perform a raw import on this this genome - do not reannotate gene calls or gene function and perform a bare minimum of postprocessing. Only valid for genbank file input"],
+		     ["skip-contigs", "Do not load contigs data. Only valid for genbank file input."],
 		     ["index-nowait", "Do not wait for indexing to complete before the job is marked as complete."],
 		     ["no-index", "Do not index this genome. If this option is selected the genome will not be visible on the PATRIC website."],
 		     ["no-workspace-output", "Do not write any workspace output."],
@@ -170,6 +172,10 @@ elsif ($opt->contigs_file)
 if ($opt->workflow_file && $opt->import_only)
 {
     die "A custom workflow may not be supplied when using --import-only\n";
+}
+if ($opt->workflow_file && $opt->raw_import_only)
+{
+    die "A custom workflow may not be supplied when using --raw-import-only\n";
 }
 if ($opt->workflow_file && $opt->recipe)
 {
@@ -282,6 +288,8 @@ if ($input_mode eq 'genbank')
 {
     $params->{genbank_file} = strip_ws_prefix($input_wspath);
     $params->{import_only} = $opt->import_only ? 1 : 0;
+    $params->{raw_import_only} = $opt->raw_import_only ? 1 : 0;
+    $params->{skip_contigs} = $opt->skip_contigs ? 1 : 0;
 
     #
     # Overrides if given.
