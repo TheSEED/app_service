@@ -102,13 +102,10 @@ sub preflight
     # Estimated compressed storage based on input compressed size, converted at 75% compression estimate.
     my $est_storage = int(1.3e6 * $est_comp / 0.75);
 
-    #
-    # We just fix the cpu and ram
-    #
-    my $est_cpu = 8;
+    my $est_cpu = 12;
 
     my $est_ram = "128G";
-    if ($est_time < 24*60*60)
+    if ($est_time < 6*60*60)
     {
 	$est_cpu = 12;
 	$est_ram = "48000M";
