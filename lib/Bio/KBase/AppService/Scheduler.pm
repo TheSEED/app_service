@@ -522,13 +522,17 @@ sub task_start_check
     # Also query for the number of submitted jobs per user, and apply a limit there.
     # The returns here are the users who have too many jobs submitted already.
     #
-    my $per_user_limit = 100;
+    # We order by the owner count so that individual user job submissions go in first.
+    #
+    my $per_user_limit = 200;
     my $res = $self->db->dbh->selectall_arrayref(qq(SELECT t.owner, COUNT(t.id)
 						    FROM Task t
 						       JOIN TaskExecution te ON t.id = te.task_id
 						       JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 						    WHERE t.state_code = 'S' AND cj.cluster_id = ?
-						    GROUP BY t.owner), undef, $cluster_id);
+						    GROUP BY t.owner
+						    ORDER BY count(t.owner) ASC
+						   ), undef, $cluster_id);
 
     my %user_jobs_in_queue;
     my %user_restricted;
