@@ -125,6 +125,7 @@ my($opt, $usage) =
 		     ["dry-run", "Dry run. Upload files and validate input but do not submit annotation"],
 		     ["container-id=s", "Container id for non-default container execution", { hidden => 1 }],
 		     ["indexing-url=s", "Specify an override data api for indexing", { hidden => 1 }],
+		     ["base-url=s", "Specify the site base url for this submission", { hidden => 1, default => 'https://www.bv-brc.org' }],
 		     ["public", "Make the indexed genome publicly available", { hidden => 1 }],
 		     [],
 		     ["help|h", "Show this help message"],
@@ -281,6 +282,7 @@ my $params = {
     ($opt->reference_virus ? (reference_virus_name => $opt->reference_virus) : ()),
     ($opt->container_id ? (container_id => $opt->container_id) : ()),
     ($opt->indexing_url ? (indexing_url => $opt->indexing_url) : ()),
+    ($opt->base_url ? (base_url => $opt->base_url) : ()),
     ($opt->public ? (public => 1) : ()),
 };
 
