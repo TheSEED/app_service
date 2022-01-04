@@ -10,8 +10,8 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2021-11-01:00:00:00';
-my $end = '2021-12-01:00:00:00';
+my $start = '2021-12-01:00:00:00';
+my $end = '2022-01-01:00:00:00';
 my $include_staff = 1;
 
 print "Service report for the period $start - $end\n";
@@ -86,7 +86,15 @@ while (my($app, $vals) = each %$failed)
     $data->{$app}->{failed} = $vals->{failed};
 }
 
-my @cols = qw(total completed failed min avg max std wait_min wait_avg wait_max wait_std);
+while (my($app, $vals) = each %$data)
+{
+    if ($vals->{total} > 0)
+    {
+	$vals->{frac_completed} = $vals->{completed} / $vals->{total};
+    }
+}
+
+my @cols = qw(total completed failed frac_completed min avg max std wait_min wait_avg wait_max wait_std);
 print join("\t", 'application', @cols), "\n";
 	   
 for my $app (sort keys %$data)
