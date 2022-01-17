@@ -36,6 +36,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["show-output-path" => "Show the output path"],
 				    ["show-user-metadata" => "Show the user metadata"],
 				    ["show-times" => "Show start and finish times"],
+				    ["show-parameter=s\@" => "Show this parameter from the input parameters", { default => [] }],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -226,6 +227,7 @@ my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,
 	     $limit
 	     );
 #die Dumper($qry, @params);
+
 my @cols;
 push(@cols,
  { title => "Job ID" },
@@ -271,6 +273,8 @@ if ($opt->show_user_metadata)
     push(@cols, { title => "User metadata" });
 }
 
+push(@cols, map { { title => $_ } } @{$opt->show_parameter});
+
 if ($opt->parsable && !$opt->no_header)
 {
     say join("\t", map { $_->{title} } @cols);
@@ -288,6 +292,9 @@ while (my $task = $sth->fetchrow_hashref)
 {
     my $genome_id;
     my $indexing_skipped = 0;
+
+    my $decoded_params = eval { decode_json($task->{params}); } // {};
+
     $task->{task_state} = $task_state_info->{$task->{state_code}}->{description};
     if ($opt->genome_id && $task->{application_id} eq 'GenomeAnnotation')
     {
@@ -324,10 +331,7 @@ while (my $task = $sth->fetchrow_hashref)
 		warn $@;
 	    }
 	}
-	eval {
-	    my $x = decode_json($task->{params});
-	    $indexing_skipped = $x->{skip_indexing} ? 1 : 0;
-	}
+	$indexing_skipped = $decoded_params->{skip_indexing} ? 1 : 0;
     }
 
     (my $owner = $task->{owner}) =~ s/\@patricbrc.org$//;
@@ -345,6 +349,12 @@ while (my $task = $sth->fetchrow_hashref)
     push(@row, $task->{output_file}) if $opt->show_output_file;
     push(@row, $task->{output_path}) if $opt->show_output_path;
     push(@row, $task->{user_metadata}) if $opt->show_user_metadata;
+
+    for my $p (@{$opt->show_parameter})
+    {
+	push(@row, $decoded_params->{$p});
+    }
+	 
 
     for my $i (0..$#cols)
     {
