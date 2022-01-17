@@ -282,8 +282,11 @@ my $params = {
     ($opt->reference_virus ? (reference_virus_name => $opt->reference_virus) : ()),
     ($opt->container_id ? (container_id => $opt->container_id) : ()),
     ($opt->indexing_url ? (indexing_url => $opt->indexing_url) : ()),
-    ($opt->base_url ? (base_url => $opt->base_url) : ()),
     ($opt->public ? (public => 1) : ()),
+};
+
+my $start_params = {
+    ($opt->base_url ? (base_url => $opt->base_url) : ()),
 };
 
 if ($input_mode eq 'genbank')
@@ -368,7 +371,7 @@ if ($opt->dry_run)
 }
 else
 {
-    my $task = eval { $app_service->start_app($app_name, $params, '') };
+    my $task = eval { $app_service->start_app2($app_name, $params, $start_params) };
     if ($@)
     {
 	die "Error submitting annotation to service:\n$@\n";
