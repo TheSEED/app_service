@@ -445,7 +445,25 @@ sub stage_in_srr
 	    my $fn = $md->{accession} . ".fastq";
 	    if (-f "$path/$fn")
 	    {
-		die "Found a single end for paired end metadata\n";
+		warn "Found a single end for paired end metadata\n";
+
+		#
+		# Remove the derived lib from the list and re-add the proper form
+		#
+		my $libs = $self->{libraries};
+		my $index = 0;
+		$index++ until $libs->[$index] eq $dlib || $index > $#$libs;
+		splice(@$libs, $index, 1) if $index <= $#$libs;
+		my $nlib = SingleEndLibrary->new($fn);
+		$nlib->{derived_from} = $lib;
+		$lib->{derives} = $nlib;
+		push(@$libs, $nlib);
+		$dlib = $nlib;
+		# ick. Need to relocalize, but disable expand_sra so that
+		# we don't pull the metadata again.
+		local $self->{expand_sra} = 0;
+		$self->localize_libraries($self->{local_path});
+		$dlib->copy_from_tmp($path);
 	    }
 	    else
 	    {
