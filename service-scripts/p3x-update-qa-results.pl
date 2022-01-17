@@ -18,6 +18,7 @@ my $cli = Bio::KBase::AppService::Client->new;
 
 my($opt, $usage) = describe_options("%c %o input-file",
 				    ["output-file|o=s" => "Write output here"],
+				    ["html-dir|D=s" => "Write HTML output to this direcotry, named based on the input file"],
 				    ["html-file|H=s" => "Write HTML output here"],
 				    ["help|h" => "Show this help message"]);
 $usage->die() if @ARGV != 1;
@@ -124,9 +125,19 @@ if (0 && $opt->html_file)
     
 }
 
+my $html_out;
 if ($opt->html_file)
 {
-    open(H, ">", $opt->html_file) or die "Cannot write " . $opt->html_file . ": $!\n";
+    $html_out = $opt->html_file;
+}
+elsif ($opt->html_dir)
+{
+    $html_out = $opt->html_dir . "/" . basename($input_file) . ".html";
+}
+
+if ($html_out)
+{
+    open(H, ">", $html_out) or die "Cannot write " . $html_out . ": $!\n";
     my $table = HTML::Table->new(-border => 1, -evenrowclass => 'even', -oddrowclass => 'odd', -padding => 2);
 
     my @dat = map { $_->[4] = basename($_->[4]); [ @$_[2,3,4,8,9,10,11,12,13]  ]} (\@hdrs, @out);
