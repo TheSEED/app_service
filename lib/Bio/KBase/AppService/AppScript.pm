@@ -19,6 +19,7 @@ use Time::HiRes 'gettimeofday';
 use LWP::UserAgent;
 use REST::Client;
 use Bio::KBase::AppService::AppConfig ':all';
+use Clone qw(clone);
 
 use base 'Class::Accessor';
 
@@ -207,7 +208,7 @@ sub run_preflight
 
     if ($self->preflight_callback())
     {
-	return $self->preflight_callback()->($self, $self->app_definition, $self->raw_params, $self->params);
+	return $self->preflight_callback()->($self, $self->app_definition, clone($self->raw_params), clone($self->params));
     }
     else
     {
@@ -506,7 +507,7 @@ sub subproc_run
     my $failure_report;
 
     eval {
-	$job_output = $self->execute_callback->($self, $self->app_definition, $self->raw_params, $self->params);
+	$job_output = $self->execute_callback->($self, $self->app_definition, clone($self->raw_params), clone($self->params));
     };
     
     if ($@)
