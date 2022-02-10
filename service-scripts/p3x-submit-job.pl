@@ -267,6 +267,14 @@ my $task_params = read_and_parse($task_params_file);
 my $start_params = read_and_parse($start_params_file);
 
 #
+# Force a runtime limit of three days if no limit provided.
+#
+if ($preflight->{runtime} == 0)
+{
+    $preflight->{runtime} = 3 * 86400;
+}
+
+#
 # We also reparse the app spec and pass that to the task creation code to save.
 #
 my $app_spec = read_and_parse($app_tmp);
