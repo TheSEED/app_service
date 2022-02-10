@@ -300,8 +300,14 @@ sub assemble
 
     my $save_path = "$asm_out/p3_assembly_work/save";
 
-    $ws->save_file_to_file("$asm_out/p3x-assembly.stdout", {}, "$output_folder/p3x-assembly.stdout", 'txt', 1, 1);
-    $ws->save_file_to_file("$asm_out/p3x-assembly.stderr", {}, "$output_folder/p3x-assembly.stderr", 'txt', 1, 1);
+    if (-s "$asm_out/p3x-assembly.stdout")
+    {
+	$ws->save_file_to_file("$asm_out/p3x-assembly.stdout", {}, "$output_folder/p3x-assembly.stdout", 'txt', 1, 1);
+    }
+    if (-s "$asm_out/p3x-assembly.stderr")
+    {
+	$ws->save_file_to_file("$asm_out/p3x-assembly.stderr", {}, "$output_folder/p3x-assembly.stderr", 'txt', 1, 1);
+    }
 
     if (opendir(DIR, $save_path))
     {
