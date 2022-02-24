@@ -857,6 +857,29 @@ sub format_task_for_service
 }
 
 #
+# Retrieve job details for Jira submission
+#
+
+sub retrieve_task_details_jira
+{
+    my($self, $task_id, $owner) = @_;
+
+    my $res = $self->dbh->selectrow_hashref(qq(SELECT t.id as task_id, t.application_id as app_name,
+					       t.params as parameters,
+					       st.service_status as task_status,
+					       date_format(t.submit_time, "%Y-%m-%dT%H:%i:%s") as submit_time,
+					       date_format(t.start_time, "%Y-%m-%dT%H:%i:%s") as start_time,
+					       date_format(t.finish_time, "%Y-%m-%dT%H:%i:%s") as completion_time,
+					       cj.exitcode as exit_status, cj.job_status as cluster_status
+					       FROM Task t LEFT OUTER JOIN TaskExecution te ON te.task_id = t.id 
+					       LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
+					       JOIN TaskState st ON t.state_code = st.code
+					       WHERE t.id = ? AND t.owner = ?), undef, $task_id, $owner);
+    $res->{task_id} = int($res->{task_id}) if $res;
+    return $res // {};
+}
+
+#
 # Maintenance routines
 #
 
