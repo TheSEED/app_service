@@ -1,111 +1,106 @@
 {
-  "id": "GenomeAssembly2",
-  "script": "App-GenomeAssembly2",
-  "label": "Assemble WGS reads",
   "description": "Assemble reads into a set of contigs",
+  "id": "GenomeAssembly2",
+  "label": "Assemble WGS reads",
   "parameters": [
     {
-      "id": "paired_end_libs",
-      "type": "group",
       "allow_multiple": true,
-      "required": 0,
       "default": null,
       "group": [
         {
+          "desc": "FASTQ or FASTA file of reads",
           "id": "read1",
-          "required": 1,
           "label": "Read file 1",
-          "desc": "FASTQ file of reads",
-          "wstype": "ReadFile",
-          "type": "wstype"
+          "required": 1,
+          "type": "wstype",
+          "wstype": "ReadFile"
         },
         {
+          "desc": "FASTQ or FASTA file of reads",
           "id": "read2",
-          "required": 0,
           "label": "Read file 2",
-          "desc": "FASTQ file of reads",
-          "wstype": "ReadFile",
-          "type": "wstype"
+          "required": 0,
+          "type": "wstype",
+          "wstype": "ReadFile"
         },
         {
-          "id": "platform",
-          "label": "Sequencing Platform",
-          "required": 0,
           "default": "infer",
           "desc": "Sequencing platform used to generate the read library",
-          "type": "enum",
           "enum": [
             "infer",
             "illumina",
             "pacbio",
             "nanopore",
             "iontorrent"
-          ]
+          ],
+          "id": "platform",
+          "label": "Sequencing Platform",
+          "required": 0,
+          "type": "enum"
         },
         {
+          "default": false,
           "id": "interleaved",
           "label": "Are the paired end reads interleaved?",
           "required": false,
-          "default": false,
           "type": "bool"
         },
         {
+          "default": false,
           "id": "read_orientation_outward",
           "label": "Do the two reads in each pair face outward?",
           "required": false,
-          "default": false,
           "type": "bool"
         }
-      ]
+      ],
+      "id": "paired_end_libs",
+      "required": 0,
+      "type": "group"
     },
     {
-      "id": "single_end_libs",
-      "type": "group",
       "allow_multiple": true,
-      "required": 0,
       "default": null,
       "group": [
         {
+          "desc": "FASTQ, FASTA or H5 file of reads",
           "id": "read",
-          "required": 1,
           "label": "Read file",
-          "desc": "FASTQ file of reads",
-          "wstype": "ReadFile",
-          "type": "wstype"
+          "required": 1,
+          "type": "wstype",
+          "wstype": "ReadFile"
         },
         {
-          "id": "platform",
-          "label": "Sequencing Platform",
-          "required": 0,
           "default": "infer",
           "desc": "Sequencing platform used to generate the read library",
-          "type": "enum",
           "enum": [
             "infer",
             "illumina",
             "pacbio",
             "nanopore",
             "iontorrent"
-          ]
+          ],
+          "id": "platform",
+          "label": "Sequencing Platform",
+          "required": 0,
+          "type": "enum"
         }
-      ]
+      ],
+      "id": "single_end_libs",
+      "required": 0,
+      "type": "group"
     },
     {
-      "id": "srr_ids",
-      "required": 0,
       "allow_multiple": true,
       "default": null,
-      "label": "SRR ID",
       "desc": "Sequence Read Archive (SRA) Run ID",
+      "id": "srr_ids",
+      "label": "SRR ID",
+      "required": 0,
       "type": "string"
     },
     {
-      "id": "recipe",
-      "label": "Assembly recipe",
-      "required": 0,
       "default": "auto",
       "desc": "Recipe used for assembly",
-      "type": "enum",
       "enum": [
         "auto",
         "unicycler",
@@ -114,79 +109,84 @@
         "meta-spades",
         "plasmid-spades",
         "single-cell"
-      ]
+      ],
+      "id": "recipe",
+      "label": "Assembly recipe",
+      "required": 0,
+      "type": "enum"
     },
     {
+      "default": 2,
+      "desc": "Racon polishing iterations (for long reads)",
       "id": "racon_iter",
       "label": "Racon iterations",
       "required": 0,
-      "default": 2,
-      "desc": "Racon polishing iterations (for long reads)",
       "type": "int"
     },
     {
+      "default": 2,
+      "desc": "Pilon polishing iterations (for short reads)",
       "id": "pilon_iter",
       "label": "Pilon iterations",
       "required": 0,
-      "default": 2,
-      "desc": "Pilon polishing iterations (for short reads)",
       "type": "int"
     },
     {
+      "default": false,
+      "desc": "Trim reads before assembly",
       "id": "trim",
       "label": "trim_reads",
       "required": 0,
-      "default": false,
-      "desc": "Trim reads before assembly",
       "type": "boolean"
     },
     {
+      "default": 300,
+      "desc": "Filter out short contigs in final assembly",
       "id": "min_contig_len",
       "label": "Minimal output contig length",
       "required": 0,
-      "default": 300,
-      "desc": "Filter out short contigs in final assembly",
       "type": "int"
     },
     {
+      "default": 5,
+      "desc": "Filter out contigs with low read depth in final assembly",
       "id": "min_contig_cov",
       "label": "Minimal output contig coverage",
       "required": 0,
-      "default": 5,
-      "desc": "Filter out contigs with low read depth in final assembly",
       "type": "float"
     },
     {
+      "default": "5M",
+      "desc": "Estimated genome size (for canu)",
       "id": "genome_size",
       "label": "Genome Size",
       "required": 0,
-      "default": "5M",
-      "desc": "Estimated genome size (for canu)",
       "type": "string"
     },
     {
+      "default": null,
+      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
       "id": "output_path",
       "label": "Output Folder",
       "required": 1,
-      "default": null,
-      "desc": "Path to which the output will be written. Defaults to the directory containing the input data. ",
       "type": "folder"
     },
     {
+      "default": null,
+      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
       "id": "output_file",
       "label": "File Basename",
       "required": 1,
-      "default": null,
-      "desc": "Basename for the generated output files. Defaults to the basename of the input data.",
       "type": "wsid"
     },
     {
+      "default": 0,
+      "desc": "Debugging level.",
       "id": "debug_level",
       "label": "Debug level",
       "required": 0,
-      "default": 0,
-      "desc": "Debugging level.",
       "type": "int"
     }
-  ]
+  ],
+  "script": "App-GenomeAssembly2"
 }
