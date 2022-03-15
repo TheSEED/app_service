@@ -591,6 +591,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	user_metaata has a value which is a string
 	reservation has a value which is a string
 	data_container_id has a value which is a string
+	preflight_data has a value which is a reference to a hash where the key is a string and the value is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -629,6 +630,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	user_metaata has a value which is a string
 	reservation has a value which is a string
 	data_container_id has a value which is a string
+	preflight_data has a value which is a reference to a hash where the key is a string and the value is a string
 task_id is a string
 workspace_id is a string
 Task is a reference to a hash where the following keys are defined:
@@ -1871,6 +1873,7 @@ container_id has a value which is a string
 user_metaata has a value which is a string
 reservation has a value which is a string
 data_container_id has a value which is a string
+preflight_data has a value which is a reference to a hash where the key is a string and the value is a string
 
 </pre>
 
@@ -1886,6 +1889,7 @@ container_id has a value which is a string
 user_metaata has a value which is a string
 reservation has a value which is a string
 data_container_id has a value which is a string
+preflight_data has a value which is a reference to a hash where the key is a string and the value is a string
 
 
 =end text
