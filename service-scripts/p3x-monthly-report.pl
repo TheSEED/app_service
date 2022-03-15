@@ -10,8 +10,8 @@ my $dbh = $db->dbh;
 
 my %app_values;
 
-my $start = '2021-12-01:00:00:00';
-my $end = '2022-01-01:00:00:00';
+my $start = '2022-02-01:00:00:00';
+my $end = '2022-03-01:00:00:00';
 my $include_staff = 1;
 
 print "Service report for the period $start - $end\n";
