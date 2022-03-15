@@ -651,7 +651,15 @@ sub preprocess_parameters
     my @errors;
     for my $param (@{$app_def->{parameters}})
     {
+	#
+	# Ignore unless the parameter is a hash and contains an ID. This lets us use
+	# non-id sections as documentation.
+	#
+	next unless ref($param) eq 'HASH';
+	
 	my $id = $param->{id};
+	next unless defined($id);
+	
 	if (exists($params->{$id}))
 	{
 	    my $value = $params->{$param->{id}};
