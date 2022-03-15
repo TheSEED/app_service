@@ -5,8 +5,6 @@ use 5.010;
 use DBI;
 use AnyEvent;
 use AnyEvent::DBI::MySQL;
-use DateTime::Format::MySQL;
-use DateTime::Format::DateParse;
 use Bio::KBase::AppService::AppConfig qw(sched_db_host sched_db_port sched_db_user sched_db_pass sched_db_name
 					 app_directory app_service_url);
 use Scope::Guard;
@@ -19,7 +17,7 @@ use Data::Dumper;
 # is important.
 #
 
-__PACKAGE__->mk_accessors(qw(dbh json dsn user pass));
+__PACKAGE__->mk_accessors(qw(dbh json dsn user pass queued_status));
 
 sub new
 {
@@ -33,7 +31,7 @@ sub new
 	pass => sched_db_pass,
 	dsn => $dsn,
 	json => JSON::XS->new->pretty(1)->canonical(1),
-	state_code_cache => {},
+	state_code_cache => undef,
     };
     return bless $self, $class;
 }
@@ -163,12 +161,7 @@ sub create_task
     # Create our task.
     #
 
-    my $res = $self->dbh->selectcol_arrayref(qq(SELECT code FROM TaskState WHERE description = ?), undef, 'Queued');
-    if (@$res != 1)
-    {
-	die "Error retriving task code";
-    }
-    my $code = $res->[0];
+    my $code = $self->state_code_id('queued');
 
     my $policy_data = {};
 
@@ -452,16 +445,27 @@ sub query_task_summary
 sub state_code_name
 {
     my($self, $code) = @_;
+    $self->fill_state_code_cache if !$self->{state_code_cache};
     my $name = $self->{state_code_cache}->{$code};
-    if (!$name)
-    {
-	my $c = $self->{state_code_cache};
-	my $res = $self->dbh->selectall_arrayref(qq(SELECT code, service_status FROM TaskState));
-	$c->{$_->[0]} = $_->[1] foreach @$res;
-	$name = $c->{$code};
-	# print Dumper($res, $self);
-    }
     return $name;
+}
+
+sub state_code_id
+{
+    my($self, $name) = @_;
+    $self->fill_state_code_cache if !$self->{state_code_cache};
+    my $code = $self->{state_name_cache}->{$name};
+    return $code;
+}
+
+sub fill_state_code_cache
+{
+    my($self) = @_;
+    my $c = $self->{state_code_cache} = {};
+    my $n = $self->{state_name_cache} = {};
+    my $res = $self->dbh->selectall_arrayref(qq(SELECT code, service_status FROM TaskState));
+    $c->{$_->[0]} = $_->[1] foreach @$res;
+    $n->{$_->[1]} = $_->[0] foreach @$res;
 }
 
 =item B<query_task_summary_async>
@@ -739,6 +743,9 @@ sub enumerate_tasks_filtered
 
     my @cond;
     my @param;
+
+    require DateTime::Format::MySQL;
+    require DateTime::Format::DateParse;
 
     push(@cond, "owner = ?");
     push(@param, $user_id);
