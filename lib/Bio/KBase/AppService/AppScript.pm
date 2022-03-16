@@ -779,9 +779,24 @@ sub write_results
 	job_output => $job_output,
 	success => ($success ? 1 : 0),
     };
+	
 
     my $file = $self->params->{output_path} . "/" . $self->params->{output_file};
-    my $job_result_obj = $self->workspace->save_data_to_file($self->json->encode($job_obj), {}, $file, 'job_result',1);
+    my $meta = { task_data => {
+	success => ($success ? 1 : 0),
+	task_id => $self->task_id,
+	start_time => $start_time,
+	end_time => $end_time,
+	elapsed_time => $elap,
+	app_id => $self->app_definition->{id},
+    }};
+
+    if (ref($job_output) && defined(my $genome = $job_output->{genome_id}))
+    {
+	$meta->{task_data}->{genome_id} = $genome;
+    }
+    
+    my $job_result_obj = $self->workspace->save_data_to_file($self->json->encode($job_obj), $meta, $file, 'job_result',1);
 
     if (ref($job_result_obj) eq 'ARRAY')
     {
