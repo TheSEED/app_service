@@ -431,11 +431,32 @@ sub kill_tasks
 {
     my($self, $user_id, $tasks) = @_;
 
-    #
-    # Kill means to mark the cluster job with a cancel request.
-    #
-    
-    #return $self->scheduler->kill_tasks($user_id, $tasks);
+    my $tmp = File::Temp->new();
+    close($tmp);
+    my $rc = system("p3x-terminate", "--user", $user_id, "--result-details", "$tmp", @$tasks);
+    my $ret;
+    if ($rc == 0)
+    {
+	my $txt = read_file("$tmp");
+	my $doc = eval { decode_json($txt); };
+	if ($doc)
+	{
+	    $ret = $doc;
+	}
+	else
+	{
+	    $ret = {};
+	    $ret->{$_} { killed => 0, msg => "System terminate did not write status" } foreach @$tasks;
+	}
+    }
+    else
+    {
+	print STDERR "Terminate failed with $rc for @$tasks\n";
+	$ret = {};
+	$ret->{$_} = { killed => 0, msg => "System terminate failed" } foreach @$tasks;
+    }
+    print STDERR Dumper($ret);
+    return $ret;
 }
 
 1;
