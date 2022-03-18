@@ -67,19 +67,19 @@ sub parse_fasta
 		    print $clean_fh ">$cur_id\n" if $clean_fh;
 		    next;
 		}
-		if (/^\s*([acgtumrwsykbdhvn.-]*)\s*$/i)
+		if (/^\s*([acgtumrwsykbdhvn. -]*)\s*$/i)
 		{
 		    my $f = $1;
-		    $f =~ s/[.-]//g;
+		    $f =~ s/[. -]//g;
 		    print $clean_fh $f . "\n" if $clean_fh;
 		    $cur_seq_len += length($f);
 		    $cur_seq .= $f;
 		    next;
 		}
-		elsif ($is_prot_data && /^\s*([*abcdefghijklmnopqrstuvwxyz.-]*)\s*$/i)
+		elsif ($is_prot_data && /^\s*([*abcdefghijklmnopqrstuvwxyz. -]*)\s*$/i)
 		{
 		    my $f = $1;
-		    $f =~ s/[.-]//g;
+		    $f =~ s/[. -]//g;
 		    print $clean_fh $f . "\n" if $clean_fh;
 		    $cur_seq_len += length($f);
 		    $cur_seq .= $f;
@@ -92,7 +92,7 @@ sub parse_fasta
 		    {
 			$str = substr($_, 0, 50) . " [...] " . substr($_, -50);
 		    }
-		    die "Invalid fasta: Bad data at line $.:\n$str\n";
+		    die "Invalid fasta: Bad " . ($is_prot_data ? "protein" : "dna") . " data at line $.:\n$str\n";
 		}
 	    }
 	    else
