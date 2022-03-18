@@ -67,18 +67,22 @@ sub parse_fasta
 		    print $clean_fh ">$cur_id\n" if $clean_fh;
 		    next;
 		}
-		if (/^\s*([acgtumrwsykbdhvn]*)\s*$/i)
+		if (/^\s*([acgtumrwsykbdhvn.-]*)\s*$/i)
 		{
-		    print $clean_fh $1 . "\n" if $clean_fh;
-		    $cur_seq_len += length($1);
-		    $cur_seq .= $1;
+		    my $f = $1;
+		    $f =~ s/[.-]//g;
+		    print $clean_fh $f . "\n" if $clean_fh;
+		    $cur_seq_len += length($f);
+		    $cur_seq .= $f;
 		    next;
 		}
-		elsif ($is_prot_data && /^\s*([*abcdefghijklmnopqrstuvwxyz]*)\s*$/i)
+		elsif ($is_prot_data && /^\s*([*abcdefghijklmnopqrstuvwxyz.-]*)\s*$/i)
 		{
-		    print $clean_fh $1 . "\n" if $clean_fh;
-		    $cur_seq_len += length($1);
-		    $cur_seq .= $1;
+		    my $f = $1;
+		    $f =~ s/[.-]//g;
+		    print $clean_fh $f . "\n" if $clean_fh;
+		    $cur_seq_len += length($f);
+		    $cur_seq .= $f;
 		    next;
 		}
 		else
