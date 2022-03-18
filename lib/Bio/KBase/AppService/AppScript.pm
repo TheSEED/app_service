@@ -791,7 +791,7 @@ sub write_results
 	app_id => $self->app_definition->{id},
     }};
 
-    if (ref($job_output) && defined(my $genome = $job_output->{genome_id}))
+    if (ref($job_output) eq 'HASH' && defined(my $genome = $job_output->{genome_id}))
     {
 	$meta->{task_data}->{genome_id} = $genome;
     }
