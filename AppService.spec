@@ -76,7 +76,7 @@ module AppService
 	string user_metaata;
 	string reservation;
 	string data_container_id;
-	bool disable_preflight;
+	int disable_preflight;
 	mapping<string, string> preflight_data;
     } StartParams;
     funcdef start_app2(app_id, task_parameters params, StartParams start_params)
