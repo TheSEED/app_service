@@ -6,7 +6,7 @@
 Single-end libraries:
 <ul>
 [% FOR se IN params.single_end_libs %]
-<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% se.read %]">[% se.read %]</a>
+<li> <a target="_blank" href="/workspace[% se.read %]">[% se.read %]</a>
 [% END -%]
 </ul>
 <p>
@@ -16,8 +16,8 @@ Single-end libraries:
 Paired-end libraries:
 <ul>
 [% FOR pe IN params.paired_end_libs -%]
-<li> <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read1 %]">[% pe.read1 %]</a>,
- <a target="_blank" href="https://www.patricbrc.org/workspace[% pe.read2 %]">[% pe.read2 %]</a>
+<li> <a target="_blank" href="/workspace[% pe.read1 %]">[% pe.read1 %]</a>,
+ <a target="_blank" href="/workspace[% pe.read2 %]">[% pe.read2 %]</a>
 [% END -%]
 </ul>
 <p>
@@ -33,7 +33,7 @@ SRA libraries:
 <p>
 [% END -%]
 [% ELSE -%]
-Contigs: <a target="_blank" href="https://www.patricbrc.org/workspace[% params.contigs %]">[% params.contigs %]</a>
+Contigs: <a target="_blank" href="/workspace[% params.contigs %]">[% params.contigs %]</a>
 [% END -%]
 <p>
 <h2>Results (<a href="chart.html" target="_parent">Click here to view Interactive Chart</a>) </h2>
