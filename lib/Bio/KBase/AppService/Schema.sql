@@ -10,12 +10,14 @@ drop table if exists Project;
 drop table if exists TaskState;
 drop table if exists Application;
 
+DROP TABLE IF EXISTS ClusterType;
 CREATE TABLE ClusterType
 (
 	type VARCHAR(255) PRIMARY KEY
 );
 INSERT INTO ClusterType VALUES ('AWE'), ('Slurm');
 
+DROP TABLE IF EXISTS Container;
 CREATE TABLE Container
 (
 	id VARCHAR(255) PRIMARY KEY,
@@ -23,12 +25,14 @@ CREATE TABLE Container
 	creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TABLE IF EXISTS DataContainer;
 CREATE TABLE DataContainer
 (
 	id VARCHAR(255) PRIMARY KEY,
 	name VARCHAR(255)
-)
+);
 
+DROP TABLE IF EXISTS SiteDefaultContainer;
 CREATE TABLE SiteDefaultContainer
 (
 	base_url VARCHAR(255) PRIMARY KEY,
@@ -36,6 +40,7 @@ CREATE TABLE SiteDefaultContainer
 	FOREIGN KEY (default_container_id) REFERENCES Container(id)
 );
 
+DROP TABLE IF EXISTS SiteDefaultDataContainer;
 CREATE TABLE SiteDefaultDataContainer
 (
 	base_url VARCHAR(255) PRIMARY KEY,
@@ -71,11 +76,11 @@ CREATE TABLE Cluster
 ) ;
 INSERT INTO Cluster (id, type, name, scheduler_install_path, temp_path, p3_runtime_path, p3_deployment_path, 
        remote_host, account, remote_user, remote_keyfile) VALUES 
-       ('P3AWE', 'AWE', 'PATRIC AWE Cluster', \N, '/disks/tmp', '/disks/patric-common/runtime', '/disks/p3/deployment', \N, \N, \N, \N),
+       ('P3AWE', 'AWE', 'PATRIC AWE Cluster', NULL, '/disks/tmp', '/disks/patric-common/runtime', '/disks/p3/deployment', NULL, NULL, NULL, NULL),
        ('TSlurm', 'Slurm', 'Test SLURM Cluster', '/disks/patric-common/slurm', '/disks/tmp', 
-       		  '/disks/patric-common/runtime', '/home/olson/P3/dev-slurm/dev_container', \N, \N, \N, \N),
+       		  '/disks/patric-common/runtime', '/home/olson/P3/dev-slurm/dev_container', NULL, NULL, NULL, NULL),
        ('P3Slurm', 'Slurm', 'P3 SLURM Cluster', '/disks/patric-common/slurm', '/disks/tmp', 
-       		  '/disks/patric-common/runtime', '/vol/patric3/production/P3Slurm/deployment', \N, \N, \N, \N),
+       		  '/disks/patric-common/runtime', '/vol/patric3/production/P3Slurm/deployment', NULL, NULL, NULL, NULL),
        ('Bebop', 'Slurm', 'Bebop', '/usr/bin', '/scratch', '/home/olson/P3/bebop/runtime', '/home/olson/P3/bebop/dev_container',
        		 'bebop.lcrc.anl.gov', 'PATRIC', 'olson', '/homes/olson/P3/dev-slurm/dev_container/bebop.key');
 
@@ -101,7 +106,18 @@ CREATE TABLE Application
 	script VARCHAR(255),
 	spec TEXT,
 	default_memory VARCHAR(255),
-	default_cpu INTEGER
+	default_cpu INTEGER,
+	display_order INTEGER
+);
+
+DROP TABLE IF EXISTS  ApplicationSpec;
+CREATE TABLE ApplicationSpec
+(
+	id VARCHAR(64) PRIMARY KEY, -- this is the sha-256 hash of the spec document in hex format
+	application_id VARCHAR(255),
+	spec JSON,
+	first_seen timestamp,
+	FOREIGN KEY (application_id) REFERENCES Application(id)
 );
 
 CREATE TABLE Project
@@ -111,7 +127,9 @@ CREATE TABLE Project
 );
 INSERT INTO Project VALUES 
        ('PATRIC', 'patricbrc.org'), 
-       ('RAST', 'rast.nmpdr.org');
+       ('RAST', 'rast.nmpdr.org'),
+       ('ViPR', 'viprbrc.org'),
+       ('BV-BRC', 'bvbrc');
 
 CREATE TABLE ServiceUser
 (     
@@ -161,9 +179,11 @@ CREATE TABLE Task
 	FULLTEXT KEY search_idx(search_terms)
 );
 
+DROP TABLE IF EXISTS ArchivedTask;
 CREATE TABLE ArchivedTask
 (
-	id INTEGER ,
+	id INTEGER,
+	retry_index INTEGER,
 	owner VARCHAR(255),
 	parent_task INTEGER,
 	state_code VARCHAR(10),
@@ -175,7 +195,7 @@ CREATE TABLE ArchivedTask
 	output_path  TEXT,
 	output_file TEXT,
 	params JSON,
-	app_spec JSON,
+	app_spec_id VARCHAR(64),
 	req_memory VARCHAR(255),
 	req_cpu INTEGER,
 	req_runtime INTEGER,
@@ -184,11 +204,13 @@ CREATE TABLE ArchivedTask
 	search_terms text,
 	hidden BOOLEAN default FALSE,
 	container_id VARCHAR(255),
+	data_container_id VARCHAR(255),
 	base_url VARCHAR(255),
 	user_metadata TEXT,
 
 	-- Following are the denormalized fields from TaskExecution
 	cluster_job_id INTEGER,
+	active BOOLEAN,
 	
 	-- Following are the denormalized fields from ClusterJob
 
@@ -198,10 +220,10 @@ CREATE TABLE ArchivedTask
 	maxrss float,
 	nodelist TEXT,
 	exitcode VARCHAR(255),
-	cancel_requested bool default false,
 
 	INDEX (job_id),
-	PRIMARY KEY (id, submit_time)
+	INDEX (owner_id, application_id),
+	PRIMARY KEY (id, submit_time, retry_index)
 )
 PARTITION BY RANGE ( UNIX_TIMESTAMP(submit_time) ) (
 PARTITION p_2014_01 VALUES LESS THAN ( UNIX_TIMESTAMP('2014-01-01 00:00:00') ),
@@ -240,6 +262,7 @@ PARTITION p_2025_10 VALUES LESS THAN ( UNIX_TIMESTAMP('2025-10-01 00:00:00') ),
      PARTITION p_last VALUES LESS THAN (MAXVALUE)
 );
 
+DROP TABLE IF EXISTS TaskParams;
 CREATE TABLE TaskParams
 (
 	task_id INTEGER PRIMARY KEY,
@@ -249,6 +272,7 @@ CREATE TABLE TaskParams
 	preflight JSON
 );
 
+DROP TABLE IF EXISTS loader;
 CREATE TABLE loader
 (
 cluster_job_id varchar(36),
@@ -272,12 +296,11 @@ CREATE TABLE ClusterJob
 	cluster_id VARCHAR(255),
 	job_id VARCHAR(255),
 	job_status VARCHAR(255),
-	active BOOLEAN,
 	maxrss float,
 	nodelist TEXT,
 	exitcode VARCHAR(255),
+	cancel_requested BOOLEAN,
 	INDEX (job_id),
-	FOREIGN KEY(task_id) REFERENCES Task(id),
 	FOREIGN KEY(cluster_id) REFERENCES Cluster(id)
 ) ;
 
@@ -287,16 +310,16 @@ CREATE TABLE TaskExecution
 	cluster_job_id INTEGER NOT NULL,
 	active BOOLEAN NOT NULL,
 	index(task_id),
-	index(clusteR_job_id),
-	FOREIGN KEY (task_id) REFERENCES Task(id);
-	FOREIGN KEY (cluster_job_id) REFERENCES ClusterJob(id);
+	index(cluster_job_id),
+	FOREIGN KEY (task_id) REFERENCES Task(id),
+	FOREIGN KEY (cluster_job_id) REFERENCES ClusterJob(id)
 );
 
 CREATE TABLE TaskToken
 (
 	task_id INTEGER,
 	token TEXT,
-	expiration TIMESTAMP DEFAULT 0,
+	expiration TIMESTAMP DEFAULT NULL,
 	FOREIGN KEY (task_id) REFERENCES Task(id)
 );
 
@@ -309,41 +332,22 @@ FROM Task t
      JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 WHERE te.active = 1;
 
--- View that matches ArchivedTask
-DROP VIEW TasksForArchiving;
-CREATE VIEW TasksForArchiving AS
-SELECT 
-t.id,
-t.owner,
-t.parent_task,
-t.state_code,
-t.application_id,
-t.submit_time,
-t.start_time,
-t.finish_time,
-t.monitor_url,
-t.output_path,
-t.output_file,
-IF(JSON_VALID(t.params), t.params, "{}") as params,
-IF(JSON_VALID(t.app_spec), t.app_spec, "{}") as app_spec,
-t.req_memory,
-t.req_cpu,
-t.req_runtime,
-t.req_policy_data,
-t.req_is_control_task,
-t.search_terms,
-t.hidden,
-t.container_id,
-t.base_url,
-t.user_metadata,
-cj.id as cluster_job_id,
-       cj.cluster_id, cj.job_id, cj.job_status,
-       cj.maxrss, cj.nodelist, cj.exitcode, cj.cancel_requested
-FROM Task t 
-     LEFT OUTER JOIN TaskExecution te ON t.id = te.task_id
-     LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
-WHERE te.active is null or te.active = 1;
+--
+-- View that is a union query of the live task data along with the 
+-- archived tasks. 
+-- 
+DROP VIEW IF EXISTS AllTasks;
+CREATE VIEW AllTasks AS
+SELECT id, submit_time, application_id, owner, state_code, base_url
+FROM ArchivedTask
+WHERE active = 1
+UNION
+SELECT id, submit_time, application_id, owner, state_code, base_url
+FROM Task
+WHERE id > (SELECT IF(ISNULL(MAX(id)), 0, MAX(id)) FROM ArchivedTask)
+;
 
+DROP VIEW IF EXISTS MergedTaskStatus;
 CREATE VIEW MergedTaskStatus AS
 SELECT t.id, t.owner, t.state_code, cj.job_status
 FROM Task t
@@ -351,7 +355,7 @@ FROM Task t
      LEFT OUTER JOIN ClusterJob cj ON cj.id = te.cluster_job_id
 WHERE te.active = 1 OR te.active IS NULL;
 
-DROP VIEW StatsGatherNonCollab;
+DROP VIEW IF EXISTS StatsGatherNonCollab;
 CREATE VIEW StatsGatherNonCollab AS
 SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(t.id) AS job_count
 FROM Task t JOIN ServiceUser u ON t.owner = u.id
@@ -362,7 +366,7 @@ WHERE t.application_id NOT IN ('Date', 'Sleep') AND
 GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
 order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
 
-DROP VIEW StatsGatherCollab;
+DROP VIEW IF EXISTS StatsGatherCollab;
 CREATE VIEW StatsGatherCollab AS
 SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) as year, 
        CONCAT(t.application_id, '-collab') AS application_id, COUNT(t.id) as job_count
@@ -374,11 +378,47 @@ WHERE t.application_id IN ('GenomeAssembly', 'GenomeAssembly2', 'GenomeAnnotatio
 GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
 order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
 
+DROP VIEW IF EXISTS StatsGather;
 CREATE VIEW StatsGather
 AS SELECT * FROM StatsGatherCollab UNION SELECT * FROM StatsGatherNonCollab
    ORDER BY year, month, application_id;
 
-DROP VIEW StatsGatherAll;
+
+
+DROP VIEW IF EXISTS BySiteStatsGatherNonCollab;
+CREATE VIEW BySiteStatsGatherNonCollab AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC') as site, COUNT(t.id) AS job_count
+FROM AllTasks t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id NOT IN ('Date', 'Sleep') AND
+      u.is_collaborator = 0 AND
+      u.is_staff = 0 AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC')
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC');
+
+DROP VIEW IF EXISTS BySiteStatsGatherCollab;
+CREATE VIEW BySiteStatsGatherCollab AS
+SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) as year, 
+       CONCAT(t.application_id, '-collab') AS application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC') as site, COUNT(t.id) as job_count
+FROM AllTasks t JOIN ServiceUser u ON t.owner = u.id
+WHERE t.application_id IN ('GenomeAssembly', 'GenomeAssembly2', 'GenomeAnnotation') AND
+      u.is_collaborator = 1 AND
+      u.is_staff = 0 AND
+      t.state_code = 'C' 
+GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC')
+order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id, if(locate("bv-brc", t.base_url) > 0, 'BV-BRC', 'PATRIC');
+
+DROP VIEW IF EXISTS BySiteStatsGather;
+CREATE VIEW BySiteStatsGather
+AS SELECT * FROM BySiteStatsGatherCollab UNION SELECT * FROM BySiteStatsGatherNonCollab
+   ORDER BY year, month, application_id, site;
+
+
+
+
+
+
+DROP VIEW IF EXISTS StatsGatherAll;
 CREATE VIEW StatsGatherAll AS
 SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(t.id) AS job_count
 FROM Task t JOIN ServiceUser u ON t.owner = u.id
@@ -387,7 +427,7 @@ WHERE t.application_id NOT IN ('Date', 'Sleep') AND
 GROUP BY MONTH(t.submit_time), YEAR(t.submit_time), t.application_id
 order by YEAR(t.submit_time),MONTH(t.submit_time), t.application_id;
 
-DROP VIEW StatsGatherUser;
+DROP VIEW IF EXISTS StatsGatherUser;
 CREATE VIEW StatsGatherUser AS
 SELECT MONTH(t.submit_time) AS month, YEAR(t.submit_time) AS year, t.application_id, COUNT(distinct t.owner) AS user_count
 FROM Task t JOIN ServiceUser u ON t.owner = u.id
