@@ -446,9 +446,14 @@ sub query_task_summary
     my($self, $user_id) = @_;
 
     my $res = $self->dbh->selectall_arrayref(qq(SELECT count(id) as count, state_code
-						FROM Task 
-						WHERE owner = ?
-						GROUP BY state_code), undef, $user_id);
+						FROM (SELECT id, state_code
+						      FROM Task 
+						      WHERE owner = ?
+						      UNION
+						      SELECT id, state_code
+						      FROM ArchivedTask 
+						      WHERE owner = ?) as t
+						GROUP BY state_code), undef, $user_id, $user_id);
 
     my $ret = {};
     $ret->{$self->state_code_name($_->[1])} = int($_->[0]) foreach @$res;
