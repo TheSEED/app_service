@@ -407,10 +407,24 @@ sub query_tasks
 				     if(start_time = default(start_time), "", start_time) as start_time,
 				     if(finish_time = default(finish_time), "", finish_time) as finish_time,
 				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elapsed_time,
-				     service_status
+				     service_status,
+				     'active' as storage_location
+
 				     FROM Task JOIN TaskState ON state_code = code
 					       WHERE id IN ($id_list)
-					       ORDER BY submit_time DESC));
+				     UNION
+				     SELECT id, parent_task, application_id, params, owner, state_code,
+				     if(submit_time = default(submit_time), "", submit_time) as submit_time,
+				     if(start_time = default(start_time), "", start_time) as start_time,
+				     if(finish_time = default(finish_time), "", finish_time) as finish_time,
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elapsed_time,
+				     service_status,
+				     'archive' as storage_location
+				     FROM ArchivedTask JOIN TaskState ON state_code = code
+					       WHERE id IN ($id_list)
+				     
+				       ORDER BY submit_time DESC));
+    
     $sth->execute();
     my $ret = {};
     while (my $ent = $sth->fetchrow_hashref())
@@ -534,7 +548,7 @@ sub query_app_summary_async
 
 =item B<enumerate_tasks>
 
-Enumerate the given user's tasks.
+Enumerate the given users tasks.
 
 =cut
 
@@ -542,7 +556,44 @@ sub enumerate_tasks
 {
     my($self, $user_id, $offset, $count) = @_;
 
-    my $sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner,
+    my $rec_start = $offset;
+    my $rec_end = $offset + $count - 1;
+
+    #
+    # Count the active tasks and see if we need to dip into the archive.
+    #
+    
+    my $res = $self->dbh->selectcol_arrayref(qq(SELECT COUNT(id)
+						FROM Task
+						WHERE owner = ?), undef, $user_id);
+    my $need_active;
+    my $need_archive;
+
+    my $archive_offset;
+    my $archive_count;
+    
+    my $active_count = $res->[0];
+
+    if ($offset > $active_count)
+    {
+	$need_archive = 1;
+	$archive_offset = $offset - $active_count;
+	$archive_count = $count;
+    }
+    elsif ($rec_end > $active_count)
+    {
+	$need_archive = 1;
+	$need_active = 1;
+	$archive_offset = 0;
+
+	$archive_count = $rec_end - $active_count;
+    }
+    else
+    {
+	$need_active = 1;
+    }
+
+    my $active_sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner,
 				     service_status,
 				     IF(submit_time=default(submit_time), '', DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ')) as submit_time,
 				     IF(start_time=default(start_time), '', DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ')) as start_time,
@@ -554,12 +605,36 @@ sub enumerate_tasks
 				     ORDER BY Task.submit_time DESC
 				     LIMIT ?
 				     OFFSET ?));
-    $sth->execute($user_id, $count, $offset);
+
+    my $archive_sth = $self->dbh->prepare(qq(SELECT id, parent_task, application_id, params, owner,
+				     service_status,
+				     IF(submit_time=default(submit_time), '', DATE_FORMAT(submit_time, '%Y-%m-%dT%TZ')) as submit_time,
+				     IF(start_time=default(start_time), '', DATE_FORMAT(start_time,  '%Y-%m-%dT%TZ')) as start_time,
+				     IF(finish_time=default(finish_time), '', DATE_FORMAT(finish_time, '%Y-%m-%dT%TZ')) as finish_time,
+				     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elapsed_time
+
+				     FROM ArchivedTask JOIN TaskState on state_code = code
+				     WHERE owner = ?
+				     ORDER BY submit_time DESC
+				     LIMIT ?
+				     OFFSET ?));
+
+
+    my @need;
+    push (@need, [$active_sth, $offset, $count]) if $need_active;
+    push (@need, [$archive_sth, $archive_offset, $archive_count]) if $need_archive;
 
     my $ret = [];
-    while (my $task = $sth->fetchrow_hashref())
+
+    for my $ent (@need)
     {
-	push(@$ret, $self->format_task_for_service($task));
+	my($sth, $soffset, $scount) = @$ent;
+	$sth->execute($user_id, $scount, $soffset);
+	
+	while (my $task = $sth->fetchrow_hashref())
+	{
+	    push(@$ret, $self->format_task_for_service($task));
+	}
     }
     return $ret;
 }
@@ -859,6 +934,7 @@ sub format_task_for_service
 	start_time => $task->{start_time},
 	completed_time => $task->{finish_time},
 	elapsed_time => "" . $task->{elapsed_time},
+        storage_location => "" . $task->{storage_location},
     };
     return $rtask;
 }
