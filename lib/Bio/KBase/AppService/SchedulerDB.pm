@@ -1032,6 +1032,11 @@ sub reset_job
 		push(@params, $reset_params->{data_container_id});
 		$reset .= ", t.data_container_id = ?";
 	    }
+	    if ($reset_params->{container_id})
+	    {
+		push(@params, $reset_params->{container_id});
+		$reset .= ", t.container_id = ?";
+	    }
 	}
 
 	my $res;
