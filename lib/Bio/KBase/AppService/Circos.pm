@@ -157,6 +157,7 @@ sub generate_configuration
     my $ctg_index = 0;
 
     my @contigs = @{$gto->contigs};
+    $_->{id} =~ s/[=:;,]/_/g foreach @contigs;
     my $cutoff = @contigs;
     if ($opt->truncate_small_contigs && @contigs > $opt->truncate_small_contigs_threshold)
     {
@@ -319,6 +320,8 @@ sub generate_configuration
 	my($min, $max, $ctg, $strand) = feature_bounds($feature);
 	my $fh;
 	my $id = $feature->{id};
+
+	$ctg =~ s/[=:;,]/_/g;
 
 	#
 	# Skip this feature if it is on a contig too small to render.
