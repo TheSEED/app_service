@@ -543,7 +543,7 @@ Walk the readset and invoke the appropriate callback on the libraries included.
 
 sub visit_libraries
 {
-    my($self, $pe_cb, $se_cb, $srr_cb) = @_;
+    my($self, $pe_cb, $se_cb, $srr_cb, $int_cb) = @_;
 
     for my $lib ($self->libraries)
     {
@@ -558,6 +558,10 @@ sub visit_libraries
 	elsif ($lib->isa("SRRLibrary"))
 	{
 	    $srr_cb->($lib) if $srr_cb;
+	}
+	elsif ($lib->isa("InterleavedLibrary"))
+	{
+	    $int_cb->($lib) if $int_cb;
 	}
 	else
 	{
