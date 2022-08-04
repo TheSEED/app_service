@@ -86,11 +86,13 @@ my $data = $dbh->selectall_hashref(qq(SELECT application_id,
 				     ROUND(AVG(TIMESTAMPDIFF(SECOND, start_time ,finish_time)))  AS avg,
 				     MAX(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS max,
 				     MIN(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS min,
+				     median(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS median,
 				     ROUND(STD(TIMESTAMPDIFF(SECOND, start_time ,finish_time))) AS std,
 
 				     ROUND(AVG(TIMESTAMPDIFF(SECOND, submit_time, start_time)))  AS wait_avg,
 				     MAX(TIMESTAMPDIFF(SECOND, submit_time, start_time)) AS wait_max,
 				     MIN(TIMESTAMPDIFF(SECOND, submit_time, start_time)) AS wait_min,
+				     median(TIMESTAMPDIFF(SECOND, submit_time, start_time)) AS wait_median,
 				     ROUND(STD(TIMESTAMPDIFF(SECOND, start_time ,finish_time))) AS wait_std,
 
 				     COUNT(TIMESTAMPDIFF(SECOND, start_time ,finish_time)) AS completed
@@ -142,7 +144,7 @@ while (my($app, $vals) = each %$data)
     }
 }
 
-my @cols = qw(total completed failed frac_completed min avg max std wait_min wait_avg wait_max wait_std);
+my @cols = qw(total completed failed frac_completed min avg max median std wait_min wait_avg wait_max wait_median wait_std);
 print $out_fh join("\t", 'application', @cols), "\n";
 	   
 for my $app (sort keys %$data)
