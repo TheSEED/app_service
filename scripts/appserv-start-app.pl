@@ -18,6 +18,7 @@ my($opt, $usage) = describe_options("%c %o app-id params-data [workspace]",
 				    ["reservation=s", "Slurm reservation", { hidden => 1 }],
 				    ["constraint=s", "Slurm constraint", { hidden => 1 }],
 				    ["url|u=s", "Service URL"],
+				    ["preflight=s\@", "Specify a preflight parameter using e.g. --preflight cpu=2. Disables automated preflight, requires administrator access", { hidden => 1, default => []}],
 				    ["help|h", "Show this help message"]);
 
 print($usage->text), exit if $opt->help;
@@ -30,6 +31,22 @@ my $params_data = shift;
 my $workspace = shift;
 
 my $params = decode_json(scalar read_file($params_data));
+
+my %preflight_params;
+if (@{$opt->preflight})
+{
+    my $phash = {};
+    for my $p (@{$opt->preflight})
+    {
+	my($k, $v) = split(/=/, $p, 2);
+	if (!defined($k) || !defined($v))
+	{
+	    die "Invalid preflight option $p\n";
+	}
+	$phash->{$k} = $v;
+    }
+    %preflight_params = (disable_preflight => 1, preflight_data => $phash );
+}
 
 my $user_metadata = $opt->user_metadata;
 if ($opt->user_metadata_file)
@@ -46,6 +63,7 @@ my $start_params = {
     $opt->reservation ? (reservation => $opt->reservation) : (),
     $opt->constraint ? (constraint => $opt->constraint) : (),
     defined($user_metadata) ? (user_metadata => $user_metadata) : (),
+    %preflight_params,
 };
     
 if ($params->{output_path} && $opt->output_path)
