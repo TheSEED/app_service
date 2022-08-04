@@ -58,7 +58,9 @@ sub run_codon_tree
     
     push(@options, "--genomeIdsFile", "$here/genomes.in");
     #push(@options, "--outgroupIdsFile", "$here/opt_genomes.in");
-    
+
+    push(@options, "--writePhyloxml");
+
     my $n_genes = $params->{number_of_genes};
     my $bootstraps = $params->{bootstraps};
     my $max_missing = $params->{max_genomes_missing};
