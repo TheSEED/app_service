@@ -39,10 +39,11 @@ my($opt, $usage) = describe_options("%c %o status-file",
 				    ["reservation=s" => "Use this reservation for job submission"],
 				    ["constraint=s" => "Use this constraint for job submission"],
 				    ["qa-dir=s" => "Base dir for QA tests", { default => "/vol/patric3/QA/applications" }],
-				    ['app=s@' => "Run tests only for this app name"],
+				    ['app=s@' => "Run tests only for this app name", { default => [] }],
 				    ['test=s@' => "Run this test"],
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
+				    ["preflight=s\@", "Specify a preflight parameter using e.g. --preflight cpu=2. Disables automated preflight, requires administrator access", { hidden => 0, default => []}],
 				    ["help|h" => "Show this help message"],
 				   );
 $usage->die() if @ARGV != 1;
@@ -73,14 +74,26 @@ if ($opt->test)
     }
 }
 
+my %include_apps = map { $_ => 1 } grep { !/^-/ } @{$opt->app};
+my %exclude_apps = map { s/^-//; $_ => 1 }  grep { /^-/ } @{$opt->app};
+
 for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 {
     my($app) = $tfolder =~ m,/App-([^/]+)/tests,;
-    if ($app && $opt->app && ! grep { $app eq $_ } @{$opt->app})
+    if ($app && $opt->app)
     {
-	print "Skipping $tfolder\n";
-	next;
+	if ($exclude_apps{$app})
+	{
+	    print "Skipping excluded $tfolder\n";
+	    next;
+	}
+	if (%include_apps && !$include_apps{$app})
+	{
+	    print "Skipping non-included $tfolder\n";
+	    next;
+	}
     }
+    
     my @tests = sort { $a cmp $b } glob("$tfolder/*.json");
 
     my @container = ("--container", $opt->container) if $opt->container;
@@ -103,6 +116,7 @@ for my $tfolder (sort { $a cmp $b } glob($opt->qa_dir . "/*/tests"))
 		   @container,
 		   @data_container,
 		   "--meta-out", "$temp",
+		   (map { ("--preflight",  $_) } @{$opt->preflight} ),
 		   $test);
 	
 	print "@cmd\n";

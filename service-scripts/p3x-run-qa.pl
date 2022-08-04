@@ -31,6 +31,7 @@ my($opt, $usage) = describe_options("%c %o [test-params.json]",
 				    ["out|o=s" => "Use this workspace path as the output base",
 				 { default => '/olson@patricbrc.org/PATRIC-QA/applications' }],
 				    ["meta-out=s" => "Write metadata from this submission to this file."],
+				    ["preflight=s\@", "Specify a preflight parameter using e.g. --preflight cpu=2. Disables automated preflight, requires administrator access", { hidden => 0, default => []}],
 				    ["help|h" => "Show this help message"],
 				   );
 $usage->die() if @ARGV > 1;
@@ -289,6 +290,7 @@ sub submit_job
     push(@cmd, '--reservation', $opt->reservation) if $opt->reservation;
     push(@cmd, '--constraint', $opt->constraint) if $opt->constraint;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
+    push(@cmd, "--preflight", $_) foreach @{$opt->preflight};
     push(@cmd, $app, $params);
 
     my $out;
