@@ -352,7 +352,12 @@ while (my $task = $sth->fetchrow_hashref)
 
     for my $p (@{$opt->show_parameter})
     {
-	push(@row, $decoded_params->{$p});
+	my $val = $decoded_params->{$p};
+	if (ref($val))
+	{
+	    $val = encode_json($val);
+	}
+	push(@row, $val);
     }
 	 
 
