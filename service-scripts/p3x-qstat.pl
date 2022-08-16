@@ -37,6 +37,7 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["show-user-metadata" => "Show the user metadata"],
 				    ["show-times" => "Show start and finish times"],
 				    ["show-parameter=s\@" => "Show this parameter from the input parameters", { default => [] }],
+				    ["show-all-parameters" => "Show all parameters"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -275,6 +276,11 @@ if ($opt->show_user_metadata)
 
 push(@cols, map { { title => $_ } } @{$opt->show_parameter});
 
+if ($opt->show_all_parameters)
+{
+    push(@cols, { title => "Params" });
+}
+
 if ($opt->parsable && !$opt->no_header)
 {
     say join("\t", map { $_->{title} } @cols);
@@ -358,6 +364,10 @@ while (my $task = $sth->fetchrow_hashref)
 	    $val = encode_json($val);
 	}
 	push(@row, $val);
+    }
+    if ($opt->show_all_parameters)
+    {
+	push(@row, encode_json($decoded_params));
     }
 	 
 
