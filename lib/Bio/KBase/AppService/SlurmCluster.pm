@@ -601,6 +601,16 @@ EAL
 	my $ram = $task->req_memory // $app->default_memory // "100G";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
 
+	my $storage = $task->params->{_preflight}->{storage};
+	my %constraint;
+	#
+	# For over 20G, force run on machines with NFS ("sim" feature. yeah I know).
+	#
+	if ($storage > 20_000_000_000)
+	{
+	    $constraint{sim} = 1;
+	}
+
 	$vars{sbatch_job_mem} = $ram;
 	$vars{n_cpus} = $cpu;
 
@@ -637,9 +647,10 @@ EAL
 	    {
 		$vars{sbatch_reservation} = $policy->{reservation};
 		my $c = $policy->{constraint};
-		if ($c =~ /^\w+$/)
+		$constraint{$_} = 1 foreach $c =~ /\w+/g;
+		if (%constraint)
 		{
-		    $vars{sbatch_constraint} = "#SBATCH --constraint $c";
+		    $vars{sbatch_constraint} = "#SBATCH --constraint " . join(" ", keys %constraint);
 		}
 	    }
 	}

@@ -60,7 +60,68 @@ export P3_ALLOCATED_CPU=$SLURM_JOB_CPUS_PER_NODE
 export P3_AUTH_TOKEN="[% task.token %]"
 export KB_AUTH_TOKEN="[% task.token %]"
 
-export WORKDIR=[% cluster_temp %]/task-[% task.id %]-$SLURM_JOB_ID
+base_tmp=[% cluster_temp %]
+
+run_tmp=$(mktemp -d)
+
+cat > $run_tmp/params <<'EOPARAMS'
+[% task.params %]
+EOPARAMS
+
+python2=/usr/bin/python2
+if [[ ! -x $python2 ]] ; then
+echo fallback
+python2=/usr/bin/python
+fi
+
+cat > $run_tmp/space.py <<END
+import sys; import json; import os;
+import socket;
+import os.path;
+import subprocess;
+ctemp=sys.argv[1]
+params=sys.argv[2]
+
+bigtmp="/vol/patric3/tmp"
+
+v=os.statvfs(ctemp)
+free=int((v.f_frsize * v.f_blocks) / 1e6);
+try:
+    x = json.load(open(params));
+    req = int(x["_preflight"]["storage"]/1e6);
+except:
+    req = 0
+if free < 1000 or (req > 0 and free < 8 * req):
+    if os.path.exists(bigtmp):
+        path = bigtmp + socket.gethostname()
+        if not os.path.exists(path):
+            os.mkdir(path)
+        print path
+        print >> sys.stderr, "Node does not have sufficient temporary space (avail %d MB, requested %d MB). Using %s" % (free, req, path)
+    else:
+        #
+        # We do not have enough room and the large space is not available.
+        # Fail the job and put the node in drain mode.
+        #
+        print >> sys.stderr, "Node does not have sufficient temporary space (avail %d MB, requested %d MB). Failing job and putting node in drain mode" % (free, req)
+        subprocess.call(["/disks/patric-common/slurm/bin/scontrol",
+                         "update", "node=%s" % (os.getenv("SLURMD_NODENAME")), "state=drain", "reason=out of temp space"]);
+        subprocess.call(["/disks/patric-common/slurm/bin/scontrol",
+                         "requeue", os.getenv("SLURM_JOBID")]);
+        sys.exit(1);
+else:
+    print ctemp
+ 
+END
+cluster_temp=$($python2 $run_tmp/space.py $base_tmp $run_tmp/params)
+
+ret=$?
+if [[ $ret -ne 0 ]] ; then
+    echo "Failed to determine cluster tempory location" 1>&2
+    exit $ret
+fi
+
+export WORKDIR=$cluster_temp/task-[% task.id %]-$SLURM_JOB_ID
 mkdir $WORKDIR
 cd $WORKDIR
 
@@ -68,9 +129,9 @@ cat > app_spec <<'EOSPEC'
 [% task.spec %]
 EOSPEC
 
-cat > params <<'EOPARAMS'
-[% task.params %]
-EOPARAMS
+mv $run_tmp/params params
+
+rm -rf $run_tmp
 
 export P3_TASK_ID=[% task.id %]
 
@@ -147,8 +208,8 @@ echo "Task [% task.id %] has pid $pid_[% task.id %]"
 
 [% ELSE -%]
 
-export TEMPDIR=[% cluster_temp %]
-export TMPDIR=[% cluster_temp %]
+export TEMPDIR=$cluster_temp
+export TMPDIR=$cluster_temp
 
 echo "Running script [% task.script %]"
 p3x-app-shepherd --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
