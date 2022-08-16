@@ -85,7 +85,7 @@ while (<IN>)
 	    }
 	}
     }
-    my $link = qq(<a href="https://patricbrc.org/workspace$out_ws_folder/.$out_ws_file">$out_ws_file</a>);
+    my $link = qq(<a href="https://bv-brc.org/workspace$out_ws_folder/.$out_ws_file">$out_ws_file</a>);
     push(@out, [$tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap, $host, $link, $rss]);
 #    print $out_fh join("\t", $tag, $container, $app, $task_id, $inp_fn, $out_fs, $out_ws_file, $out_ws_folder, $task_exit, $qa_success, $elap), "\n";
 }
