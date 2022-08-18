@@ -85,15 +85,15 @@ params=sys.argv[2]
 bigtmp="/vol/patric3/tmp"
 
 v=os.statvfs(ctemp)
-free=int((v.f_frsize * v.f_blocks) / 1e6);
+free=int((v.f_frsize * v.f_bavail) / 1e6);
 try:
     x = json.load(open(params));
-    req = int(x["_preflight"]["storage"]/1e6);
+    req = int(int(x["_preflight"]["storage"])/1e6);
 except:
     req = 0
 if free < 1000 or (req > 0 and free < 8 * req):
     if os.path.exists(bigtmp):
-        path = bigtmp + socket.gethostname()
+        path = os.path.join(bigtmp, socket.gethostname())
         if not os.path.exists(path):
             os.mkdir(path)
         print path
@@ -110,6 +110,7 @@ if free < 1000 or (req > 0 and free < 8 * req):
                          "requeue", os.getenv("SLURM_JOBID")]);
         sys.exit(1);
 else:
+    print >> sys.stderr, "Node has sfficient temporary space (avail %d MB, requested %d MB)" % (free, req)
     print ctemp
  
 END

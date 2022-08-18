@@ -601,7 +601,15 @@ EAL
 	my $ram = $task->req_memory // $app->default_memory // "100G";
 	my $cpu = $task->req_cpu // $app->default_cpu // 1;
 
-	my $storage = $task->params->{_preflight}->{storage};
+	my $storage;
+	eval {
+	    my $doc = decode_json($task->params);
+	    $storage = $doc->{_preflight}->{storage};
+	};
+	if ($@)
+	{
+	    warn "error parsing task " . $task->id . " params: $@";
+	}
 	my %constraint;
 	#
 	# For over 20G, force run on machines with NFS ("sim" feature. yeah I know).
@@ -610,6 +618,7 @@ EAL
 	{
 	    $constraint{sim} = 1;
 	}
+	print STDERR "Task " . $task->id . " storage: $storage. Constraint: " . Dumper(\%constraint);
 
 	$vars{sbatch_job_mem} = $ram;
 	$vars{n_cpus} = $cpu;
