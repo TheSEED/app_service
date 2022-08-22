@@ -190,6 +190,8 @@ sub save_output_files
     my($app, $output) = @_;
     
     my %suffix_map = (fastq => 'reads',
+		      phyloxml => 'phyloxml',
+		      xml => 'phyloxml',
 		      txt => 'txt',
 		      png => 'png',
 		      svg => 'svg',
