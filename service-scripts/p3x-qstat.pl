@@ -37,7 +37,9 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["show-user-metadata" => "Show the user metadata"],
 				    ["show-times" => "Show start and finish times"],
 				    ["show-parameter=s\@" => "Show this parameter from the input parameters", { default => [] }],
+				    ["show-count=s\@" => "Show this length of this input parameter (if it is a list)", { default => [] }],
 				    ["show-all-parameters" => "Show all parameters"],
+				    ["elapsed-seconds" => "Show elapsed time in seconds"],
 				    ["user|u=s" => "Limit results to the given user"],
 				    ["cluster|c=s" => "Limit results to the given cluster"],
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
@@ -275,6 +277,7 @@ if ($opt->show_user_metadata)
 }
 
 push(@cols, map { { title => $_ } } @{$opt->show_parameter});
+push(@cols, map { { title => $_ } } @{$opt->show_count});
 
 if ($opt->show_all_parameters)
 {
@@ -344,8 +347,17 @@ while (my $task = $sth->fetchrow_hashref)
 
     $task->{task_state} =~ s/Submitted.*/Sub/;
     $task->{task_state} =~ s/Complete.*/Comp/;
+    my $elapsed = $task->{elap};
+    if ($opt->elapsed_seconds)
+    {
+	if ($elapsed =~ /^(\d\d):(\d\d):(\d\d)$/)
+	{
+	    $elapsed = $1 * 3600 + $2 * 60 + $3;
+	}
+    }
+    
     my @row = ($task->{task_id}, $task->{task_state}, $owner, $task->{application_id},
-	      $task->{submit_time}, $task->{elap},
+	      $task->{submit_time}, $elapsed,
 	      $task->{job_id} ? ($task->{cluster_id}, $task->{job_id}, $task->{job_status},
 				 $task->{req_cpu}, $task->{req_memory}, $task->{req_runtime},
 				 $task->{nodelist}, int($task->{maxrss})) : ());
@@ -362,6 +374,19 @@ while (my $task = $sth->fetchrow_hashref)
 	if (ref($val))
 	{
 	    $val = encode_json($val);
+	}
+	push(@row, $val);
+    }
+    for my $p (@{$opt->show_count})
+    {
+	my $val = $decoded_params->{$p};
+	if (ref($val) eq 'ARRAY')
+	{
+	    $val = @$val;
+	}
+	else
+	{
+	    $val = '';
 	}
 	push(@row, $val);
     }
