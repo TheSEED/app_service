@@ -58,7 +58,7 @@ sub preflight
 {
     my($app, $app_def, $raw_params, $params) = @_;
 
-    print STDERR "preflight genome ", Dumper($params, $app);
+    print STDERR "preflight GenomeAssembly2 ", Dumper($params, $app);
 
     my $token = $app->token();
     my $ws = $app->workspace();
