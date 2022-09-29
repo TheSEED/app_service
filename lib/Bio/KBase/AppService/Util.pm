@@ -230,7 +230,7 @@ sub submit_log
     $items //= [];
     $files //= [];
     my $now = strftime("%Y-%m-%d %H:%M:%S", localtime);
-    print STDERR join("\t", $now, @$items), "\n";
+    print STDERR join("\t", $now, $ENV{REMOTE_ADDR} // "-", @$items), "\n";
 
     for my $file (@$files)
     {
