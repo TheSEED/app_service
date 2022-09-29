@@ -524,7 +524,12 @@ sub task_start_check
     #
     # We order by the owner count so that individual user job submissions go in first.
     #
-    my $per_user_limit = 200;
+    my $per_user_limit = 20;
+    my %per_user_limit_override = ('BVBRC@patricbrc.org' => 200,
+				   'olson@patricbrc.org' => 200,
+				   'jdassembly@patricbrc.org' => 200,
+				   );
+    
     my $res = $self->db->dbh->selectall_arrayref(qq(SELECT t.owner, COUNT(t.id)
 						    FROM Task t
 						       JOIN TaskExecution te ON t.id = te.task_id
@@ -540,6 +545,8 @@ sub task_start_check
     {
 	my($user, $count) = @$ent;
 	$user_jobs_in_queue{$user} = $count;
+
+	my $user_limit = $per_user_limit_override{$user} // $per_user_limit;
 	if ($count > $per_user_limit)
 	{
 	    print STDERR "User $user restricted due to $count jobs submitted\n";
