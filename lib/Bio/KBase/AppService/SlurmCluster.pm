@@ -567,8 +567,32 @@ sub build_submission_for_tasks
 
 	if ($data_container)
 	{
-	    $vars{data_container} = $data_container;
-	    $vars{data_container_search_path} = $cinfo->data_container_search_path;
+	    #
+	    # Look up the data container in teh database to see if we have
+	    # a filesystem path defined for it.
+	    #
+	    my $res = $self->schema->resultset("DataContainer")->find($data_container);
+	    if (!$res)
+	    {
+		warn "No entry found in DataContainer for $data_container";
+	    }
+	    my $path = $res->name;
+	    if ($path =~ m,^/,)
+	    {
+		#
+		# We have one. Configure job for data directory.
+		#
+		$vars{data_directory} = $path;
+	    }
+	    else
+	    {
+		#
+		# No path found. Use data container id.
+		#
+		
+		$vars{data_container} = $data_container;
+		$vars{data_container_search_path} = $cinfo->data_container_search_path;
+	    }
 	}
 	else
 	{
