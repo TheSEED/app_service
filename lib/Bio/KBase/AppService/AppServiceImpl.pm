@@ -588,7 +588,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	workspace has a value which is a workspace_id
 	base_url has a value which is a string
 	container_id has a value which is a string
-	user_metaata has a value which is a string
+	user_metadata has a value which is a string
 	reservation has a value which is a string
 	data_container_id has a value which is a string
 	disable_preflight has a value which is an int
@@ -628,7 +628,7 @@ StartParams is a reference to a hash where the following keys are defined:
 	workspace has a value which is a workspace_id
 	base_url has a value which is a string
 	container_id has a value which is a string
-	user_metaata has a value which is a string
+	user_metadata has a value which is a string
 	reservation has a value which is a string
 	data_container_id has a value which is a string
 	disable_preflight has a value which is an int
@@ -1872,7 +1872,7 @@ parent_id has a value which is a task_id
 workspace has a value which is a workspace_id
 base_url has a value which is a string
 container_id has a value which is a string
-user_metaata has a value which is a string
+user_metadata has a value which is a string
 reservation has a value which is a string
 data_container_id has a value which is a string
 disable_preflight has a value which is an int
@@ -1889,7 +1889,7 @@ parent_id has a value which is a task_id
 workspace has a value which is a workspace_id
 base_url has a value which is a string
 container_id has a value which is a string
-user_metaata has a value which is a string
+user_metadata has a value which is a string
 reservation has a value which is a string
 data_container_id has a value which is a string
 disable_preflight has a value which is an int

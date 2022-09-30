@@ -73,7 +73,7 @@ module AppService
 	workspace_id workspace;
 	string base_url;
 	string container_id;
-	string user_metaata;
+	string user_metadata;
 	string reservation;
 	string data_container_id;
 	int disable_preflight;
