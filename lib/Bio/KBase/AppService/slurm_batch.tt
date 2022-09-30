@@ -59,6 +59,9 @@ export P3_ALLOCATED_CPU=$SLURM_JOB_CPUS_PER_NODE
 
 export P3_AUTH_TOKEN="[% task.token %]"
 export KB_AUTH_TOKEN="[% task.token %]"
+[% IF task.base_url -%]
+export P3_BASE_URL="[% task.base_url %]"
+[% END -%]
 
 base_tmp=[% cluster_temp %]
 

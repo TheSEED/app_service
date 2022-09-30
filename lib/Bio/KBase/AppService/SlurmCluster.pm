@@ -513,6 +513,7 @@ sub build_submission_for_tasks
 	#
 	my $task = $tasks->[0];
 	my $base_url = $task->base_url;
+
 	my $container = $task->container;
 	if (!$container)
 	{
@@ -772,6 +773,7 @@ END
 	    token => $token_obj->token,
 	    monitor_url => $task->monitor_url,
 	    appserv_url => $appserv_url,
+	    base_url => $task->base_url,
 	};
 		
 	push(@{$vars{tasks}}, $tvar);
