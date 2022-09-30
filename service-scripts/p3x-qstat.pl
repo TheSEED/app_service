@@ -27,7 +27,8 @@ use Getopt::Long::Descriptive;
 my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["application|A=s" => "Limit results to the given application"],
 				    ["status|s=s\@" => "Limit results to jobs with the given status code", { default => [] }],
-				    ["start-time=s" => "Limit results to jobs submitted at or after this time"],
+				    ["submit-time=s" => "Limit results to jobs submitted at or after this time"],
+				    ["start-time=s" => "Limit results to jobs started at or after this time"],
 				    ["end-time=s" => "Limit results to jobs submitted before this time"],
 				    ["genome-id" => "For genome annotation jobs, look up the genome ID if possible"],
 				    ["ids-from=s" => "Use the given file to read IDs from"],
@@ -84,9 +85,15 @@ if ($opt->user_metadata)
     push(@params, $opt->user_metadata);
 }
 
-if ($opt->start_time)
+if ($opt->submit_time)
 {
     push(@conds, 't.submit_time >= ?');
+    push(@params, $opt->submit_time);
+}
+
+if ($opt->start_time)
+{
+    push(@conds, 't.start_time >= ?');
     push(@params, $opt->start_time);
 }
 
@@ -350,7 +357,7 @@ while (my $task = $sth->fetchrow_hashref)
     my $elapsed = $task->{elap};
     if ($opt->elapsed_seconds)
     {
-	if ($elapsed =~ /^(\d\d):(\d\d):(\d\d)$/)
+	if ($elapsed =~ /^(\d{2,34}):(\d\d):(\d\d)$/)
 	{
 	    $elapsed = $1 * 3600 + $2 * 60 + $3;
 	}
