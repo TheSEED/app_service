@@ -547,9 +547,9 @@ sub task_start_check
 	$user_jobs_in_queue{$user} = $count;
 
 	my $user_limit = $per_user_limit_override{$user} // $per_user_limit;
-	if ($count > $per_user_limit)
+	if ($count > $user_limit)
 	{
-	    print STDERR "User $user restricted due to $count jobs submitted\n";
+	    print STDERR "User $user restricted due to $count jobs submitted (limit=$user_limit)\n";
 	    $user_restricted{$user} = 1;
 	}
     }
