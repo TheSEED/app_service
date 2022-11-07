@@ -104,6 +104,7 @@
       "enum": [
         "auto",
         "unicycler",
+	"flye",
         "canu",
         "spades",
         "meta-spades",
