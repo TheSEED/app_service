@@ -562,13 +562,14 @@ sub task_start_check
 	# we use get_column here to avoid the ORM pulling the owner class; we just need the id.
 	#
 	my $owner = $cand->get_column("owner");
+	my $user_limit = $per_user_limit_override{$owner} // $per_user_limit;
 	
 	if ($jobs_released_per_owner{$owner} > $max_per_owner_release ||
-	    $user_jobs_in_queue{$owner} > $per_user_limit)
+	    $user_jobs_in_queue{$owner} > $user_limit)
 	{
 	    if (!$warned{$owner}++)
 	    {
-		warn "Skipping additional submissions for $owner\n";
+		warn "Skipping additional submissions for $owner (per owner released=$jobs_released_per_owner{$owner} max per owner=$max_per_owner_release user-jobs=$user_jobs_in_queue{$owner} user-limit=$user_limit\n";
 	    }
 	    next;
 	}

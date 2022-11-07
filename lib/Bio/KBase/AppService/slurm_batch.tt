@@ -200,10 +200,19 @@ echo "No data container was defined or bound"
 [% END %]
 export P3_DATA_BIND_DESTINATION="$data_bind_destination"
 
+#
+# Check to see if we have the NFS temp dir available, and bind if so.
+#
+nfs_tmp="/vol/patric3/tmp"
+bigtmp_bind=""
+if [[ -d $nfs_tmp ]] ; then
+    bigtmp_bind=",$nfs_tmp"
+fi
+
 singularity run \
 	    -H $WORKDIR \
 	    --env P3_WORKDIR="$WORKDIR",P3_DATA_CONTAINER="$P3_DATA_CONTAINER",P3_DATA_BIND_DESTINATION="$P3_DATA_BIND_DESTINATION" \
-	    -B $WORKDIR:/tmp${data_bind}${blast_bind} \
+	    -B $WORKDIR:/tmp${data_bind}${blast_bind}${bigtmp_bind} \
 	    --pwd /tmp \
 	    [% container_image %] \
 	    p3x-app-shepherd --app-service [% task.appserv_url %] --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
