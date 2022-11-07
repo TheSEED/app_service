@@ -46,7 +46,9 @@ my($opt, $usage) = describe_options("%c %o [jobid...]",
 				    ["compute-node|N=s\@" => "Limit results to the given compute node", { default => [] }],
 				    ["slurm" => "Interpret job IDs as Slurm job IDs"],
 				    ["count" => "Print a count of matching records only"],
+				    ["sort-by-ram" => "Sort by memory used"],
 				    ["n-jobs|n=i" => "Limit to the given number of jobs", { default => 50 } ],
+				    ["show-inactive-jobs" => "Include inactive cluster jobs"],
 				    ["parsable" => "Generate tab-delimited output"],
 				    ["no-header" => "Skip printing header"],
 				    ["help|h" => "Show this help message."],
@@ -58,7 +60,7 @@ my $port = sched_db_port // 3306;
 my $dbh = DBI->connect("dbi:mysql:" . sched_db_name . ";host=" . sched_db_host . ";port=$port",
 		       sched_db_user, sched_db_pass);
 $dbh or die "Cannot connect to database: " . $DBI::errstr;
-$dbh->do(qq(SET time_zone = "+00:00"));
+# $dbh->do(qq(SET time_zone = "+00:00"));
 
 
 #
@@ -132,6 +134,10 @@ if (my $u = $opt->user)
 }
 
 my @sort = ('t.submit_time DESC');
+if ($opt->sort_by_ram)
+{
+    unshift(@sort, 'cj.maxrss DESC');
+}
 my $sort = join(", ", @sort);
 
 my @ids;
@@ -195,7 +201,10 @@ if (@ids)
     push(@conds, "$field IN ($vals)");
 }
 
-push(@conds, "te.active = 1 or te.active IS NULL");
+if (!$opt->show_inactive_jobs)
+{
+    push(@conds, "te.active = 1 or te.active IS NULL");
+}
 
 my $cond = join(" AND ", map { "($_)" } @conds);
 
@@ -231,7 +240,7 @@ my $qry = qq(SELECT t.id as task_id, t.state_code, t.owner, t.application_id,
 	     IF(finish_time != DEFAULT(finish_time) AND start_time != DEFAULT(start_time), timediff(finish_time, start_time), '') as elap,
 	     t.output_path, t.output_file, t.params,
 	     t.req_memory, t.req_cpu, t.req_runtime, t.user_metadata,
-	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist
+	     cj.job_id, cj.job_status, cj.maxrss, cj.cluster_id, cj.nodelist, te.active
 	     $full_condition
 	     ORDER BY $sort
 	     $limit
@@ -281,6 +290,11 @@ if ($opt->show_output_path)
 if ($opt->show_user_metadata)
 {
     push(@cols, { title => "User metadata" });
+}
+
+if ($opt->show_inactive_jobs)
+{
+    push(@cols, { title => "Cjob active" });
 }
 
 push(@cols, map { { title => $_ } } @{$opt->show_parameter});
@@ -374,6 +388,7 @@ while (my $task = $sth->fetchrow_hashref)
     push(@row, $task->{output_file}) if $opt->show_output_file;
     push(@row, $task->{output_path}) if $opt->show_output_path;
     push(@row, $task->{user_metadata}) if $opt->show_user_metadata;
+    push(@row, $task->{active}) if $opt->show_inactive_jobs;
 
     for my $p (@{$opt->show_parameter})
     {

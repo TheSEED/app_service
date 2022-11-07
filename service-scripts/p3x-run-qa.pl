@@ -290,7 +290,18 @@ sub submit_job
     push(@cmd, '--reservation', $opt->reservation) if $opt->reservation;
     push(@cmd, '--constraint', $opt->constraint) if $opt->constraint;
     push(@cmd, "--user-metadata", $opt->user_metadata) if $opt->user_metadata;
-    push(@cmd, "--preflight", $_) foreach @{$opt->preflight};
+
+    #
+    # Hack
+    #
+    my @preflight = @{$opt->preflight};
+    
+    if ($app eq 'MetagenomeBinning')
+    {
+	@preflight = ("memory=48000", "runtime=21600");
+    }
+    
+    push(@cmd, "--preflight", $_) foreach @preflight;
     push(@cmd, $app, $params);
 
     my $out;
