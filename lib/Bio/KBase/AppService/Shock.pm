@@ -108,7 +108,7 @@ sub put_file_data
 	my $ret = $self->json->decode($res->content);
 	my $id = $ret->{data}->{id};
 	$self->put_attributes($id);
-	# print Dumper($ret);
+	# print STDERR Dumper($ret);
 	return $id;
     }
     else
@@ -131,9 +131,9 @@ sub put_attributes
 					  Content_Type => 'multipart/form-data',
 					  Content => [attributes_str => $tjson]);
     $req->method('PUT');
-    print Dumper($req);
+    print STDERR Dumper($req);
     my $res = $self->ua->request($req);
-    print Dumper($res->content);
+    print STDERR Dumper($res->content);
 }
 
 

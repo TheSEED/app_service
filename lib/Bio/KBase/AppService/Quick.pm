@@ -10,7 +10,7 @@ use Data::Dumper;
 use POSIX;
 use LWP::UserAgent;
 use HTTP::Headers;
-use JSON::XS;
+use JSON::XS qw//;
 use MIME::Base64;
 use File::Spec;
 use Bio::KBase::AppService::Awe;
@@ -28,7 +28,7 @@ set views => path(dirname(__FILE__), 'templates');
 set content_type => 'text/plain';
 set error_template => undef;
 
-print Dumper(Quick => config);
+print STDERR Dumper(Quick => config);
 
 sub set_impl
 {
@@ -113,7 +113,7 @@ hook before => sub {
 				   %headers);
 		if ($res->is_success)
 		{
-		    my $token_obj = decode_json($res->content);
+		    my $token_obj = JSON::XS::decode_json($res->content);
 		    $token = $token_obj->{access_token};
 		    $token_cache{$user, $pass} = $token;
 		    
@@ -159,7 +159,7 @@ post '/submit/GenomeAnnotation' => sub {
     }
 
     my $ws = Bio::P3::Workspace::WorkspaceClientExt->new();
-    # print Dumper($ws);
+    # print STDERR Dumper($ws);
 
     eval {
 	my $res = $ws->get({ objects => [$path], metadata_only => 1 });
@@ -168,7 +168,7 @@ post '/submit/GenomeAnnotation' => sub {
     if ($@)
     {
 	my $res = $ws->create({ objects => [ [$path, 'folder' ] ] });
-	# print Dumper($res);
+	# print STDERR Dumper($res);
     }
 
     my $cpath = "$path/contigs";

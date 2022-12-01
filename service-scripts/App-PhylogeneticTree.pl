@@ -9,13 +9,34 @@ use JSON::XS;
 use Bio::KBase::AppService::AppConfig;
 use Bio::KBase::AppService::AppScript;
 
-my $max_processes = 8;
+my $max_processes = $ENV{P3_ALLOCATED_CPU} // 8;
 
 my $data_api_url = Bio::KBase::AppService::AppConfig->data_api_url;
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_tree);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_tree, \&preflight);
 my $rc = $script->run(\@ARGV);
 exit $rc;
+
+sub preflight
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    my $time = 86400 * 2;
+
+    if ($params->{full_tree_method} ne 'ml')
+    {
+	$time = 3600 * 12;
+    }
+
+    my $pf = {
+	cpu => 8,
+	memory => "128G",
+	runtime => $time,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
 
 sub process_tree
 {

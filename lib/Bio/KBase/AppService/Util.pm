@@ -1,9 +1,14 @@
 package Bio::KBase::AppService::Util;
 use strict;
+use File::Copy;
 use File::Slurp;
 use JSON::XS;
 use File::Basename;
 use Data::Dumper;
+use AnyEvent;
+use AnyEvent::Run;
+use IPC::Run;
+use POSIX;
 
 use base 'Class::Accessor';
 
@@ -19,7 +24,31 @@ sub new
     return bless $self, $class;
 }
 
-sub start_app
+sub json
+{
+    my($self) = @_;
+    my $json = $self->{json};
+    if (!$json)
+    {
+	$self->{json} = $json = JSON::XS->new->ascii->pretty(1);
+    }
+    return $json;
+}
+
+
+=head3
+
+    stat_app_with_preflight()
+
+We use p3x-submit-job to do the actual job submission; this way we can
+perform the database and preflight executions synchronously and allow
+the method here to asynchronously await its completion. If necessary we can
+protect the process by using a semaphore or queue to limit the active number
+of preflight computations.
+
+=cut    
+
+sub start_app_with_preflight
 {
     my($self, $ctx, $app_id, $task_params, $start_params) = @_;
 
@@ -28,110 +57,189 @@ sub start_app
 	die "App service submissions are disabled\n";
     }
 
-    my $json = JSON::XS->new->ascii->pretty(1);
+    my $task_params_tmp = File::Temp->new();
+    print $task_params_tmp $self->json->encode($task_params);
+    close($task_params_tmp);
 
-    #
-    # Create a new workflow for this task.
-    #
+    my $start_params_tmp = File::Temp->new();
+    print $start_params_tmp $self->json->encode($start_params);
+    close($start_params_tmp);
 
-    my $app = $self->find_app($app_id);
+    my $task_tmp = File::Temp->new();
+    close($task_tmp);
 
-    if (!$app)
-    {
-	die "Could not find app for id $app_id\n";
-    }
+    return sub {
+	my($cb) = @_;
+	print STDERR "got cb=$cb\n";
 
-    my $awe = Bio::KBase::AppService::Awe->new($self->impl->{awe_server}, $ctx->token);
+	my $cmd = ["p3x-submit-job", $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
+	print STDERR "cmd: @$cmd\n";
+	print STDERR "P3_USER_ERROR_DESTINATION=$ENV{P3_USER_ERROR_DESTINATION}\n";
 
-    my $param_str = $json->encode($task_params);
+	my $handle;
+	my $output;
 
-    #
-    # Create an identifier we can use to match the Shock nodes we create for this
-    # job with the job itself.
-    #
+	$handle = AnyEvent::Run->new(cmd => $cmd,
+					on_read => sub {
+					    my $rh = shift;
+					    print STDERR "GOT $rh->{rbuf}\n";
+					    $output .= $rh->{rbuf};
+					    $rh->{rbuf} = '';
+					},
+					on_error => sub {
+					    my($rh, $fatal, $message) = @_;
+					    print STDERR "Error on submit read: $message\n";
+					    if ($fatal)
+					    {
+						$cb->({message => "submit error: $message"});
+						undef $handle;
+					    }
+					},
+					on_eof => sub {
+					    print STDERR "Submit EOF $handle\n";
 
-    my $gen = Data::UUID->new;
-    my $task_file_uuid = $gen->create();
-    my $task_file_id = lc($gen->to_string($task_file_uuid));
-
-    my $userattr = {
-	app_id => $app_id,
-	parameters => $param_str,
-	workspace => $start_params->{workspace},
-	parent_task => $start_params->{parent_id},
-	task_file_id => $task_file_id,
+					    #
+					    # Keep our temps alive and on disk.
+					    #
+					    my @temps = ($task_params_tmp, $start_params_tmp);
+					    eval {
+						$self->continue_submit($ctx, $cb, $output, $start_params, $task_tmp);
+					    };
+					    if ($@)
+					    {
+						print STDERR "Submit error: $@";
+						$cb->({message => "error submitting: $@"});
+					    }
+					    undef $handle;
+					}
+				    );
     };
+}
 
-    my $clientgroup = $self->impl->{awe_clientgroup};
+=item B<continue_submit>
 
-    if ($app_id eq 'MetagenomeBinning' && $task_params->{contigs})
+p3x-submit-job has completed.
+
+=cut
+
+sub continue_submit
+{
+    my($self, $ctx, $cb, $output, $start_params, $task_tmp) = @_;
+
+    if (-f "$task_tmp")
     {
-	#  Hack to send contigs-only jobs to a different clientgroup
-	$clientgroup .= "-fast";
-	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
-    }
-    elsif ($app_id eq 'PhylogeneticTree' && $task_params->{full_tree_method} ne 'ml')
-    {
-	#  Hack to send non-raxml jobs to a different clientgroup
-	$clientgroup .= "-fast";
-	print STDERR "Redirecting job to fast queue\n" . Dumper($task_params);
-    }
-    if ($task_params->{_clientgroup})
-    {
-	$clientgroup = $task_params->{_clientgroup};
-    }
+	my $data = read_file("$task_tmp");
 	
-    my $job = $awe->create_job_description(pipeline => 'AppService',
-					   name => $app_id,
-					   project => 'AppService',
-					   user => $ctx->user_id,
-					   clientgroups => $clientgroup,
-					   userattr => $userattr,
-					   priority => 2,
-					  );
+	my $ret_task = eval { $self->json->decode($data) };
+	if ($@)
+	{
+	    print STDERR "Error parsing generated task data:\n$data\n";
+	    $cb->([]);
+	}
+	else
+	{
+	    print STDERR Dumper($ret_task);
+	    $cb->([$ret_task]);
+	}
+    }
+    else
+    {
+	print STDERR "No task tmp file $task_tmp generated\n";
+	$cb->([]);
+    }
+}
 
-    my $shock = Bio::KBase::AppService::Shock->new($self->impl->{shock_server}, $ctx->token);
-    $shock->tag_nodes(task_file_id => $task_file_id,
-		      app_id => $app_id);
-    my $params_node_id = $shock->put_file_data($param_str, "params");
+# synchronous version
 
-    my $app_node_id = $shock->put_file_data($json->encode($app), "app");
+sub start_app_with_preflight_sync
+{
+    my($self, $ctx, $app_id, $task_params, $start_params) = @_;
 
-    my $app_file = $awe->create_job_file("app", $shock->server, $app_node_id);
-    my $params_file = $awe->create_job_file("params", $shock->server, $params_node_id);
+    if (!$self->submissions_enabled($app_id, $ctx))
+    {
+	die "App service submissions are disabled\n";
+    }
 
-#    my $stdout_file = $awe->create_job_file("stdout.txt", $shock->server);
-#    my $stderr_file = $awe->create_job_file("stderr.txt", $shock->server);
+    my $task_params_tmp = File::Temp->new();
+    print $task_params_tmp $self->json->encode($task_params);
+    close($task_params_tmp);
+
+    my $start_params_tmp = File::Temp->new();
+    print $start_params_tmp $self->json->encode($start_params);
+    close($start_params_tmp);
+
+    my $task_tmp = File::Temp->new();
+    close($task_tmp);
+
+    my $user_tmp = File::Temp->new();
+    close($user_tmp);
+
+    my $cmd = ["p3x-submit-job",
+	       "--user-error-file", "$user_tmp",
+	       $ctx->token, $app_id, "$task_params_tmp", "$start_params_tmp", "$task_tmp"];
+    # print STDERR "cmd: @$cmd\n";
     
-    my $awe_stdout_file = $awe->create_job_file("awe_stdout.txt", $shock->server);
-    my $awe_stderr_file = $awe->create_job_file("awe_stderr.txt", $shock->server);
+    my $output;
+    my $error;
 
-    my $appserv_info_url = $self->impl->{service_url} . "/task_info";
+    my $ok = IPC::Run::run($cmd,
+			   ">", \$output,
+			   "2>", \$error);
 
-    my $task_userattr = {};
-    my $task_id = $job->add_task($app->{script},
-				 $app->{script},
-				 join(" ",
-				      $appserv_info_url,
-				      $app_file->in_name, $params_file->in_name,
-				      # $stdout_file->name, $stderr_file->name,
-				     ),
-				 [],
-				 [$app_file, $params_file],
-				 [$awe_stdout_file, $awe_stderr_file],
-				 # [$stdout_file, $stderr_file, $awe_stdout_file, $awe_stderr_file],
-				 undef,
-				 undef,
-				 $task_userattr,
-				);
+    close($user_tmp);
+	  
+    if (!$ok)
+    {
+	my $out = read_file("$user_tmp");
+	$self->submit_log([$ctx->user_id, $app_id, "Preflight error $out", $output, $error], ["$task_params_tmp", "$start_params_tmp"]);
+	die "Error submitting job: $out\n";
+    }
 
-    # print STDERR Dumper($job);
+    if (-f "$task_tmp")
+    {
+	my $data = read_file("$task_tmp");
+	
+	my $ret_task = eval { $self->json->decode($data) };
+	if ($@)
+	{
+	    $self->submit_log([$ctx->user_id, $app_id, "Error parsing generated task data"],  ["$task_params_tmp", "$start_params_tmp"]);
+	    print STDERR $data;
+	    die "Error parsing generated task data:\n$data\n";
+	}
+	else
+	{
+	    my @task_info= eval { @{$ret_task}{qw(id req_cpu req_memory req_runtime)} };
+	    $self->submit_log([$ctx->user_id, $app_id, @task_info, "Submitted"]);
+	    return $ret_task;
+	}
+    }
+    else
+    {
+	$self->submit_log([$ctx->user_id, $app_id, "No task tmp file $task_tmp generated"],  ["$task_params_tmp", "$start_params_tmp"]);
+	die "No task tmp file $task_tmp generated\n";
+    }
+}
 
-    my $task_id = $awe->submit($job);
+#
+# Log some items in a line in the submit log, followed by the contents of the files.
+#
+sub submit_log
+{
+    my($self, $items, $files) = @_;
 
-    my $task = $self->impl->_lookup_task($awe, $task_id);
+    $items //= [];
+    $files //= [];
+    my $now = strftime("%Y-%m-%d %H:%M:%S", localtime);
+    print STDERR join("\t", $now, $ENV{REMOTE_ADDR} // "-", @$items), "\n";
 
-    return $task;
+    for my $file (@$files)
+    {
+	eval {
+	    print STDERR "$file (", -s $file, "):\n";
+	    copy($file, \*STDERR);
+	    print STDERR "$file end\n";
+	};
+    }
 }
 
 sub enumerate_apps
@@ -319,5 +427,36 @@ sub token_user_is_admin
     return $user_id eq 'olson@patricbrc.org';
 }
 
+sub kill_tasks
+{
+    my($self, $user_id, $tasks) = @_;
+
+    my $tmp = File::Temp->new();
+    close($tmp);
+    my $rc = system("p3x-terminate", "--user", $user_id, "--result-details", "$tmp", @$tasks);
+    my $ret;
+    if ($rc == 0)
+    {
+	my $txt = read_file("$tmp");
+	my $doc = eval { decode_json($txt); };
+	if ($doc)
+	{
+	    $ret = $doc;
+	}
+	else
+	{
+	    $ret = {};
+	    $ret->{$_} { killed => 0, msg => "System terminate did not write status" } foreach @$tasks;
+	}
+    }
+    else
+    {
+	print STDERR "Terminate failed with $rc for @$tasks\n";
+	$ret = {};
+	$ret->{$_} = { killed => 0, msg => "System terminate failed" } foreach @$tasks;
+    }
+    print STDERR Dumper($ret);
+    return $ret;
+}
 
 1;

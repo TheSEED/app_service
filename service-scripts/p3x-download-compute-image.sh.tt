@@ -1,0 +1,11 @@
+#!/bin/bash
+
+[% INSERT batch_utils.tt %]
+
+if [[ $# -ne 4 ]] ; then
+   echo "Usage: $0 source-url tmp-dir image-name destination-dir" 1>&2
+   exit 1
+fi
+
+download_compute_image $*
+   

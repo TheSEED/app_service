@@ -5,6 +5,8 @@ use Data::Dumper;
 
 my($opt, $usage) = describe_options("%c %o",
 				    ["url|u=s", "Service URL"],
+				    ["offset=i", "Starting offset"],
+				    ["limit=i", "Number to return"],
 				    ["verbose|v", "Show verbose output from service"],
 				    ["help|h", "Show this help message"]);
 
@@ -18,19 +20,34 @@ my $offset = 0;
 
 my @tasks;
 
-while (1)
+if (defined($opt->offset) && defined($opt->limit))
 {
-    my $tasks = $client->enumerate_tasks($offset, $limit);
+    my $tasks = $client->enumerate_tasks($opt->offset, $opt->limit);
+    show($tasks);
+}
+else
+{
+    while (1)
+    {
+	my $tasks = $client->enumerate_tasks($offset, $opt->limit // $limit);
+	
+	last unless @$tasks;
+	
+	$offset += $limit;
 
-    last unless @$tasks;
+	show($tasks);
+    }
+}
+
+sub show
+{
+    my($tasks) = @_;
     
-    $offset += $limit;
-
     for my $task (@$tasks)
     {
 	print join("\t", $task->{id}, $task->{app}, $task->{workspace}, $task->{status}, $task->{submit_time}, $task->{completed_time}), "\n";
     }
-
+    
     if ($opt->verbose)
     {
 	print Dumper($tasks);

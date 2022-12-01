@@ -40,21 +40,28 @@ sub await_task_completion
     my %remaining = map { $_ => 1 } @$task_ids;
 
     my $result = [];
-    print Dumper(\%remaining);
+    print STDERR Dumper(\%remaining);
     while (%remaining && (!$end_time || (time < $end_time)))
     {
-	my $qtasks = $self->query_tasks([keys %remaining]);
-	while (my($qid, $qtask) = each %$qtasks)
+	my $qtasks = eval { $self->query_tasks([keys %remaining]); };
+	if ($@)
 	{
-	    my $status = $qtask->{status};
-	    print "Queried status = $status: " . Dumper($qtask);
-	    if ($final_states{$status})
+	    warn "Error checking tasks: $@\n";
+	}
+	else
+	{
+	    while (my($qid, $qtask) = each %$qtasks)
 	    {
-		#
-		# This task is done; fill in result and remove from query list.
-		#
-		$result->[$order{$qid}] = $qtask;
-		delete $remaining{$qid};
+		my $status = $qtask->{status};
+		print "Queried status = $status: " . Dumper($qtask);
+		if ($final_states{$status})
+		{
+		    #
+		    # This task is done; fill in result and remove from query list.
+		    #
+		    $result->[$order{$qid}] = $qtask;
+		    delete $remaining{$qid};
+		}
 	    }
 	}
 	

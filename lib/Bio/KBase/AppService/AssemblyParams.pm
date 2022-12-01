@@ -52,8 +52,9 @@ sub extract_params
     my $res = {};
 
     for my $p (qw(paired_end_libs single_end_libs srr_ids
-		  reference_assembly recipe pipeline
-		  min_contig_len min_contig_cov))
+		  recipe racon_iter pilon_iter trim
+		  min_contig_len min_contig_cov genome_size
+		  debug_level))
     {
 	$res->{$p} = $self->params->{$p} if exists $self->params->{$p};
     }

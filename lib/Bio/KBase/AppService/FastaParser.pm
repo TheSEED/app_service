@@ -8,7 +8,7 @@ our $max_id_len = 70;
 
 sub parse_fasta
 {
-    my($fh, $clean_fh, $on_seq) = @_;
+    my($fh, $clean_fh, $on_seq, $is_prot_data) = @_;
 
     my $state = 'expect_header';
     my $cur_id;
@@ -44,7 +44,7 @@ sub parse_fasta
 		}
 		else
 		{
-		    die "Invalid fasta: Expected header at line $.\n";
+		    die "Invalid fasta: Expected header at line $. but had $_\n";
 		}
 	    }
 	    elsif ($state eq 'expect_data')
@@ -67,17 +67,23 @@ sub parse_fasta
 		    print $clean_fh ">$cur_id\n" if $clean_fh;
 		    next;
 		}
-		$_ = lc($_);
-		if (/^\s*([acgtumrwsykbdhvn]*)\s*$/)
+		if (/^\s*([acgtumrwsykbdhvn. -]*)\s*$/i)
 		{
-		    print $clean_fh $1 . "\n" if $clean_fh;
-		    $cur_seq_len += length($1);
-		    $cur_seq .= $1;
+		    my $f = $1;
+		    $f =~ s/[. -]//g;
+		    print $clean_fh $f . "\n" if $clean_fh;
+		    $cur_seq_len += length($f);
+		    $cur_seq .= $f;
 		    next;
 		}
-		elsif (/^\s*[*abcdefghijklmnopqrstuvwxyz]*\s*$/)
+		elsif ($is_prot_data && /^\s*([*abcdefghijklmnopqrstuvwxyz. -]*)\s*$/i)
 		{
-		    die "Invalid fasta: Bad data (appears to be protein translation data) at line $.\n";
+		    my $f = $1;
+		    $f =~ s/[. -]//g;
+		    print $clean_fh $f . "\n" if $clean_fh;
+		    $cur_seq_len += length($f);
+		    $cur_seq .= $f;
+		    next;
 		}
 		else
 		{
@@ -86,7 +92,7 @@ sub parse_fasta
 		    {
 			$str = substr($_, 0, 50) . " [...] " . substr($_, -50);
 		    }
-		    die "Invalid fasta: Bad data at line $.:\n$str\n";
+		    die "Invalid fasta: Bad " . ($is_prot_data ? "protein" : "dna") . " data at line $.:\n$str\n";
 		}
 	    }
 	    else

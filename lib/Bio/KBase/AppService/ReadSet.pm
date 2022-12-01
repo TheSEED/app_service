@@ -7,10 +7,16 @@ use File::Path 'make_path';
 use File::Slurp;
 use JSON::XS;
 use IPC::Run;
+use File::Temp;
 
 use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw());
+
+our %sra_platform_name_map = (ILLUMINA => 'illumina',
+			      PACBIO_SMRT => 'pacbio',
+			      OXFORD_NANOPORE => 'nanopore',
+			      ION_TORRENT => 'iontorrent');
 
 =head1 NAME
 
@@ -41,7 +47,7 @@ sub create_from_asssembly_params
     {
 	my($r1, $r2, $platform, $interleaved) = @$pe{qw(read1 read2 platform interleaved)};
 
-	if ($interleaved)
+	if ($interleaved && $interleaved ne 'false')
 	{
 	    push(@libs, InterleavedLibrary->new($r1, $platform));
 	}
@@ -57,7 +63,30 @@ sub create_from_asssembly_params
     }
     for my $srr (@{$params->{srr_ids}})
     {
-	push(@libs, SRRLibrary->new($srr));
+	if ($srr =~ /^\s*([A-Z]+\d+)\s*$/)
+	{
+	    push(@libs, SRRLibrary->new($1));
+	}
+	else
+	{
+	    die "Invalid SRR identifer $srr\n";
+	}
+    }
+    #
+    # For FqUtils format
+    #
+    for my $lib (@{$params->{srr_libs}})
+    {
+	my $srr = $lib->{srr_accession};
+	
+	if ($srr =~ /^\s*([A-Z]+\d+)\s*$/)
+	{
+	    push(@libs, SRRLibrary->new($1));
+	}
+	else
+	{
+	    die "Invalid SRR identifer $srr\n";
+	}
     }
 
     my $self = {
@@ -81,7 +110,7 @@ from the C<$local_path> parameter and the basename of the library.
 
 If necessary this process will squash spaces and other troublesome
 characters. If after the localization process is complete we have
-duplicate names, a second path will disambiguate them.
+duplicate names, a second pass will disambiguate them.
 
 =cut
 
@@ -130,7 +159,7 @@ sub localize_libraries
 		next;
 	    }
 	    my $disambig_idx = 1;
-	    # print Dumper(\@paths, \%by_path);
+	    # print STDERR Dumper(\@paths, \%by_path);
 	    for my $path (@paths)
 	    {
 		for my $ent (@{$by_path{$path}})
@@ -164,18 +193,21 @@ sub localize_libraries
 
 =item B<validate>
 
-    ($ok, $errors) = $readset->validate($ws);
+    ($ok, $errors) = $readset->validate($ws, $metadata_base);
 
 Validate this readset.
 
 Walk the read files and ensure that the files exist in the 
 workspace and are not zero sized.
 
+If $metadata_base is provided, write SRA metadata to files with that base name,
+extended with the SRA id and json/xml suffixes.
+    
 =cut
 
 sub validate
 {
-    my($self, $ws) = @_;
+    my($self, $ws, $metadata_base) = @_;
 
     my @errs;
 
@@ -190,26 +222,39 @@ sub validate
 
 	if ($lib->isa('SRRLibrary'))
 	{
-	    my $tmp = File::Temp->new();
-	    close($tmp);
-	    my $rc = system("p3-sra", "--metaonly", "--metadata-file", "$tmp", "--id", $lib->{id});
+	    my $md_file;
+	    my @xml_md_file;
+	    if ($metadata_base)
+	    {
+		$md_file = "$metadata_base$lib->{id}.json";
+		@xml_md_file = ("--sra-metadata-file" => "$metadata_base$lib->{id}.xml");
+	    }
+	    else
+	    {
+		$md_file = File::Temp->new();
+		close($md_file);
+	    }
+		my $rc = system("p3-sra",
+				"--metaonly",
+				"--metadata-file", "$md_file",
+				@xml_md_file,
+				"--id", $lib->{id});
 	    if ($rc != 0)
 	    {
 		push(@errs, "p3-sra failed: $rc");
 	    }
 	    else
 	    {
-		my $mtxt = read_file("$tmp");
+		my $mtxt = read_file("$md_file");
 		my $meta = eval { decode_json($mtxt); };
 		$meta or die "Error loading or evaluating json metadata: $mtxt";
-		print Dumper(MD => $meta);
+		print STDERR Dumper(MD => $meta);
 		my($me) = grep { $_->{accession} eq $lib->{id} } @$meta;
 		$total_comp_size += $me->{size};
 		$lib->{metadata} = $me;
 	    }
 	    next;
 	}
-
 
 	my @files = $lib->files();
 	for my $f (@files)
@@ -261,20 +306,29 @@ sub expand_one_sra_metadata
     my($self, $lib) = @_;
 
     my $md = $lib->{metadata};
+    my $nlib;
 
-    if ($md->{n_reads} ==2 || $md->{library_layout} eq 'PAIRED')
+    my %rmap = (1 => 'SE',
+		2 => 'PE',
+		PAIRED => 'PE',
+		SINGLE => 'SE',
+		);
+
+    my $type = $rmap{$md->{n_reads}} // $rmap{$md->{library_layout}};
+    
+    if ($type eq 'PE')
     {
 	my $fn1 = "$md->{accession}_1.fastq";
 	my $fn2 = "$md->{accession}_2.fastq";
-	my $nlib = PairedEndLibrary->new($fn1, $fn2);
+	$nlib = PairedEndLibrary->new($fn1, $fn2);
 	$nlib->{derived_from} = $lib;
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
     }
-    elsif ($md->{n_reads} == 1 || $md->{library_layout} eq 'SINGLE')
+    elsif ($type eq 'SE')
     {
 	my $fn1 = "$md->{accession}.fastq";
-	my $nlib = SingleEndLibrary->new($fn1);
+	$nlib = SingleEndLibrary->new($fn1);
 	$nlib->{derived_from} = $lib;
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
@@ -284,10 +338,14 @@ sub expand_one_sra_metadata
 	warn "Cannot parse metadata for read count; defaulting to paired\n" . Dumper($md);
 	my $fn1 = "$md->{accession}_1.fastq";
 	my $fn2 = "$md->{accession}_2.fastq";
-	my $nlib = PairedEndLibrary->new($fn1, $fn2);
+	$nlib = PairedEndLibrary->new($fn1, $fn2);
 	$nlib->{derived_from} = $lib;
 	$lib->{derives} = $nlib;
 	push(@{$self->{libraries}}, $nlib);
+    }
+    if (my $plat = $sra_platform_name_map{$md->{platform_name}})
+    {
+	$nlib->{platform} = $plat;
     }
 }
 
@@ -312,12 +370,16 @@ sub stage_in
     my %done;
     for my $lib (@{$self->libraries})
     {
-	if ($lib->isa('SRRLibrary'))
+	if ($lib->isa('SRRLibrary') && $self->{expand_sra})
 	{
 	    $self->stage_in_srr($lib);
 	}
 	elsif ($lib->{derived_from})
 	{
+	    #
+	    # If we derived a library from something else (SRA), assume that
+	    # it has already been staged in.
+	    #
 	    warn "skipping derived lib " . Dumper($lib);
 	}
 	else
@@ -367,6 +429,7 @@ sub stage_in_srr
     eval { $dlib->copy_from_tmp($path); };
     if ($@)
     {
+	print "copy failed: $@";
 	#
 	# SRA might have lied to us (e.g. SRR6382381 metadata is for single end,
 	# but the data is paired end).
@@ -382,7 +445,25 @@ sub stage_in_srr
 	    my $fn = $md->{accession} . ".fastq";
 	    if (-f "$path/$fn")
 	    {
-		die "Found a single end for paired end metadata\n";
+		warn "Found a single end for paired end metadata\n";
+
+		#
+		# Remove the derived lib from the list and re-add the proper form
+		#
+		my $libs = $self->{libraries};
+		my $index = 0;
+		$index++ until $libs->[$index] eq $dlib || $index > $#$libs;
+		splice(@$libs, $index, 1) if $index <= $#$libs;
+		my $nlib = SingleEndLibrary->new($fn);
+		$nlib->{derived_from} = $lib;
+		$lib->{derives} = $nlib;
+		push(@$libs, $nlib);
+		$dlib = $nlib;
+		# ick. Need to relocalize, but disable expand_sra so that
+		# we don't pull the metadata again.
+		local $self->{expand_sra} = 0;
+		$self->localize_libraries($self->{local_path});
+		$dlib->copy_from_tmp($path);
 	    }
 	    else
 	    {
@@ -462,7 +543,7 @@ Walk the readset and invoke the appropriate callback on the libraries included.
 
 sub visit_libraries
 {
-    my($self, $pe_cb, $se_cb, $srr_cb) = @_;
+    my($self, $pe_cb, $se_cb, $srr_cb, $int_cb) = @_;
 
     for my $lib ($self->libraries)
     {
@@ -477,6 +558,10 @@ sub visit_libraries
 	elsif ($lib->isa("SRRLibrary"))
 	{
 	    $srr_cb->($lib) if $srr_cb;
+	}
+	elsif ($lib->isa("InterleavedLibrary"))
+	{
+	    $int_cb->($lib) if $int_cb;
 	}
 	else
 	{
@@ -502,9 +587,11 @@ sub build_p3_assembly_arguments
 
     my @illumina = $self->libraries_of_type('illumina');
     my @iontorrent = $self->libraries_of_type('iontorrent');
-    my @sra = $self->libraries_of_type('sra');
+    my @pacbio = $self->libraries_of_type('pacbio');
+    my @nanopore = $self->libraries_of_type('nanopore');
+    my @sra = grep { ! $_->{derives} } $self->libraries_of_type('sra');
 
-print Dumper($self, \@illumina, \@iontorrent, \@sra);
+    # print STDERR Dumper($self, \@illumina, \@iontorrent, \@sra);
 
     if (@illumina && @iontorrent)
     {
@@ -522,6 +609,18 @@ print Dumper($self, \@illumina, \@iontorrent, \@sra);
 	my @list = $self->libraries_of_type($type);
 	push(@cmd, $arg, map { $_->format_paths() } @list) if @list;
     }
+    #
+    # Find the interleaved libraries
+    #
+    my @int;
+    for my $lib ($self->libraries)
+    {
+	if ($lib->isa("InterleavedLibrary"))
+	{
+	    push(@int, $lib->list_paths());
+	}
+    }
+    push(@cmd, "--interleaved", @int) if @int;
     return @cmd;
 }
 
@@ -550,6 +649,9 @@ package ReadLibrary;
 
 use strict;
 use Data::Dumper;
+
+sub is_paired_end { return undef; }
+sub is_single_end { return undef; }
 
 sub files
 {
@@ -592,6 +694,9 @@ use base 'ReadLibrary';
 use File::Basename;
 use File::Copy 'move';
 
+sub is_paired_end { return 0; }
+sub is_single_end { return 1; }
+
 sub new
 {
     my($class, $read_file, $platform) = @_;
@@ -606,6 +711,12 @@ sub new
 sub file_keys
 {
     return qw(read_file);
+}
+
+sub list_paths
+{
+    my($self) = @_;
+    return ($self->{read_path});
 }
 
 sub format_paths
@@ -647,6 +758,10 @@ use base 'ReadLibrary';
 use strict;
 use File::Basename;
 use File::Copy 'move';
+use Data::Dumper;
+
+sub is_paired_end { return 1; }
+sub is_single_end { return 0; }
 
 sub new
 {
@@ -665,15 +780,25 @@ sub file_keys
     return qw(read_file_1 read_file_2);
 }
 
+sub list_paths
+{
+    my($self) = @_;
+    my @p = @$self{qw(read_path_1 read_path_2)};
+    return @p;
+}
+
 sub format_paths
 {
     my($self) = @_;
 
     my @p = @$self{qw(read_path_1 read_path_2)};
 
+    # print Dumper(@p);
     # if we are anonymous, return separate items.
+    #
+    # RDO 2019-1211 - anonymous pairs OK per Allan
 
-    if ($self->p3_assembly_library_type eq 'anonymous')
+    if (0 && $self->p3_assembly_library_type eq 'anonymous')
     {
 	return @p;
     }
@@ -715,11 +840,13 @@ sub copy_from_tmp
     }
 }
     
-
 package InterleavedLibrary;
 
 use base 'ReadLibrary';
 use strict;
+
+sub is_paired_end { return 1; }
+sub is_single_end { return 0; }
 
 sub new
 {
@@ -741,6 +868,12 @@ sub format_paths
 {
     my($self) = @_;
     return $self->{read_path};
+}
+
+sub list
+{
+    my($self) = @_;
+    return ($self->{read_path});
 }
 
 =item B<copy_from_tmp>
@@ -775,6 +908,9 @@ package SRRLibrary;
 use base 'ReadLibrary';
 use strict;
 
+sub is_paired_end { return undef; }
+sub is_single_end { return undef; }
+
 sub new
 {
     my($class, $id) = @_;
@@ -799,6 +935,10 @@ sub file_keys
 sub format_paths
 {
 
+}
+
+sub list_paths
+{
 }
 
 1;

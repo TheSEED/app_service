@@ -31,7 +31,7 @@ verify_cmd($blastp) and verify_cmd($circos) and verify_cmd($openssl);
 my $data_api = Bio::KBase::AppService::AppConfig->data_api_url;
 # my $data_api = 'http://www.alpha.patricbrc.org/api';
 
-my $script = Bio::KBase::AppService::AppScript->new(\&process_proteomes);
+my $script = Bio::KBase::AppService::AppScript->new(\&process_proteomes, \&preflight_cb);
 my $rc = $script->run(\@ARGV);
 exit $rc;
 
@@ -41,6 +41,27 @@ exit $rc;
 our $global_ws;
 our $global_token;
 our $data_api_module;
+
+sub preflight_cb
+{
+    my($app, $app_def, $raw_params, $params) = @_;
+
+    #
+    # We can get a tighter estimate by looking at the number of
+    # pairwise blasts and their size.
+    #
+    my $time = 60 * 60 * 12;
+
+    my $pf = {
+	cpu => 4,
+	memory => "32G",
+	runtime => $time,
+	storage => 0,
+	is_control_task => 0,
+    };
+    return $pf;
+}
+
 
 sub process_proteomes {
     my ($app, $app_def, $raw_params, $params) = @_;
@@ -89,8 +110,8 @@ sub run_find_bdbh {
 
     my $feaH = get_feature_hash($params); # from genome_ids and user_feature_groups
 
-    my $nproc = 2;
-    # my $nproc = get_num_procs();
+    my $nproc = $ENV{P3_ALLOCATED_CPU} // 2;
+
     my $opts = { min_cover     => $params->{min_seq_cov},
                  min_positives => $params->{min_positives},
                  min_ident     => $params->{min_ident},

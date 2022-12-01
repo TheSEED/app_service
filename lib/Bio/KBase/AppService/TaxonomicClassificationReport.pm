@@ -17,7 +17,7 @@ sub write_report
     my($task_id, $params, $report_file, $kraken_output_file, $output_fh) = @_;
 
     my $templ = Template->new(ABSOLUTE => 1);
-    my $tax_base = 'https://www.patricbrc.org/view/Taxonomy';
+    my $tax_base = 'https://www.bv-brc.org/view/Taxonomy';
 
     my $rpt = '';
     #

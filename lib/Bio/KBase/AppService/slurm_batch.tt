@@ -1,0 +1,255 @@
+#!/bin/sh
+#SBATCH --account [% sbatch_account %]
+#SBATCH --job-name [% sbatch_job_name %]
+#SBATCH --mem [% sbatch_job_mem %]
+#SBATCH --nodes 1-1 --ntasks [% n_cpus %]
+#SBATCH --export NONE
+#SBATCH --comment "[% tasks.0.app.id %]"
+[% sbatch_constraint %]
+[% sbatch_partition %]
+[% sbatch_clusters %]
+
+#SBATCH --output [% sbatch_output %]
+#SBATCH --err [% sbatch_error %]
+#SBATCH --time [% sbatch_time %]
+[% IF sbatch_reservation -%]
+#SBATCH --reservation [% sbatch_reservation %]
+[% END -%]
+
+[% FOR r IN resources -%]
+[% r %]
+[% END -%]
+
+[%# For a Singularity invocation, we will have variables 
+    data_directory (location of data to be bound into /opt/patric-common-data) and
+    container_image (location of image to run) 
+    defined. Here we will not configure deployment environment details because
+    these will be configured internal to the image. 
+    We will also bind the job working directory into /tmp in the image, and not
+    set any global temp variables. 
+-%]
+
+[% IF container_image -%]
+[% IF container_repo_url -%]
+[% INSERT batch_utils.tt %]
+download_compute_image \
+	[% container_repo_url %] \
+	[% cluster_temp %] \
+	[% container_filename %] \
+	[% container_cache_dir %]
+[% END -%]
+[% ELSE -%]
+[% configure_deployment -%]
+[% END -%]
+
+[% IF p3_allocation -%]
+[% p3_allocation %]
+[% ELSE -%]
+export P3_ALLOCATED_MEMORY="${SLURM_MEM_PER_NODE}M"
+export P3_ALLOCATED_CPU=$SLURM_JOB_CPUS_PER_NODE
+[% END -%]
+
+[% IF environment_config -%]
+[% FOR ent IN environment_config -%]
+[% ent %]
+[% END -%]
+[% END -%]
+
+[% FOR task IN tasks -%]
+
+export P3_AUTH_TOKEN="[% task.token %]"
+export KB_AUTH_TOKEN="[% task.token %]"
+[% IF task.base_url -%]
+export P3_BASE_URL="[% task.base_url %]"
+[% END -%]
+
+base_tmp=[% cluster_temp %]
+
+run_tmp=$(mktemp -d)
+
+cat > $run_tmp/params <<'EOPARAMS'
+[% task.params %]
+EOPARAMS
+
+python2=/usr/bin/python2
+if [[ ! -x $python2 ]] ; then
+echo fallback
+python2=/usr/bin/python
+fi
+
+cat > $run_tmp/space.py <<END
+import sys; import json; import os;
+import socket;
+import os.path;
+import subprocess;
+ctemp=sys.argv[1]
+params=sys.argv[2]
+
+bigtmp="/vol/patric3/tmp"
+
+v=os.statvfs(ctemp)
+free=int((v.f_frsize * v.f_bavail) / 1e6);
+try:
+    x = json.load(open(params));
+    req = int(int(x["_preflight"]["storage"])/1e6);
+except:
+    req = 0
+if free < 1000 or (req > 0 and free < 8 * req):
+    if os.path.exists(bigtmp):
+        path = os.path.join(bigtmp, socket.gethostname())
+        if not os.path.exists(path):
+            os.mkdir(path)
+        print path
+        print >> sys.stderr, "Node does not have sufficient temporary space (avail %d MB, requested %d MB). Using %s" % (free, req, path)
+    else:
+        #
+        # We do not have enough room and the large space is not available.
+        # Fail the job and put the node in drain mode.
+        #
+        print >> sys.stderr, "Node does not have sufficient temporary space (avail %d MB, requested %d MB). Failing job and putting node in drain mode" % (free, req)
+        subprocess.call(["/disks/patric-common/slurm/bin/scontrol",
+                         "update", "node=%s" % (os.getenv("SLURMD_NODENAME")), "state=drain", "reason=out of temp space"]);
+        subprocess.call(["/disks/patric-common/slurm/bin/scontrol",
+                         "requeue", os.getenv("SLURM_JOBID")]);
+        sys.exit(1);
+else:
+    print >> sys.stderr, "Node has sfficient temporary space (avail %d MB, requested %d MB)" % (free, req)
+    print ctemp
+ 
+END
+cluster_temp=$($python2 $run_tmp/space.py $base_tmp $run_tmp/params)
+
+ret=$?
+if [[ $ret -ne 0 ]] ; then
+    echo "Failed to determine cluster tempory location" 1>&2
+    exit $ret
+fi
+
+export WORKDIR=$cluster_temp/task-[% task.id %]-$SLURM_JOB_ID
+mkdir $WORKDIR
+cd $WORKDIR
+
+cat > app_spec <<'EOSPEC'
+[% task.spec %]
+EOSPEC
+
+mv $run_tmp/params params
+
+rm -rf $run_tmp
+
+export P3_TASK_ID=[% task.id %]
+
+[% IF container_image -%]
+
+if [[ ! -s [% container_image %] ]] ; then
+   echo "Container image file [% container_image %] is missing" 1>&2
+   exit 1
+fi
+
+echo "Running script [% task.script %] in container [% container_image %]"
+
+cd /
+export TMPDIR=/tmp
+export TEMPDIR=/tmp
+
+#
+# Check for blast databases and bind in. This is temporary, hopefully.
+#
+blast_bind=""
+if [[ -d /vol/blastdb/bvbrc-service ]] ; then
+    blast_bind=",/vol/blastdb/bvbrc-service"
+fi
+
+#
+# Determine the data directory we need to bind
+#
+data_bind_destination="/opt/patric-common/data"
+
+[% IF data_container && data_container_search_path %]
+${IFS+"false"} && unset oldifs || oldifs="$IFS"    # correctly store IFS.
+IFS=:
+dcpath=('[% data_container_search_path %]')
+data_container=
+data_container_id="[% data_container %]"
+for p in $dcpath ; do
+    for suffix in '' .squashfs ; do
+	dc="$p/${data_container_id}${suffix}"
+	if [[ -e $dc ]] ; then
+	    data_container=$dc
+	    break 2
+	fi
+    done
+done
+${oldifs+"false"} && unset IFS || IFS="$oldifs"    # restore IFS.
+if [[ -n $data_container ]] ; then
+    if [[ -d $data_container ]] ; then
+	data_bind=",${data_container}:${data_bind_destination}"
+	echo "Binding data container directory $data_container to $data_bind_destination"
+    else
+	data_bind=",${data_container}:${data_bind_destination}:image-src=/"
+	echo "Binding data container image $data_container to $data_bind_destination"
+    fi
+    export P3_DATA_CONTAINER="$data_container"
+fi
+[% ELSIF data_directory %]
+data_bind=",[% data_directory %]:$data_bind_destination"
+echo "Binding (original) data container directory [% data_directory %] to $data_bind_destination"
+export P3_DATA_CONTAINER="[% data_directory %]"
+[% ELSE %]
+echo "No data container was defined or bound"
+[% END %]
+export P3_DATA_BIND_DESTINATION="$data_bind_destination"
+
+#
+# Check to see if we have the NFS temp dir available, and bind if so.
+#
+nfs_tmp="/vol/patric3/tmp"
+bigtmp_bind=""
+if [[ -d $nfs_tmp ]] ; then
+    bigtmp_bind=",$nfs_tmp"
+fi
+
+singularity run \
+	    -H $WORKDIR \
+	    --env P3_WORKDIR="$WORKDIR",P3_DATA_CONTAINER="$P3_DATA_CONTAINER",P3_DATA_BIND_DESTINATION="$P3_DATA_BIND_DESTINATION" \
+	    -B $WORKDIR:/tmp${data_bind}${blast_bind}${bigtmp_bind} \
+	    --pwd /tmp \
+	    [% container_image %] \
+	    p3x-app-shepherd --app-service [% task.appserv_url %] --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
+pid_[% task.id %]=$!
+echo "Task [% task.id %] has pid $pid_[% task.id %]"
+
+[% ELSE -%]
+
+export TEMPDIR=$cluster_temp
+export TMPDIR=$cluster_temp
+
+echo "Running script [% task.script %]"
+p3x-app-shepherd --task-id [% task.id %] [% task.script %] [% task.monitor_url %] app_spec params &
+pid_[% task.id %]=$!
+echo "Task [% task.id %] has pid $pid_[% task.id %]"
+
+[% END -%]
+
+[% END -%]
+
+[% FOR task IN tasks -%]
+
+pid=$pid_[% task.id %]
+echo "Wait for task [% task.id %] $pid"
+wait $pid
+rc_[% task.id %]=$?
+echo "Task [% task.id %] exited with $rc_[% task.id %]"
+
+if [ $rc_[% task.id %] = 0 ] ; then
+   rm -rf [% cluster_temp %]/task-[% task.id %]-$SLURM_JOB_ID
+fi
+
+[% END -%]
+
+[% IF tasks.size == 1 -%]
+exit $rc_[% tasks.0.id %]
+[% ELSE -%]
+exit 0
+[% END -%]
+

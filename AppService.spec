@@ -42,6 +42,7 @@ module AppService
 	string submit_time;
 	string start_time;
 	string completed_time;
+	string elapsed_time;
 
 	string stdout_shock_node;
 	string stderr_shock_node;
@@ -70,6 +71,13 @@ module AppService
     typedef structure {
         task_id parent_id;
 	workspace_id workspace;
+	string base_url;
+	string container_id;
+	string user_metadata;
+	string reservation;
+	string data_container_id;
+	int disable_preflight;
+	mapping<string, string> preflight_data;
     } StartParams;
     funcdef start_app2(app_id, task_parameters params, StartParams start_params)
 	returns (Task task);
@@ -78,6 +86,8 @@ module AppService
 	returns (mapping<task_id, Task task> tasks);
 
     funcdef query_task_summary() returns (mapping<task_status status, int count> status);
+
+    funcdef query_app_summary() returns (mapping<app_id app, int count> status);
 
     typedef structure {
 	string stdout_url;
@@ -91,6 +101,17 @@ module AppService
     funcdef enumerate_tasks(int offset, int count)
 	returns (list<Task>);
 
+    typedef structure {
+ 	string start_time;
+	string end_time;
+	app_id app;
+	string search;
+	string status;
+    } SimpleTaskFilter;
+    funcdef enumerate_tasks_filtered(int offset, int count, SimpleTaskFilter simple_filter)
+	returns (list<Task> tasks, int total_tasks);
+
     funcdef kill_task(task_id id) returns (int killed, string msg);
-    funcdef rerun_task(task_id id) returns (task_id new_task);
+    funcdef kill_tasks(list<task_id> ids) returns (mapping<task_id, structure { int killed; string msg; }>);
+    funcdef rerun_task(task_id id) returns (Task task);
 };

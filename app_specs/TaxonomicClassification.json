@@ -1,8 +1,9 @@
 {
   "id": "TaxonomicClassification",
-  "script": "AppWrapper-TaxonomicClassification",
+  "script": "App-TaxonomicClassification",
   "label": "classify reads",
   "description": "Compute taxonomic classification for read data",
+  "default_memory": "100G",
   "parameters": [
     {
       "id": "input_type",
@@ -161,9 +162,13 @@
       "id": "database",
       "type": "enum",
       "label": "Database",
-      "default": "Default NT",
+      "default": "Kraken2",
       "enum": [
-        "Default NT"
+	  "Default NT",
+	  "Kraken2",
+	  "Greengenes",
+	  "RDP",
+	  "SILVA"
       ],
       "desc": "Target database",
       "required": 1
